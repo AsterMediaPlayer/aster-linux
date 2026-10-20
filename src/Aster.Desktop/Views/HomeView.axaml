@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             x:Class="Aster.Desktop.Views.HomeView"
+             x:DataType="vm:HomeViewModel">
+
+    <DockPanel Margin="32">
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,24">
+            <Button DockPanel.Dock="Right" Content="Sign Out" Command="{Binding SignOutCommand}" />
+            <TextBlock Text="{Binding Heading}" FontSize="24" FontWeight="SemiBold" VerticalAlignment="Center" />
+        </DockPanel>
+
+        <TextBlock DockPanel.Dock="Top" Text="{Binding Status}" Margin="0,0,0,16"
+                   IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+        <Grid ColumnDefinitions="*,32,2*">
+            <StackPanel Grid.Column="0" Spacing="8">
+                <TextBlock Text="Libraries" FontSize="18" FontWeight="SemiBold" />
+                <ItemsControl ItemsSource="{Binding Libraries}" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Spacing="8">
+                <TextBlock Text="Continue Watching" FontSize="18" FontWeight="SemiBold" />
+                <ItemsControl ItemsSource="{Binding ContinueWatching}" />
+            </StackPanel>
+        </Grid>
+    </DockPanel>
+</UserControl>

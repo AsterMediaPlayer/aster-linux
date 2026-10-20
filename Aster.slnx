@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Aster.Core/Aster.Core.csproj" />
+    <Project Path="src/Aster.Desktop/Aster.Desktop.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Aster.Core.Tests/Aster.Core.Tests.csproj" />
+  </Folder>
+</Solution>

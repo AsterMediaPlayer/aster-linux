@@ -1,0 +1,25 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             x:Class="Aster.Desktop.Views.SignInView"
+             x:DataType="vm:SignInViewModel">
+
+    <StackPanel Width="380" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <TextBlock Text="Aster" FontSize="40" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,16" />
+
+        <TextBlock Text="Server address" />
+        <TextBox Text="{Binding ServerAddress}" />
+
+        <TextBlock Text="User name" Margin="0,8,0,0" />
+        <TextBox Text="{Binding UserName}" />
+
+        <TextBlock Text="Password" Margin="0,8,0,0" />
+        <TextBox Text="{Binding Password}" PasswordChar="•" />
+
+        <Button Content="Sign In" Command="{Binding SignInCommand}" IsDefault="True"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,16,0,0" />
+
+        <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="#FF8A80"
+                   IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
+    </StackPanel>
+</UserControl>
