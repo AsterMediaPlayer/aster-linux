@@ -1,0 +1,166 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             xmlns:c="using:Aster.Desktop.Controls"
+             x:Class="Aster.Desktop.Views.DetailView"
+             x:DataType="vm:DetailViewModel">
+
+    <UserControl.Resources>
+        <DataTemplate x:Key="ChoiceTemplate" x:DataType="vm:Choice">
+            <Button Theme="{StaticResource PillButton}" Classes.selected="{Binding IsSelected}" Command="{Binding Select}"
+                    Content="{Binding Title}" MinHeight="36" Padding="16,6" />
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Panel>
+        <!-- The backdrop stays put behind the page as it scrolls. -->
+        <Panel>
+            <Border Background="#141414" />
+            <c:RemoteImage Url="{Binding Backdrop}" />
+            <Border>
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="50%,0%" EndPoint="50%,100%">
+                        <GradientStop Offset="0" Color="#1A000000" />
+                        <GradientStop Offset="0.5" Color="#8C000000" />
+                        <GradientStop Offset="1" Color="#F7000000" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+            <Border>
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,50%" EndPoint="50%,50%">
+                        <GradientStop Offset="0" Color="#B3000000" />
+                        <GradientStop Offset="1" Color="#00000000" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+        </Panel>
+
+        <ScrollViewer x:Name="Page" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="28" Margin="0,0,0,60">
+                <!-- The header: along the bottom of the window's first screen, over the backdrop. -->
+                <Panel x:Name="HeaderHost" MinHeight="520">
+                    <StackPanel Spacing="14" VerticalAlignment="Bottom" Margin="64,0,64,8">
+                        <Panel HorizontalAlignment="Left" IsVisible="{Binding SeriesName, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <c:RemoteImage x:Name="SeriesLogo" Url="{Binding SeriesLogo}" Stretch="Uniform" MaxWidth="260" MaxHeight="80" HorizontalAlignment="Left" />
+                            <TextBlock Text="{Binding SeriesName}" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource Secondary}"
+                                       IsVisible="{Binding !#SeriesLogo.HasImage}" />
+                        </Panel>
+                        <Panel HorizontalAlignment="Left">
+                            <c:RemoteImage x:Name="Logo" Url="{Binding Logo}" Stretch="Uniform" MaxWidth="420" MaxHeight="150" HorizontalAlignment="Left" />
+                            <TextBlock Text="{Binding Title}" FontSize="40" FontWeight="Bold" TextWrapping="Wrap" MaxLines="2"
+                                       IsVisible="{Binding !#Logo.HasImage}" />
+                        </Panel>
+                        <TextBlock Text="{Binding EpisodeCode}" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource Secondary}"
+                                   IsVisible="{Binding EpisodeCode, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                        <ContentControl Content="{Binding Metadata}" ContentTemplate="{StaticResource MetadataTemplate}" />
+                        <TextBlock Text="{Binding Tagline}" FontSize="18" FontStyle="Italic" Foreground="{StaticResource Secondary}"
+                                   IsVisible="{Binding Tagline, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                        <TextBlock Text="{Binding Overview}" TextWrapping="Wrap" MaxLines="5" TextTrimming="CharacterEllipsis" MaxWidth="900" HorizontalAlignment="Left" />
+                        <TextBlock Text="{Binding UpNextLine}" Foreground="{StaticResource Secondary}"
+                                   IsVisible="{Binding UpNextLine, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+                        <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,8,0,0">
+                            <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding PlayResumeCommand}" x:Name="PlayButton">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="&#xE768;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding PlayLabel}" />
+                                </StackPanel>
+                            </Button>
+                            <Button Theme="{StaticResource PillButton}" Command="{Binding PlayFromBeginningCommand}" IsVisible="{Binding Resumable}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="&#xE72C;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                                    <TextBlock Text="From Beginning" />
+                                </StackPanel>
+                            </Button>
+                            <Button Theme="{StaticResource PillButton}" Command="{Binding ToggleFavoriteCommand}" ToolTip.Tip="Favorite" Width="44" Padding="0">
+                                <Panel>
+                                    <TextBlock Text="&#xEB51;" FontFamily="{StaticResource IconFont}" IsVisible="{Binding IsFavorite}" HorizontalAlignment="Center" />
+                                    <TextBlock Text="&#xEB52;" FontFamily="{StaticResource IconFont}" IsVisible="{Binding !IsFavorite}" HorizontalAlignment="Center" />
+                                </Panel>
+                            </Button>
+                            <Button Theme="{StaticResource PillButton}" Command="{Binding TogglePlayedCommand}" IsVisible="{Binding ShowsWatched}"
+                                    ToolTip.Tip="Watched" Width="44" Padding="0">
+                                <Panel>
+                                    <TextBlock Text="&#xEC61;" FontFamily="{StaticResource IconFont}" IsVisible="{Binding IsPlayed}" HorizontalAlignment="Center" />
+                                    <TextBlock Text="&#xE930;" FontFamily="{StaticResource IconFont}" IsVisible="{Binding !IsPlayed}" HorizontalAlignment="Center" />
+                                </Panel>
+                            </Button>
+                            <Button Theme="{StaticResource PillButton}" Command="{Binding GoToSeriesCommand}" IsVisible="{Binding CanGoToSeries}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="&#xE7F4;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                                    <TextBlock Text="Go to Series" />
+                                </StackPanel>
+                            </Button>
+                            <TextBlock Text="{Binding Remaining}" Foreground="{StaticResource Secondary}" VerticalAlignment="Center" Margin="6,0"
+                                       IsVisible="{Binding Remaining, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding Message}" Foreground="#FF8A80"
+                                   IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    </StackPanel>
+                </Panel>
+
+                <!-- A show's page in tabs, so its episodes, extras and details aren't one long scroll. -->
+                <ItemsControl ItemsSource="{Binding Sections}" ItemTemplate="{StaticResource ChoiceTemplate}" Margin="{StaticResource ScreenPadding}"
+                              IsVisible="{Binding UsesSections}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="10" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+
+                <StackPanel Spacing="8" IsVisible="{Binding ShowsEpisodes}">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding Seasons}" ItemTemplate="{StaticResource ChoiceTemplate}" Margin="48,0,48,8">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="10" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <c:ShelfView Title="Episodes" Items="{Binding Episodes}" ItemTemplate="{StaticResource LandscapeCard}" />
+                </StackPanel>
+
+                <!-- An episode's page: the rest of its season, the next one in view. -->
+                <c:ShelfView Title="Episodes" Items="{Binding SeasonEpisodes}" ItemTemplate="{StaticResource LandscapeCard}" ScrollTarget="{Binding StripTarget}" />
+
+                <c:ShelfView Title="Extras" Items="{Binding Extras}" ItemTemplate="{StaticResource LandscapeCard}" IsVisible="{Binding ShowsExtras}" />
+                <c:ShelfView Title="Related" Items="{Binding Similar}" ItemTemplate="{StaticResource LandscapeCard}" IsVisible="{Binding ShowsRelated}" />
+
+                <StackPanel Spacing="28" IsVisible="{Binding ShowsDetails}">
+                    <c:ShelfView Title="Cast &amp; Crew" Items="{Binding Cast}" ItemTemplate="{StaticResource PersonCard}" />
+                    <StackPanel Spacing="16" Margin="{StaticResource ScreenPadding}"
+                                IsVisible="{Binding HasInformation}">
+                        <TextBlock Text="Information" FontSize="20" FontWeight="SemiBold" />
+                        <ItemsControl ItemsSource="{Binding Information}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="3" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:InfoRow">
+                                    <StackPanel Spacing="4" Margin="0,0,24,20">
+                                        <TextBlock Text="{Binding Label}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Secondary}" />
+                                        <TextBlock Text="{Binding Value}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Command="{Binding BackCommand}" ToolTip.Tip="Back (Alt+←)" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
+                Width="44" Height="44" CornerRadius="22" Background="#B3000000" Foreground="White" HorizontalContentAlignment="Center">
+            <TextBlock Text="&#xE72B;" FontFamily="{StaticResource IconFont}" />
+        </Button>
+
+        <ProgressBar IsIndeterminate="True" Width="200" IsVisible="{Binding IsLoading}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        <TextBlock Text="{Binding ErrorMessage}" IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="560" />
+    </Panel>
+</UserControl>

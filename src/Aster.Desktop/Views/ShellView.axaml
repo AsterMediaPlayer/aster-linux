@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             x:Class="Aster.Desktop.Views.ShellView"
+             x:DataType="vm:ShellViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Button.nav">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid ColumnDefinitions="200,*">
+        <!-- The sidebar. -->
+        <Border Grid.Column="0" Background="#141414" BorderBrush="#22FFFFFF" BorderThickness="0,0,1,0" Padding="12,20">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Aster" FontSize="24" FontWeight="Bold" Margin="14,0,0,24" />
+                <StackPanel DockPanel.Dock="Bottom" Spacing="4">
+                    <TextBlock Text="{Binding UserName}" FontWeight="SemiBold" Margin="14,0" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding ServerName}" FontSize="12" Foreground="{StaticResource Secondary}" Margin="14,0,14,8" TextTrimming="CharacterEllipsis" />
+                    <Button Classes="nav" Command="{Binding SignOutCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBlock Text="&#xF3B1;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                            <TextBlock Text="Sign Out" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+                <StackPanel Spacing="2">
+                    <Button Classes="nav" Command="{Binding ShowHomeCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBlock Text="&#xE80F;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                            <TextBlock Text="Home" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- The page. -->
+        <ContentControl Grid.Column="1" Content="{Binding CurrentPage}" />
+    </Grid>
+</UserControl>

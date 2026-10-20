@@ -1,0 +1,156 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:vm="using:Aster.Desktop.ViewModels"
+                    xmlns:c="using:Aster.Desktop.Controls">
+
+    <!-- Sizes, after the Apple app's Lockup, at a desktop window's scale. -->
+    <x:Double x:Key="LandscapeWidth">300</x:Double>
+    <x:Double x:Key="LandscapeHeight">169</x:Double>
+    <x:Double x:Key="PersonPhoto">120</x:Double>
+    <x:Double x:Key="PersonWidth">136</x:Double>
+    <Thickness x:Key="ScreenPadding">48,0</Thickness>
+    <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+    <SolidColorBrush x:Key="Secondary" Color="#B3FFFFFF" />
+    <SolidColorBrush x:Key="CardBackground" Color="#262626" />
+
+    <!-- A card's picture as a button: no chrome, a lift and an outline on hover or keyboard focus. -->
+    <ControlTheme x:Key="CardButton" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource CardBackground}" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+            </Transitions>
+        </Setter>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Panel>
+                    <Border Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}" ClipToBounds="True">
+                        <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
+                    </Border>
+                    <Border Name="Highlight" CornerRadius="{TemplateBinding CornerRadius}" BorderThickness="3" BorderBrush="Transparent" />
+                </Panel>
+            </ControlTemplate>
+        </Setter>
+        <Style Selector="^:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.04)" />
+        </Style>
+        <Style Selector="^:pointerover /template/ Border#Highlight">
+            <Setter Property="BorderBrush" Value="#E6FFFFFF" />
+        </Style>
+        <Style Selector="^:focus-visible">
+            <Setter Property="RenderTransform" Value="scale(1.04)" />
+        </Style>
+        <Style Selector="^:focus-visible /template/ Border#Highlight">
+            <Setter Property="BorderBrush" Value="White" />
+        </Style>
+        <Style Selector="^:pressed">
+            <Setter Property="RenderTransform" Value="scale(1.0)" />
+        </Style>
+    </ControlTheme>
+
+    <!-- A page's pill buttons: grey with white, or white with black for the main action. -->
+    <ControlTheme x:Key="PillButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="#4DFFFFFF" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Padding" Value="18,10" />
+        <Setter Property="CornerRadius" Value="22" />
+        <Setter Property="MinHeight" Value="44" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Style Selector="^:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#73FFFFFF" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="^.prominent">
+            <Setter Property="Background" Value="#F2FFFFFF" />
+            <Setter Property="Foreground" Value="Black" />
+        </Style>
+        <Style Selector="^.prominent:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="Black" />
+        </Style>
+        <Style Selector="^.selected">
+            <Setter Property="Background" Value="#F2FFFFFF" />
+            <Setter Property="Foreground" Value="Black" />
+        </Style>
+        <Style Selector="^.selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="Black" />
+        </Style>
+    </ControlTheme>
+
+    <!-- "2019 · PG-13 · 2 hr 9 min · Action" with its badge and rating. -->
+    <DataTemplate x:Key="MetadataTemplate" x:DataType="vm:MetadataLine">
+        <StackPanel Orientation="Horizontal" Spacing="14">
+            <TextBlock Text="{Binding Text}" Foreground="{StaticResource Secondary}" VerticalAlignment="Center" />
+            <Border IsVisible="{Binding HasBadge}" BorderBrush="#99FFFFFF" BorderThickness="1.5" CornerRadius="4" Padding="6,1" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Badge}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Secondary}" />
+            </Border>
+            <StackPanel IsVisible="{Binding HasRating}" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                <TextBlock Text="&#xE735;" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="{StaticResource Secondary}" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Rating}" Foreground="{StaticResource Secondary}" />
+            </StackPanel>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- 16:9 artwork with a title underneath, the Apple TV app's standard lockup. -->
+    <DataTemplate x:Key="LandscapeCard" x:DataType="vm:ItemCard">
+        <StackPanel Width="{StaticResource LandscapeWidth}" Spacing="8">
+            <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}"
+                    Width="{StaticResource LandscapeWidth}" Height="{StaticResource LandscapeHeight}"
+                    ToolTip.Tip="{Binding Title}">
+                <Button.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="{Binding PlayLabel}" Command="{Binding PlayCommand}" IsVisible="{Binding CanPlay}" />
+                        <MenuItem Header="Play from Beginning" Command="{Binding PlayFromBeginningCommand}" IsVisible="{Binding CanPlayFromBeginning}" />
+                        <MenuItem Header="Open" Command="{Binding OpenCommand}" />
+                        <MenuItem Header="Go to Series" Command="{Binding GoToSeriesCommand}" IsVisible="{Binding CanGoToSeries}" />
+                        <MenuItem Header="Go to Season" Command="{Binding GoToSeasonCommand}" IsVisible="{Binding CanGoToSeason}" />
+                        <Separator IsVisible="{Binding HasMenu}" />
+                        <MenuItem Header="{Binding WatchedLabel}" Command="{Binding ToggleWatchedCommand}" IsVisible="{Binding HasMenu}" />
+                        <MenuItem Header="{Binding FavoriteLabel}" Command="{Binding ToggleFavoriteCommand}" IsVisible="{Binding HasMenu}" />
+                    </ContextMenu>
+                </Button.ContextMenu>
+                <Panel>
+                    <TextBlock Text="{Binding Placeholder}" FontFamily="{StaticResource IconFont}" FontSize="36" Opacity="0.35"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <c:RemoteImage Url="{Binding Image}" />
+                    <ProgressBar IsVisible="{Binding HasProgress}" Value="{Binding Progress}" Minimum="0" Maximum="100"
+                                 VerticalAlignment="Bottom" Margin="12,0,12,10" MinHeight="5" Height="5" CornerRadius="3"
+                                 Foreground="White" Background="#4DFFFFFF" />
+                    <Ellipse IsVisible="{Binding ShowsUnplayed}" Width="14" Height="14" Fill="{DynamicResource SystemAccentColor}"
+                             HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10" />
+                    <TextBlock IsVisible="{Binding ClickPlays}" Text="&#xE768;" FontFamily="{StaticResource IconFont}" FontSize="40"
+                               Foreground="#D9FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Panel>
+            </Button>
+            <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
+                           IsVisible="{Binding Subtitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            </StackPanel>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- A cast or crew member: round picture, name and role. -->
+    <DataTemplate x:Key="PersonCard" x:DataType="vm:ItemCard">
+        <StackPanel Width="{StaticResource PersonWidth}" Spacing="8">
+            <Border Width="{StaticResource PersonPhoto}" Height="{StaticResource PersonPhoto}" CornerRadius="60" ClipToBounds="True"
+                    Background="{StaticResource CardBackground}" HorizontalAlignment="Center">
+                <Panel>
+                    <TextBlock Text="{Binding Placeholder}" FontFamily="{StaticResource IconFont}" FontSize="36" Opacity="0.35"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <c:RemoteImage Url="{Binding Image}" />
+                </Panel>
+            </Border>
+            <TextBlock Text="{Binding Title}" FontWeight="Medium" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" HorizontalAlignment="Center"
+                       TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+    </DataTemplate>
+</ResourceDictionary>

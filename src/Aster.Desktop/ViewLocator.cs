@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Aster.Desktop.ViewModels;
@@ -7,26 +8,35 @@ using Aster.Desktop.ViewModels;
 namespace Aster.Desktop;
 
 /// <summary>
-/// Given a view model, returns the corresponding view if possible.
+/// Given a view model, returns its view: FooViewModel's is FooView. Each
+/// view model keeps its view, so a page gone back to is as it was left,
+/// scrolled where it was.
 /// </summary>
 [RequiresUnreferencedCode(
     "Default implementation of ViewLocator involves reflection which may be trimmed away.",
     Url = "https://docs.avaloniaui.net/docs/concepts/view-locator")]
 public class ViewLocator : IDataTemplate
 {
+    private static readonly ConditionalWeakTable<object, Control> views = new();
+
     public Control? Build(object? param)
     {
         if (param is null)
             return null;
-        
+
+        if (views.TryGetValue(param, out var kept) && kept.Parent is null)
+            return kept;
+
         var name = param.GetType().FullName!.Replace("ViewModel", "View", StringComparison.Ordinal);
         var type = Type.GetType(name);
 
         if (type != null)
         {
-            return (Control)Activator.CreateInstance(type)!;
+            var view = (Control)Activator.CreateInstance(type)!;
+            views.AddOrUpdate(param, view);
+            return view;
         }
-        
+
         return new TextBlock { Text = "Not Found: " + name };
     }
 

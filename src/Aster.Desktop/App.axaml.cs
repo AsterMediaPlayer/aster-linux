@@ -30,7 +30,8 @@ public partial class App : Application
             var bitrate = System.Array.IndexOf(args, "--max-bitrate") is var b and >= 0 && b + 1 < args.Length && int.TryParse(args[b + 1], out var cap) ? cap : (int?)null;
             var start = System.Array.IndexOf(args, "--start") is var s and >= 0 && s + 1 < args.Length
                 && double.TryParse(args[s + 1], System.Globalization.CultureInfo.InvariantCulture, out var seconds) ? seconds : (double?)null;
-            var main = new MainViewModel(play, bitrate, start);
+            var open = System.Array.IndexOf(args, "--open") is var o and >= 0 && o + 1 < args.Length ? args[o + 1] : null;
+            var main = new MainViewModel(play, bitrate, start, open);
             desktop.MainWindow = new MainWindow { DataContext = main };
             desktop.ShutdownRequested += (_, _) => main.Shutdown();
             System.Threading.Tasks.Task.Run(() => Aster.Core.Jellyfin.ImageCache.Trim());

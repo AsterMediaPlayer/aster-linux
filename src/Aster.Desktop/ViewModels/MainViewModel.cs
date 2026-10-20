@@ -1,27 +1,31 @@
+using System;
 using System.Threading.Tasks;
 using Aster.Core.Jellyfin;
 using Aster.Core.Playback;
+using Aster.Desktop.Images;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Aster.Desktop.ViewModels;
 
-/// <summary>Which screen the window shows: sign-in, Home, or the player.</summary>
+/// <summary>What the window shows: sign-in, the app (sidebar and pages), or the player over it all.</summary>
 public partial class MainViewModel : ViewModelBase
 {
     [ObservableProperty]
     public partial ViewModelBase? CurrentPage { get; set; }
 
-    private HomeViewModel? home;
+    private ShellViewModel? shell;
 
     /// <param name="playItemId">A title to play straight away (<c>--play &lt;id&gt;</c>), for development.</param>
     /// <param name="maxBitrate">A quality cap for that title (<c>--max-bitrate</c>), to try converted streams.</param>
     /// <param name="startSeconds">Where to start that title (<c>--start</c>), instead of its resume point.</param>
-    public MainViewModel(string? playItemId = null, int? maxBitrate = null, double? startSeconds = null)
+    /// <param name="openItemId">A title's page to open straight away (<c>--open &lt;id&gt;</c>), for development.</param>
+    public MainViewModel(string? playItemId = null, int? maxBitrate = null, double? startSeconds = null, string? openItemId = null)
     {
         if ((DevelopmentSession() ?? StoredSession.Load()) is { } session)
         {
             var client = new JellyfinClient(session.ServerUrl, session.AccessToken, session.UserId);
-            ShowHome(client, session);
+            ShowShell(client, session);
+            if (openItemId is not null) shell!.Open(new BaseItem { Id = openItemId });
             if (playItemId is not null) _ = PlayByIdAsync(client, playItemId, maxBitrate, startSeconds);
         }
         else
@@ -38,12 +42,12 @@ public partial class MainViewModel : ViewModelBase
     private static StoredSession? DevelopmentSession()
     {
 #if DEBUG
-        var server = System.Environment.GetEnvironmentVariable("ASTER_SERVER");
-        var token = System.Environment.GetEnvironmentVariable("ASTER_TOKEN");
-        var user = System.Environment.GetEnvironmentVariable("ASTER_USER_ID");
+        var server = Environment.GetEnvironmentVariable("ASTER_SERVER");
+        var token = Environment.GetEnvironmentVariable("ASTER_TOKEN");
+        var user = Environment.GetEnvironmentVariable("ASTER_USER_ID");
         if (server is not null && token is not null && user is not null)
         {
-            return new StoredSession { ServerUrl = new System.Uri(server), UserId = user, UserName = "Development", AccessToken = token };
+            return new StoredSession { ServerUrl = new Uri(server), UserId = user, UserName = "Development", AccessToken = token };
         }
 #endif
         return null;
@@ -51,32 +55,38 @@ public partial class MainViewModel : ViewModelBase
 
     private void ShowSignIn(string? message = null)
     {
-        home = null;
-        CurrentPage = new SignInViewModel(ShowHome) { Message = message };
+        shell = null;
+        ImageLoader.Client = null;
+        CurrentPage = new SignInViewModel(ShowShell) { Message = message };
     }
 
-    private void ShowHome(JellyfinClient client, StoredSession session)
+    private void ShowShell(JellyfinClient client, StoredSession session)
     {
-        home = new HomeViewModel(client, session, SignOutAsync, item => Play(client, item));
-        CurrentPage = home;
+        ImageLoader.Client = client;
+        shell = new ShellViewModel(client, session, (entry, closed) => Play(client, entry, closed), expired => SignOutAsync(client, expired));
+        CurrentPage = shell;
     }
 
-    /// <summary>Plays a title from where it was left, as Home does.</summary>
+    /// <summary>Plays over everything; closing comes back to the page it was played from.</summary>
+    private void Play(JellyfinClient client, PlaybackQueueItem entry, Action<BaseItem?>? closed)
+    {
+        CurrentPage = new PlayerViewModel(client, entry, last =>
+        {
+            CurrentPage = shell;
+            closed?.Invoke(last);
+        });
+    }
+
+    /// <summary>Plays a title from where it was left (or <paramref name="startSeconds"/>), for <c>--play</c>.</summary>
     private async Task PlayByIdAsync(JellyfinClient client, string itemId, int? maxBitrate, double? startSeconds)
     {
-        try { Play(client, await client.ItemAsync(itemId), maxBitrate, startSeconds); }
-        catch (System.Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException) { }
-    }
-
-    private void Play(JellyfinClient client, BaseItem item, int? maxBitrate = null, double? startSeconds = null)
-    {
-        var start = startSeconds is { } seconds ? (long)(seconds * 10_000_000) : item.UserData?.PlaybackPositionTicks ?? 0;
-        var entry = new PlaybackQueueItem { ItemId = item.Id, StartTicks = start, MaxBitrate = maxBitrate };
-        CurrentPage = new PlayerViewModel(client, entry, () =>
+        try
         {
-            CurrentPage = home;
-            home?.Refresh();
-        });
+            var item = await client.ItemAsync(itemId);
+            var start = startSeconds is { } seconds ? (long)(seconds * 10_000_000) : item.UserData?.PlaybackPositionTicks ?? 0;
+            shell?.Play(new PlaybackQueueItem { ItemId = item.Id, StartTicks = start, MaxBitrate = maxBitrate });
+        }
+        catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException) { }
     }
 
     private async Task SignOutAsync(JellyfinClient client, bool expired)

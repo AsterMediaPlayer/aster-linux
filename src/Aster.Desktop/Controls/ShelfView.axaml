@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Aster.Desktop.Controls.ShelfView"
+             x:Name="Root">
+    <StackPanel Spacing="4">
+        <TextBlock Text="{Binding #Root.Title}" FontSize="20" FontWeight="SemiBold" Margin="{StaticResource ScreenPadding}" />
+        <Panel>
+            <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+                <ItemsControl x:Name="Row" ItemsSource="{Binding #Root.Items}" ItemTemplate="{Binding #Root.ItemTemplate}"
+                              Margin="{StaticResource ScreenPadding}" Padding="0,12">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="20" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </ScrollViewer>
+            <!-- A mouse wheel scrolls the page, so the row pages with these. -->
+            <Button x:Name="PageLeft" Classes="shelfArrow" HorizontalAlignment="Left" ToolTip.Tip="Back">
+                <TextBlock Text="&#xE76B;" FontFamily="{StaticResource IconFont}" />
+            </Button>
+            <Button x:Name="PageRight" Classes="shelfArrow" HorizontalAlignment="Right" ToolTip.Tip="More">
+                <TextBlock Text="&#xE76C;" FontFamily="{StaticResource IconFont}" />
+            </Button>
+        </Panel>
+    </StackPanel>
+
+    <UserControl.Styles>
+        <Style Selector="Button.shelfArrow">
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="80" />
+            <Setter Property="Margin" Value="4,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="#B0000000" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="#Root:pointerover Button.shelfArrow:not(.end)">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <Style Selector="Button.shelfArrow.end">
+            <Setter Property="IsHitTestVisible" Value="False" />
+        </Style>
+    </UserControl.Styles>
+</UserControl>

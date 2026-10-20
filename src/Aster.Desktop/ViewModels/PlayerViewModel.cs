@@ -32,7 +32,7 @@ public sealed record TrackChoice(int Id, string Title, bool IsSelected, IRelayCo
 public partial class PlayerViewModel : ViewModelBase
 {
     private readonly JellyfinClient client;
-    private readonly Action close;
+    private readonly Action<BaseItem?> close;
     private readonly AppSettings settings = AppSettings.Current;
     private PlaybackQueueItem entry;
     private PlaybackPreferences? preferences;
@@ -74,7 +74,8 @@ public partial class PlayerViewModel : ViewModelBase
     private DispatcherTimer? skipOfferTimer;
     private readonly DispatcherTimer toastTimer = new() { Interval = TimeSpan.FromSeconds(1.5) };
 
-    public PlayerViewModel(JellyfinClient client, PlaybackQueueItem entry, Action close)
+    /// <param name="close">Called as the player closes, with the last title it played.</param>
+    public PlayerViewModel(JellyfinClient client, PlaybackQueueItem entry, Action<BaseItem?> close)
     {
         this.client = client;
         this.entry = entry;
@@ -902,7 +903,7 @@ public partial class PlayerViewModel : ViewModelBase
     private void Close()
     {
         Stop();
-        close();
+        close(Item);
     }
 
     /// <summary>Stops playback and tells the server where it ended. Safe to call twice.</summary>

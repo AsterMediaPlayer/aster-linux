@@ -8,7 +8,7 @@ file by file, so keep the two in step when either changes.
 | --- | --- |
 | `src/Aster.Core` | Jellyfin client, models, device profile, resume points, session storage (Windows Credential Manager), subtitle and trickplay helpers, JellyDisc models |
 | `src/Aster.Mpv` | Bindings for libmpv: the player, its events, and OpenGL rendering into the UI |
-| `src/Aster.Desktop` | The Avalonia app: sign-in, a first Home screen, and the player |
+| `src/Aster.Desktop` | The Avalonia app: sign-in, Home, title pages, and the player |
 | `tests/Aster.Core.Tests` | xUnit tests for the core (against a stub server) and for libmpv (with a clip made by ffmpeg, when it's installed) |
 
 ## Build and run
@@ -28,7 +28,8 @@ These leave the saved session alone:
 
 - `ASTER_SERVER`, `ASTER_TOKEN` (an API key or access token) and
   `ASTER_USER_ID` sign in for that run.
-- `--play <itemId>` opens a title straight away, from its resume point;
+- `--open <itemId>` opens a title's page.
+- `--play <itemId>` plays a title straight away, from its resume point;
   `--start <seconds>` and `--max-bitrate <bps>` change where it starts and
   cap its quality (which makes the server convert it).
 - `ASTER_LOG=<file>` writes the app's and mpv's messages to a file:
@@ -36,6 +37,29 @@ These leave the saved session alone:
 
 Playing a title this way reports progress and saves resume points like
 any other playback.
+
+## Browsing
+
+Home is the Apple app's: a featured banner as tall as the window (up to 8
+titles from Continue Watching, Up Next and the newest movies and shows, its
+Play starting the title with its page behind), then Continue Watching, Up
+Next, the newest movies, shows and anime, and a shelf per other library.
+Anime libraries are told apart as the Apple app does, by sampling titles for
+Shoko/AniDB ids.
+
+A title's page has its backdrop, logo, details and actions (Play, Resume
+or Play Next, From Beginning, favourite, watched, Go to Series), then for a
+show or season tabs of episodes by season, extras, related and details;
+for an episode the rest of its season, the next one in view; for a movie
+its extras, related titles, cast and information. Right-clicking a card
+gives the Apple app's long-press menu. After playing, a page shows where
+viewing got to, following on to a later episode that played by itself.
+
+Back: the page's arrow, the mouse's back button, Alt+← or Backspace.
+
+Not yet: the sidebar's other tabs (Movies, TV Shows, Anime, Music, Live TV,
+Library, Search, Settings), person pages, theme music and videos, disc
+menus, openings and endings, playlists.
 
 ## The player
 
