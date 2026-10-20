@@ -1,0 +1,133 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             xmlns:c="using:Aster.Desktop.Controls"
+             x:Class="Aster.Desktop.Views.BrowsePageView"
+             x:DataType="vm:BrowsePageViewModel">
+
+    <UserControl.DataTemplates>
+        <DataTemplate DataType="vm:HeroRow">
+            <c:HeroBanner DataContext="{Binding Hero}" Height="{Binding $parent[UserControl;1].((vm:BrowsePageViewModel)DataContext).HeroHeight}" Margin="0,0,0,20" />
+        </DataTemplate>
+
+        <DataTemplate DataType="vm:TitleRow">
+            <DockPanel Classes="title" Classes.pushed="{Binding Page.IsPushed}">
+                <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding Page.SortTitles}" SelectedIndex="{Binding Page.SortIndex}"
+                          IsVisible="{Binding Page.ShowsSort}" MinWidth="170" VerticalAlignment="Center" ToolTip.Tip="Sort by" />
+                <TextBlock Text="{Binding Title}" FontSize="32" FontWeight="Bold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            </DockPanel>
+        </DataTemplate>
+
+        <DataTemplate DataType="vm:LandscapeShelfRow">
+            <c:ShelfView Title="{Binding Shelf.Title}" Items="{Binding Shelf.Cards}" ItemTemplate="{StaticResource LandscapeCard}" Margin="0,0,0,16" />
+        </DataTemplate>
+
+        <DataTemplate DataType="vm:PosterShelfRow">
+            <c:ShelfView Title="{Binding Shelf.Title}" Items="{Binding Shelf.Cards}" ItemTemplate="{StaticResource PosterCard}" Margin="0,0,0,16" />
+        </DataTemplate>
+
+        <DataTemplate DataType="vm:TileShelfRow">
+            <c:ShelfView Title="{Binding Shelf.Title}" Items="{Binding Shelf.Cards}" ItemTemplate="{StaticResource TileCard}" Margin="0,0,0,16" />
+        </DataTemplate>
+
+        <DataTemplate DataType="vm:HeadingRow">
+            <Panel>
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" Margin="48,20,48,8" IsVisible="{Binding !IsLetter}" />
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource Secondary}" Margin="48,16,48,4"
+                           IsVisible="{Binding IsLetter}" />
+            </Panel>
+        </DataTemplate>
+
+        <DataTemplate DataType="vm:PosterCardsRow">
+            <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource PosterCard}" Margin="48,10,48,14">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="24" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </DataTemplate>
+
+        <DataTemplate DataType="vm:LandscapeCardsRow">
+            <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource LandscapeCard}" Margin="48,10,48,14">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="24" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </DataTemplate>
+
+        <DataTemplate DataType="vm:StatusRow">
+            <StackPanel Spacing="10" Margin="48,60" HorizontalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="200" IsVisible="{Binding IsLoading}" />
+                <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" IsVisible="{Binding !IsLoading}" />
+                <TextBlock Text="{Binding Detail}" Foreground="{StaticResource Secondary}" TextWrapping="Wrap" MaxWidth="600" TextAlignment="Center"
+                           IsVisible="{Binding Detail, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate DataType="vm:PersonRow">
+            <Grid ColumnDefinitions="Auto,*" Margin="48,80,48,12">
+                <Border Grid.Column="0" Width="160" Height="160" CornerRadius="80" ClipToBounds="True" Background="{StaticResource CardBackground}" VerticalAlignment="Top">
+                    <Panel>
+                        <TextBlock Text="&#xE77B;" FontFamily="{StaticResource IconFont}" FontSize="48" Opacity="0.35"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <c:RemoteImage Url="{Binding Photo}" />
+                    </Panel>
+                </Border>
+                <StackPanel Grid.Column="1" Spacing="12" MaxWidth="900" Margin="28,0,0,0" HorizontalAlignment="Left">
+                    <TextBlock Text="{Binding Name}" FontSize="32" FontWeight="Bold" />
+                    <TextBlock Text="{Binding Overview}" Foreground="{StaticResource Secondary}" TextWrapping="Wrap" MaxLines="6" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+    </UserControl.DataTemplates>
+
+    <Panel>
+        <ScrollViewer x:Name="Page" HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl x:Name="List" ItemsSource="{Binding Rows}" Padding="0,0,0,60">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <VirtualizingStackPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Sorted by name: a letter jumps to its section. -->
+        <Border HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0" Padding="2,6" CornerRadius="12" Background="#99000000"
+                IsVisible="{Binding HasIndex}">
+            <ItemsControl x:Name="Index" ItemsSource="{Binding IndexKeys}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <Button Content="{Binding}" Classes="indexLetter" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Border>
+
+        <Button x:Name="BackButton" ToolTip.Tip="Back (Alt+←)" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
+                Width="44" Height="44" CornerRadius="22" Background="#B3000000" Foreground="White" HorizontalContentAlignment="Center">
+            <TextBlock Text="&#xE72B;" FontFamily="{StaticResource IconFont}" />
+        </Button>
+    </Panel>
+
+    <UserControl.Styles>
+        <Style Selector="DockPanel.title">
+            <Setter Property="Margin" Value="48,28,48,12" />
+        </Style>
+        <Style Selector="DockPanel.title.pushed">
+            <Setter Property="Margin" Value="48,80,48,12" />
+        </Style>
+        <Style Selector="Button.indexLetter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="6,1" />
+            <Setter Property="MinWidth" Value="24" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource SystemAccentColorLight2}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+    </UserControl.Styles>
+</UserControl>

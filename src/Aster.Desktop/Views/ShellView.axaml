@@ -12,6 +12,10 @@
             <Setter Property="Padding" Value="14,10" />
             <Setter Property="CornerRadius" Value="8" />
         </Style>
+        <Style Selector="Button.nav.selected">
+            <Setter Property="Background" Value="#26FFFFFF" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
     </UserControl.Styles>
 
     <Grid ColumnDefinitions="200,*">
@@ -22,21 +26,39 @@
                 <StackPanel DockPanel.Dock="Bottom" Spacing="4">
                     <TextBlock Text="{Binding UserName}" FontWeight="SemiBold" Margin="14,0" TextTrimming="CharacterEllipsis" />
                     <TextBlock Text="{Binding ServerName}" FontSize="12" Foreground="{StaticResource Secondary}" Margin="14,0,14,8" TextTrimming="CharacterEllipsis" />
-                    <Button Classes="nav" Command="{Binding SignOutCommand}">
+                    <!-- Asks first: a stray click or Enter shouldn't sign anyone out. -->
+                    <Button Classes="nav">
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <TextBlock Text="&#xF3B1;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
                             <TextBlock Text="Sign Out" />
                         </StackPanel>
+                        <Button.Flyout>
+                            <Flyout Placement="RightEdgeAlignedBottom">
+                                <StackPanel Spacing="12" MaxWidth="260">
+                                    <TextBlock Text="{Binding ServerName, StringFormat='Sign out of {0}?'}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                                    <Button Content="Sign Out" Command="{Binding SignOutCommand}" HorizontalAlignment="Right" />
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
                     </Button>
                 </StackPanel>
-                <StackPanel Spacing="2">
-                    <Button Classes="nav" Command="{Binding ShowHomeCommand}">
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <TextBlock Text="&#xE80F;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
-                            <TextBlock Text="Home" />
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
+                <ItemsControl ItemsSource="{Binding Tabs}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="2" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:SidebarTab">
+                            <Button Classes="nav" Classes.selected="{Binding IsSelected}" Command="{Binding Select}">
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <TextBlock Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Title}" />
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </DockPanel>
         </Border>
 

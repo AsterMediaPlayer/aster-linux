@@ -15,17 +15,27 @@ public partial class MainViewModel : ViewModelBase
 
     private ShellViewModel? shell;
 
+    /// <summary>Signed in from the ASTER_* variables: signing out leaves the saved session alone.</summary>
+    private bool developmentSession;
+
     /// <param name="playItemId">A title to play straight away (<c>--play &lt;id&gt;</c>), for development.</param>
     /// <param name="maxBitrate">A quality cap for that title (<c>--max-bitrate</c>), to try converted streams.</param>
     /// <param name="startSeconds">Where to start that title (<c>--start</c>), instead of its resume point.</param>
     /// <param name="openItemId">A title's page to open straight away (<c>--open &lt;id&gt;</c>), for development.</param>
-    public MainViewModel(string? playItemId = null, int? maxBitrate = null, double? startSeconds = null, string? openItemId = null)
+    /// <param name="tab">A sidebar tab to start on (<c>--tab movies</c>), for development.</param>
+    /// <param name="sort">That tab's sort (<c>--sort DateAdded</c>), for development.</param>
+    public MainViewModel(string? playItemId = null, int? maxBitrate = null, double? startSeconds = null, string? openItemId = null, AppTab? tab = null,
+        Aster.Core.Browsing.LibrarySort? sort = null)
     {
-        if ((DevelopmentSession() ?? StoredSession.Load()) is { } session)
+        var development = DevelopmentSession();
+        developmentSession = development is not null;
+        if ((development ?? StoredSession.Load()) is { } session)
         {
             var client = new JellyfinClient(session.ServerUrl, session.AccessToken, session.UserId);
             ShowShell(client, session);
-            if (openItemId is not null) shell!.Open(new BaseItem { Id = openItemId });
+            if (tab is { } startTab) shell!.ShowTab(startTab);
+            if (sort is { } startSort && shell!.CurrentPage is BrowsePageViewModel page) page.SortIndex = (int)startSort;
+            if (openItemId is not null) _ = OpenByIdAsync(client, openItemId);
             if (playItemId is not null) _ = PlayByIdAsync(client, playItemId, maxBitrate, startSeconds);
         }
         else
@@ -77,6 +87,13 @@ public partial class MainViewModel : ViewModelBase
         });
     }
 
+    /// <summary>Opens a page for <c>--open</c>: looked up first, so a library or person opens as one would from a card.</summary>
+    private async Task OpenByIdAsync(JellyfinClient client, string itemId)
+    {
+        try { shell?.Open(await client.ItemAsync(itemId)); }
+        catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException) { }
+    }
+
     /// <summary>Plays a title from where it was left (or <paramref name="startSeconds"/>), for <c>--play</c>.</summary>
     private async Task PlayByIdAsync(JellyfinClient client, string itemId, int? maxBitrate, double? startSeconds)
     {
@@ -91,6 +108,13 @@ public partial class MainViewModel : ViewModelBase
 
     private async Task SignOutAsync(JellyfinClient client, bool expired)
     {
+        if (developmentSession)
+        {
+            // Neither ends the key's access nor forgets the real sign-in.
+            developmentSession = false;
+            ShowSignIn("Signed out of the development session.");
+            return;
+        }
         if (!expired) await client.LogoutAsync();
         StoredSession.Clear();
         ShowSignIn(expired ? "Your session has ended. Please sign in again." : null);

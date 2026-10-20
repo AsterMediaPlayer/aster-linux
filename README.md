@@ -8,7 +8,7 @@ file by file, so keep the two in step when either changes.
 | --- | --- |
 | `src/Aster.Core` | Jellyfin client, models, device profile, resume points, session storage (Windows Credential Manager), subtitle and trickplay helpers, JellyDisc models |
 | `src/Aster.Mpv` | Bindings for libmpv: the player, its events, and OpenGL rendering into the UI |
-| `src/Aster.Desktop` | The Avalonia app: sign-in, Home, title pages, and the player |
+| `src/Aster.Desktop` | The Avalonia app: sign-in, Home, Movies, TV Shows, Anime, Library, title and person pages, and the player |
 | `tests/Aster.Core.Tests` | xUnit tests for the core (against a stub server) and for libmpv (with a clip made by ffmpeg, when it's installed) |
 
 ## Build and run
@@ -28,7 +28,9 @@ These leave the saved session alone:
 
 - `ASTER_SERVER`, `ASTER_TOKEN` (an API key or access token) and
   `ASTER_USER_ID` sign in for that run.
-- `--open <itemId>` opens a title's page.
+- `--open <itemId>` opens a title's (or library's, or person's) page.
+- `--tab <movies|shows|anime|library>` starts on a tab; `--sort <Name|DateAdded|ReleaseDate|Rating>` sorts it.
+- Signing out of such a session only ends it; the saved sign-in is left alone.
 - `--play <itemId>` plays a title straight away, from its resume point;
   `--start <seconds>` and `--max-bitrate <bps>` change where it starts and
   cap its quality (which makes the server convert it).
@@ -55,11 +57,22 @@ its extras, related titles, cast and information. Right-clicking a card
 gives the Apple app's long-press menu. After playing, a page shows where
 viewing got to, following on to a later episode that played by itself.
 
+Movies and TV Shows have a banner of what's in progress, up next and new,
+Recently Added, then every title as posters, sorted by name (in letter
+sections with an index down the right), date added, release date or
+rating; anime is left out. The Anime tab has its libraries, Continue
+Watching, Next Up, Recently Added and the OP/ED plugin's videos. Library has
+every library, favourites and playlists; a library, collection or playlist
+opens as a sortable grid, and a cast member as their filmography. A grid
+sorted by name loads whole; otherwise 100 at a time as it's scrolled. Each
+page is one virtualized list, so a library of thousands scrolls smoothly.
+
 Back: the page's arrow, the mouse's back button, Alt+← or Backspace.
 
-Not yet: the sidebar's other tabs (Movies, TV Shows, Anime, Music, Live TV,
-Library, Search, Settings), person pages, theme music and videos, disc
-menus, openings and endings, playlists.
+Not yet: the sidebar's other tabs (Music, Audiobooks, Upcoming, Live TV,
+Channels, Search, Settings), theme music and videos, disc menus, openings
+and endings, playlists' own pages. Chinese titles sort under # in the letter
+index; the Apple app files them by pinyin, which .NET has no table for.
 
 ## The player
 

@@ -31,7 +31,11 @@ public partial class App : Application
             var start = System.Array.IndexOf(args, "--start") is var s and >= 0 && s + 1 < args.Length
                 && double.TryParse(args[s + 1], System.Globalization.CultureInfo.InvariantCulture, out var seconds) ? seconds : (double?)null;
             var open = System.Array.IndexOf(args, "--open") is var o and >= 0 && o + 1 < args.Length ? args[o + 1] : null;
-            var main = new MainViewModel(play, bitrate, start, open);
+            var tab = System.Array.IndexOf(args, "--tab") is var t and >= 0 && t + 1 < args.Length
+                && System.Enum.TryParse<Aster.Desktop.ViewModels.AppTab>(args[t + 1], ignoreCase: true, out var chosen) ? chosen : (Aster.Desktop.ViewModels.AppTab?)null;
+            var sort = System.Array.IndexOf(args, "--sort") is var so and >= 0 && so + 1 < args.Length
+                && System.Enum.TryParse<Aster.Core.Browsing.LibrarySort>(args[so + 1], ignoreCase: true, out var sorted) ? sorted : (Aster.Core.Browsing.LibrarySort?)null;
+            var main = new MainViewModel(play, bitrate, start, open, tab, sort);
             desktop.MainWindow = new MainWindow { DataContext = main };
             desktop.ShutdownRequested += (_, _) => main.Shutdown();
             System.Threading.Tasks.Task.Run(() => Aster.Core.Jellyfin.ImageCache.Trim());

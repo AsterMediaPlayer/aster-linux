@@ -6,6 +6,8 @@
     <!-- Sizes, after the Apple app's Lockup, at a desktop window's scale. -->
     <x:Double x:Key="LandscapeWidth">300</x:Double>
     <x:Double x:Key="LandscapeHeight">169</x:Double>
+    <x:Double x:Key="PosterWidth">180</x:Double>
+    <x:Double x:Key="PosterHeight">270</x:Double>
     <x:Double x:Key="PersonPhoto">120</x:Double>
     <x:Double x:Key="PersonWidth">136</x:Double>
     <Thickness x:Key="ScreenPadding">48,0</Thickness>
@@ -137,17 +139,72 @@
         </StackPanel>
     </DataTemplate>
 
-    <!-- A cast or crew member: round picture, name and role. -->
+    <!-- 2:3 poster artwork with the title and year underneath. -->
+    <DataTemplate x:Key="PosterCard" x:DataType="vm:ItemCard">
+        <StackPanel Width="{StaticResource PosterWidth}" Spacing="8">
+            <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}"
+                    Width="{StaticResource PosterWidth}" Height="{StaticResource PosterHeight}" ToolTip.Tip="{Binding Title}">
+                <Button.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="{Binding PlayLabel}" Command="{Binding PlayCommand}" IsVisible="{Binding CanPlay}" />
+                        <MenuItem Header="Play from Beginning" Command="{Binding PlayFromBeginningCommand}" IsVisible="{Binding CanPlayFromBeginning}" />
+                        <MenuItem Header="Open" Command="{Binding OpenCommand}" />
+                        <MenuItem Header="Go to Series" Command="{Binding GoToSeriesCommand}" IsVisible="{Binding CanGoToSeries}" />
+                        <MenuItem Header="Go to Season" Command="{Binding GoToSeasonCommand}" IsVisible="{Binding CanGoToSeason}" />
+                        <Separator IsVisible="{Binding HasMenu}" />
+                        <MenuItem Header="{Binding WatchedLabel}" Command="{Binding ToggleWatchedCommand}" IsVisible="{Binding HasMenu}" />
+                        <MenuItem Header="{Binding FavoriteLabel}" Command="{Binding ToggleFavoriteCommand}" IsVisible="{Binding HasMenu}" />
+                    </ContextMenu>
+                </Button.ContextMenu>
+                <Panel>
+                    <TextBlock Text="{Binding Placeholder}" FontFamily="{StaticResource IconFont}" FontSize="36" Opacity="0.35"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <c:RemoteImage Url="{Binding Image}" />
+                    <ProgressBar IsVisible="{Binding HasProgress}" Value="{Binding Progress}" Minimum="0" Maximum="100"
+                                 VerticalAlignment="Bottom" Margin="10,0,10,8" MinHeight="5" Height="5" CornerRadius="3"
+                                 Foreground="White" Background="#4DFFFFFF" />
+                </Panel>
+            </Button>
+            <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
+                           IsVisible="{Binding Subtitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            </StackPanel>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- A library as a wide tile, its name over its picture. -->
+    <DataTemplate x:Key="TileCard" x:DataType="vm:ItemCard">
+        <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}"
+                Width="{StaticResource LandscapeWidth}" Height="{StaticResource LandscapeHeight}">
+            <Panel>
+                <TextBlock Text="{Binding Placeholder}" FontFamily="{StaticResource IconFont}" FontSize="40" Opacity="0.35"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <c:RemoteImage Url="{Binding Image}" />
+                <Border>
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="50%,50%" EndPoint="50%,100%">
+                            <GradientStop Offset="0" Color="#00000000" />
+                            <GradientStop Offset="1" Color="#BF000000" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+                <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" Margin="14" VerticalAlignment="Bottom" TextTrimming="CharacterEllipsis" />
+            </Panel>
+        </Button>
+    </DataTemplate>
+
+    <!-- A cast or crew member: round picture, name and role; opens their filmography. -->
     <DataTemplate x:Key="PersonCard" x:DataType="vm:ItemCard">
         <StackPanel Width="{StaticResource PersonWidth}" Spacing="8">
-            <Border Width="{StaticResource PersonPhoto}" Height="{StaticResource PersonPhoto}" CornerRadius="60" ClipToBounds="True"
-                    Background="{StaticResource CardBackground}" HorizontalAlignment="Center">
+            <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}" CornerRadius="60"
+                    Width="{StaticResource PersonPhoto}" Height="{StaticResource PersonPhoto}" HorizontalAlignment="Center">
                 <Panel>
                     <TextBlock Text="{Binding Placeholder}" FontFamily="{StaticResource IconFont}" FontSize="36" Opacity="0.35"
                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                     <c:RemoteImage Url="{Binding Image}" />
                 </Panel>
-            </Border>
+            </Button>
             <TextBlock Text="{Binding Title}" FontWeight="Medium" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
             <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" HorizontalAlignment="Center"
                        TextTrimming="CharacterEllipsis" />

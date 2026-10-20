@@ -5,118 +5,12 @@
              x:Class="Aster.Desktop.Views.HomeView"
              x:DataType="vm:HomeViewModel">
 
-    <UserControl.Styles>
-        <Style Selector="Button.heroArrow">
-            <Setter Property="Width" Value="48" />
-            <Setter Property="Height" Value="96" />
-            <Setter Property="Margin" Value="8,0" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="Background" Value="#66000000" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="FontSize" Value="20" />
-        </Style>
-        <!-- The whole banner opens the title; no button chrome. -->
-        <Style Selector="Button.heroPage">
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="HorizontalAlignment" Value="Stretch" />
-            <Setter Property="VerticalAlignment" Value="Stretch" />
-            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="VerticalContentAlignment" Value="Stretch" />
-            <Setter Property="CornerRadius" Value="0" />
-            <Setter Property="Cursor" Value="Hand" />
-        </Style>
-        <Style Selector="Button.heroPage:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent" />
-        </Style>
-        <Style Selector="Button.heroPage:pressed /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent" />
-        </Style>
-    </UserControl.Styles>
 
     <Panel>
         <ScrollViewer x:Name="Page" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="28" Margin="0,0,0,60">
                 <!-- The featured banner, as tall as the window; the shelves start below the fold. -->
-                <Panel x:Name="Hero" IsVisible="{Binding HasHero}" Height="700">
-                    <Carousel ItemsSource="{Binding Featured}" SelectedIndex="{Binding HeroIndex}">
-                        <Carousel.PageTransition>
-                            <PageSlide Duration="0:0:0.35" Orientation="Horizontal" />
-                        </Carousel.PageTransition>
-                        <Carousel.ItemTemplate>
-                            <DataTemplate x:DataType="vm:HeroPage">
-                                <Button Classes="heroPage" Command="{Binding OpenCommand}">
-                                    <Panel>
-                                        <Border Background="#141414" />
-                                        <c:RemoteImage Url="{Binding Backdrop}" />
-                                        <Border>
-                                            <Border.Background>
-                                                <LinearGradientBrush StartPoint="50%,45%" EndPoint="50%,100%">
-                                                    <GradientStop Offset="0" Color="#00000000" />
-                                                    <GradientStop Offset="0.4" Color="#33000000" />
-                                                    <GradientStop Offset="1" Color="#E6000000" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                        </Border>
-                                        <Border>
-                                            <Border.Background>
-                                                <LinearGradientBrush StartPoint="0%,50%" EndPoint="50%,50%">
-                                                    <GradientStop Offset="0" Color="#99000000" />
-                                                    <GradientStop Offset="1" Color="#00000000" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                        </Border>
-                                        <StackPanel Spacing="14" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="64,0,64,72" MaxWidth="760">
-                                            <Panel HorizontalAlignment="Left">
-                                                <c:RemoteImage x:Name="Logo" Url="{Binding Logo}" Stretch="Uniform" MaxWidth="360" MaxHeight="130" HorizontalAlignment="Left" />
-                                                <TextBlock Text="{Binding Title}" FontSize="44" FontWeight="Bold" TextWrapping="Wrap" MaxLines="2"
-                                                           IsVisible="{Binding !#Logo.HasImage}" />
-                                            </Panel>
-                                            <TextBlock Text="{Binding EpisodeLine}" FontSize="20" FontWeight="SemiBold"
-                                                       IsVisible="{Binding EpisodeLine, Converter={x:Static ObjectConverters.IsNotNull}}" />
-                                            <ContentControl Content="{Binding Metadata}" ContentTemplate="{StaticResource MetadataTemplate}" />
-                                            <TextBlock Text="{Binding Overview}" Foreground="{StaticResource Secondary}" TextWrapping="Wrap" MaxLines="3"
-                                                       TextTrimming="CharacterEllipsis" MaxWidth="640" HorizontalAlignment="Left" />
-                                            <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding PlayCommand}"
-                                                    HorizontalAlignment="Left" Padding="26,12">
-                                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                                    <TextBlock Text="&#xE768;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
-                                                    <TextBlock Text="{Binding PlayLabel}" />
-                                                    <TextBlock Text="{Binding Remaining}" Opacity="0.6"
-                                                               IsVisible="{Binding Remaining, Converter={x:Static ObjectConverters.IsNotNull}}" />
-                                                </StackPanel>
-                                            </Button>
-                                        </StackPanel>
-                                    </Panel>
-                                </Button>
-                            </DataTemplate>
-                        </Carousel.ItemTemplate>
-                    </Carousel>
-
-                    <Button Classes="heroArrow" HorizontalAlignment="Left" Command="{Binding PreviousHeroCommand}" ToolTip.Tip="Previous" IsVisible="{Binding HasPreviousHero}">
-                        <TextBlock Text="&#xE76B;" FontFamily="{StaticResource IconFont}" />
-                    </Button>
-                    <Button Classes="heroArrow" HorizontalAlignment="Right" Command="{Binding NextHeroCommand}" ToolTip.Tip="Next" IsVisible="{Binding HasNextHero}">
-                        <TextBlock Text="&#xE76C;" FontFamily="{StaticResource IconFont}" />
-                    </Button>
-
-                    <Border Background="#59000000" CornerRadius="12" Padding="14,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,64,40">
-                        <ItemsControl ItemsSource="{Binding HeroDots}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="10" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="x:Boolean">
-                                    <Ellipse Width="9" Height="9" Fill="White" Opacity="{Binding Converter={x:Static c:Converters.DotOpacity}}" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </Border>
-                </Panel>
+                <c:HeroBanner x:Name="Hero" DataContext="{Binding Hero}" Height="700" />
 
                 <ItemsControl ItemsSource="{Binding Shelves}">
                     <ItemsControl.ItemsPanel>

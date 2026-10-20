@@ -27,8 +27,15 @@ public class ViewLocator : IDataTemplate
         if (views.TryGetValue(param, out var kept) && kept.Parent is null)
             return kept;
 
-        var name = param.GetType().FullName!.Replace("ViewModel", "View", StringComparison.Ordinal);
-        var type = Type.GetType(name);
+        // A page without a view of its own uses its base page's, as the
+        // browse pages all use BrowsePageView.
+        string name = "";
+        Type? type = null;
+        for (var model = param.GetType(); type is null && model is not null && model != typeof(ViewModelBase); model = model.BaseType)
+        {
+            name = model.FullName!.Replace("ViewModel", "View", StringComparison.Ordinal);
+            type = Type.GetType(name);
+        }
 
         if (type != null)
         {
