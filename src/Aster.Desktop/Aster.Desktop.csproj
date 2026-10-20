@@ -24,5 +24,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Aster.Core\Aster.Core.csproj" />
+    <ProjectReference Include="..\Aster.Mpv\Aster.Mpv.csproj" />
   </ItemGroup>
 </Project>

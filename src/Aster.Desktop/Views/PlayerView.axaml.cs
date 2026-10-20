@@ -1,0 +1,137 @@
+using System;
+using Aster.Desktop.ViewModels;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
+using Avalonia.VisualTree;
+
+namespace Aster.Desktop.Views;
+
+/// <summary>
+/// The player's keys, mouse and full screen. Space or K pauses, ← and →
+/// (or J and L) skip 10 seconds, ↑ and ↓ change the volume and M mutes, A
+/// and S step through the audio and subtitle tracks, F or a double-click
+/// toggles full screen, Enter takes the skip on offer, Esc leaves full
+/// screen and then the player.
+/// </summary>
+public partial class PlayerView : UserControl
+{
+    private WindowState stateBeforeFullScreen = WindowState.Normal;
+
+    public PlayerView()
+    {
+        InitializeComponent();
+        SeekBar.AddHandler(Thumb.DragStartedEvent, (_, _) => { if (Model is { } m) m.IsScrubbing = true; }, RoutingStrategies.Bubble, handledEventsToo: true);
+        SeekBar.AddHandler(Thumb.DragCompletedEvent, (_, _) =>
+        {
+            if (Model is not { } m) return;
+            m.IsScrubbing = false;
+            m.SeekTo(SeekBar.Value);
+        }, RoutingStrategies.Bubble, handledEventsToo: true);
+        FullScreenButton.Click += (_, _) => ToggleFullScreen();
+        Surface.PointerMoved += (_, _) => Model?.PokeControls();
+        Surface.DoubleTapped += (_, e) =>
+        {
+            // Only on the picture, not on a control.
+            if (e.Source is Visual source && source.FindAncestorOfType<Button>() is null && source.FindAncestorOfType<Slider>() is null) ToggleFullScreen();
+        };
+        // The controls stay up while a menu is open.
+        foreach (var node in this.GetLogicalDescendants())
+        {
+            if (node is Button { Flyout: { } flyout })
+            {
+                flyout.Opened += (_, _) => { if (Model is { } m) m.OpenMenus++; };
+                flyout.Closed += (_, _) =>
+                {
+                    if (Model is not { } m) return;
+                    m.OpenMenus = Math.Max(0, m.OpenMenus - 1);
+                    m.PokeControls();
+                    Focus();
+                };
+            }
+        }
+    }
+
+    private PlayerViewModel? Model => DataContext as PlayerViewModel;
+
+    private Window? Window => TopLevel.GetTopLevel(this) as Window;
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        Focus();
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        if (Window is { WindowState: WindowState.FullScreen } window) window.WindowState = stateBeforeFullScreen;
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (Model is not { } model) return;
+        switch (e.Key)
+        {
+            case Key.Space or Key.K or Key.MediaPlayPause:
+                model.TogglePauseCommand.Execute(null);
+                break;
+            case Key.Left or Key.J:
+                model.SeekBy(-10);
+                break;
+            case Key.Right or Key.L:
+                model.SeekBy(10);
+                break;
+            case Key.Enter when model.ShowsSkip:
+                model.SkipCommand.Execute(null);
+                break;
+            case Key.F:
+                ToggleFullScreen();
+                break;
+            case Key.A:
+                model.CycleAudio();
+                break;
+            case Key.S or Key.C:
+                model.CycleSubtitle();
+                break;
+            case Key.M or Key.VolumeMute:
+                model.ToggleMute();
+                break;
+            case Key.Up or Key.VolumeUp:
+                model.ChangeVolume(5);
+                break;
+            case Key.Down or Key.VolumeDown:
+                model.ChangeVolume(-5);
+                break;
+            case Key.Escape when Window is { WindowState: WindowState.FullScreen }:
+                ToggleFullScreen();
+                break;
+            case Key.Escape or Key.BrowserBack:
+                model.CloseCommand.Execute(null);
+                break;
+            default:
+                model.PokeControls();
+                return;
+        }
+        e.Handled = true;
+        model.PokeControls();
+    }
+
+    private void ToggleFullScreen()
+    {
+        if (Window is not { } window) return;
+        if (window.WindowState == WindowState.FullScreen)
+        {
+            window.WindowState = stateBeforeFullScreen;
+        }
+        else
+        {
+            stateBeforeFullScreen = window.WindowState;
+            window.WindowState = WindowState.FullScreen;
+        }
+        Focus();
+    }
+}

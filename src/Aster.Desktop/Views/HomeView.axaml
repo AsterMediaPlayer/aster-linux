@@ -4,6 +4,17 @@
              x:Class="Aster.Desktop.Views.HomeView"
              x:DataType="vm:HomeViewModel">
 
+    <UserControl.Resources>
+        <DataTemplate x:Key="EntryTemplate" x:DataType="vm:HomeEntry">
+            <Button Command="{Binding Play}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,0,0,6" Padding="12,8">
+                <StackPanel>
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Detail}" Opacity="0.7" FontSize="13" />
+                </StackPanel>
+            </Button>
+        </DataTemplate>
+    </UserControl.Resources>
+
     <DockPanel Margin="32">
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,24">
             <Button DockPanel.Dock="Right" Content="Sign Out" Command="{Binding SignOutCommand}" />
@@ -13,15 +24,21 @@
         <TextBlock DockPanel.Dock="Top" Text="{Binding Status}" Margin="0,0,0,16"
                    IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
-        <Grid ColumnDefinitions="*,32,2*">
-            <StackPanel Grid.Column="0" Spacing="8">
-                <TextBlock Text="Libraries" FontSize="18" FontWeight="SemiBold" />
-                <ItemsControl ItemsSource="{Binding Libraries}" />
-            </StackPanel>
-            <StackPanel Grid.Column="2" Spacing="8">
-                <TextBlock Text="Continue Watching" FontSize="18" FontWeight="SemiBold" />
-                <ItemsControl ItemsSource="{Binding ContinueWatching}" />
-            </StackPanel>
-        </Grid>
+        <ScrollViewer>
+            <Grid ColumnDefinitions="*,32,2*,32,2*">
+                <StackPanel Grid.Column="0" Spacing="8">
+                    <TextBlock Text="Libraries" FontSize="18" FontWeight="SemiBold" />
+                    <ItemsControl ItemsSource="{Binding Libraries}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="8">
+                    <TextBlock Text="Continue Watching" FontSize="18" FontWeight="SemiBold" />
+                    <ItemsControl ItemsSource="{Binding ContinueWatching}" ItemTemplate="{StaticResource EntryTemplate}" />
+                </StackPanel>
+                <StackPanel Grid.Column="4" Spacing="8">
+                    <TextBlock Text="Next Up" FontSize="18" FontWeight="SemiBold" />
+                    <ItemsControl ItemsSource="{Binding NextUp}" ItemTemplate="{StaticResource EntryTemplate}" />
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
     </DockPanel>
 </UserControl>

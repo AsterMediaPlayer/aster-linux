@@ -838,6 +838,10 @@ public sealed class JellyfinClient
     public Uri SubtitleUrl(string itemId, string mediaSourceId, int streamIndex) =>
         TokenUrl($"/Videos/{itemId}/{mediaSourceId}/Subtitles/{streamIndex}/Stream.vtt");
 
+    /// <summary>A text track as a file in <paramref name="format"/> ("ass", "srt"), for the player to load beside a stream.</summary>
+    public Uri SubtitleFileUrl(string itemId, string mediaSourceId, int streamIndex, string format) =>
+        TokenUrl($"/Videos/{itemId}/{mediaSourceId}/Subtitles/{streamIndex}/Stream.{format}");
+
     // ---- Music ----
 
     /// <summary>Artists credited on albums, paged.</summary>

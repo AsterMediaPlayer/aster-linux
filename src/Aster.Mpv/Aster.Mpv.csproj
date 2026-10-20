@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <!-- libmpv itself, fetched by tools\fetch-libmpv.ps1 (too big for git),
+       copied beside whatever app uses this library. -->
+  <PropertyGroup>
+    <LibMpvPath>$(MSBuildThisFileDirectory)..\..\native\win-x64\libmpv-2.dll</LibMpvPath>
+  </PropertyGroup>
+
+  <Target Name="FetchLibMpv" BeforeTargets="BeforeBuild" Condition="'$(OS)' == 'Windows_NT' And !Exists('$(LibMpvPath)')">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\..\tools\fetch-libmpv.ps1&quot;" />
+  </Target>
+
+  <ItemGroup>
+    <None Include="$(LibMpvPath)" Link="libmpv-2.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+
+</Project>
