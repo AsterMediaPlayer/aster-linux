@@ -13,19 +13,33 @@ namespace Aster.Desktop.ViewModels;
 /// and the right-click menu (the Apple app's long-press menu). A change made
 /// from the menu shows at once and is put back if the server refuses it.
 /// </summary>
-public partial class ItemCard : ObservableObject
+public partial class ItemCard : ObservableObject, ICard
 {
     private readonly INavigator navigator;
     private readonly bool showSeriesTitle;
 
-    public ItemCard(INavigator navigator, BaseItem item, Uri? image, bool showSeriesTitle = true, bool clickPlays = false)
+    private readonly Action? activate;
+
+    /// <param name="activate">What a click does in place of opening the title's page (a song in a shelf plays its list).</param>
+    public ItemCard(INavigator navigator, BaseItem item, Uri? image, bool showSeriesTitle = true, bool clickPlays = false, Action? activate = null)
     {
         this.navigator = navigator;
         this.showSeriesTitle = showSeriesTitle;
+        this.activate = activate;
         ClickPlays = clickPlays;
         Item = item;
         Image = image;
     }
+
+    public string Key => Item.PlaylistRowId;
+
+    /// <summary>Square artwork: an album, a playlist or a song.</summary>
+    public static ItemCard Square(INavigator navigator, BaseItem item, Action? activate = null) =>
+        new(navigator, item, navigator.Client.PosterUrl(item, width: 400), activate: activate);
+
+    /// <summary>An artist, round.</summary>
+    public static ItemCard Round(INavigator navigator, BaseItem artist) =>
+        new(navigator, artist, navigator.Client.PosterUrl(artist, width: 400));
 
     /// <summary>A special feature: plays when clicked, rather than opening a page.</summary>
     public static ItemCard Extra(INavigator navigator, BaseItem item) =>
@@ -63,6 +77,10 @@ public partial class ItemCard : ObservableObject
         ItemKind.Episode => string.Join(" · ", new[] { Item.EpisodeCode, showSeriesTitle ? Item.Name : null }.OfType<string>()) is { Length: > 0 } line ? line : null,
         ItemKind.Series or ItemKind.Movie => Item.YearText,
         ItemKind.Person => Item.Overview,
+        ItemKind.MusicAlbum => Item.ArtistText ?? Item.YearText,
+        ItemKind.Audio => Item.ArtistText ?? Item.Album,
+        ItemKind.Playlist when Item.MediaType == "Audio" => Item.ChildCount is { } count ? $"{count} song{(count == 1 ? "" : "s")}" : null,
+        ItemKind.MusicArtist => null,
         _ => Item.RuntimeText,
     };
 
@@ -77,6 +95,8 @@ public partial class ItemCard : ObservableObject
     {
         ItemKind.Episode or ItemKind.Series or ItemKind.Season => "",
         ItemKind.Person => "",
+        ItemKind.MusicAlbum or ItemKind.Audio or ItemKind.MusicArtist => "",
+        ItemKind.Playlist when Item.MediaType == "Audio" => "",
         _ when Item.CollectionType is "tvshows" => "",
         _ when Item.CollectionType is "music" => "",
         _ when Item.CollectionType is "boxsets" or "playlists" => "",
@@ -105,7 +125,8 @@ public partial class ItemCard : ObservableObject
     [RelayCommand]
     private void Open()
     {
-        if (ClickPlays) PlayFromBeginning();
+        if (activate is not null) activate();
+        else if (ClickPlays) PlayFromBeginning();
         else navigator.Open(Item);
     }
 

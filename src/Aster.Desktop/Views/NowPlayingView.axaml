@@ -1,0 +1,199 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             xmlns:c="using:Aster.Desktop.Controls"
+             x:Class="Aster.Desktop.Views.NowPlayingView"
+             x:DataType="vm:NowPlayingViewModel"
+             Background="#0F0F0F">
+
+    <UserControl.Styles>
+        <!-- A round transport button; the main one white. -->
+        <Style Selector="Button.control">
+            <Setter Property="Width" Value="52" />
+            <Setter Property="Height" Value="52" />
+            <Setter Property="CornerRadius" Value="26" />
+            <Setter Property="Background" Value="#4DFFFFFF" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <Style Selector="Button.control.active">
+            <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
+        </Style>
+        <Style Selector="Button.control.main">
+            <Setter Property="Width" Value="72" />
+            <Setter Property="Height" Value="72" />
+            <Setter Property="CornerRadius" Value="36" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="Black" />
+            <Setter Property="FontSize" Value="26" />
+        </Style>
+        <Style Selector="Button.control.main:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#E6FFFFFF" />
+            <Setter Property="Foreground" Value="Black" />
+        </Style>
+        <Style Selector="Button.corner">
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="40" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Background" Value="#4DFFFFFF" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+            <Setter Property="Margin" Value="24" />
+        </Style>
+    </UserControl.Styles>
+
+    <Panel>
+        <!-- The artwork, blurred and darkened, behind it all. -->
+        <c:RemoteImage Url="{Binding TrackArtwork}" IsVisible="{Binding !ShowsBook}">
+            <c:RemoteImage.Effect>
+                <BlurEffect Radius="100" />
+            </c:RemoteImage.Effect>
+        </c:RemoteImage>
+        <c:RemoteImage Url="{Binding BookCover}" IsVisible="{Binding ShowsBook}">
+            <c:RemoteImage.Effect>
+                <BlurEffect Radius="100" />
+            </c:RemoteImage.Effect>
+        </c:RemoteImage>
+        <Border Background="#B3000000" />
+
+        <!-- The song. -->
+        <Grid RowDefinitions="*,Auto" IsVisible="{Binding !ShowsBook}" Margin="80,72,80,24">
+            <Grid ColumnDefinitions="Auto,*">
+                <!-- The artwork shrinks to the room there is, in a short window. -->
+                <Viewbox StretchDirection="DownOnly" MaxHeight="340" VerticalAlignment="Center">
+                    <Border Width="340" Height="340" CornerRadius="18" ClipToBounds="True" Background="#262626" BoxShadow="0 16 40 0 #99000000">
+                        <c:RemoteImage Url="{Binding TrackArtwork}" />
+                    </Border>
+                </Viewbox>
+                <StackPanel Grid.Column="1" Spacing="18" Margin="56,0,0,0" VerticalAlignment="Center" MaxWidth="760" HorizontalAlignment="Left">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="{Binding TrackTitle}" FontSize="34" FontWeight="Bold" TextWrapping="Wrap" MaxLines="2" />
+                        <TextBlock Text="{Binding TrackArtist}" FontSize="20" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding TrackAlbum}" Foreground="{StaticResource Secondary}" />
+                    </StackPanel>
+                    <StackPanel Spacing="2">
+                        <Slider Minimum="0" Maximum="{Binding Music.Duration}" Value="{Binding SongSeek}" />
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding Remaining}" FontSize="12" Foreground="{StaticResource Secondary}" />
+                            <TextBlock Text="{Binding Elapsed}" FontSize="12" Foreground="{StaticResource Secondary}" />
+                        </DockPanel>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="14">
+                        <Button Classes="control" Classes.active="{Binding Music.IsShuffled}" Command="{Binding ShuffleCommand}" Content="&#xE8B1;" ToolTip.Tip="Shuffle" />
+                        <Button Classes="control" Command="{Binding PreviousCommand}" Content="&#xE892;" ToolTip.Tip="Previous" />
+                        <Button Classes="control main" Command="{Binding ToggleCommand}" ToolTip.Tip="Play/Pause (Space)">
+                            <Panel>
+                                <TextBlock Text="&#xE769;" IsVisible="{Binding Music.IsPlaying}" />
+                                <TextBlock Text="&#xE768;" IsVisible="{Binding !Music.IsPlaying}" />
+                            </Panel>
+                        </Button>
+                        <Button Classes="control" Command="{Binding NextCommand}" AutomationProperties.Name="Next" Content="&#xE893;" ToolTip.Tip="Next" />
+                        <Button Classes="control" Classes.active="{Binding RepeatOn}" Command="{Binding RepeatCommand}" Content="{Binding RepeatGlyph}" ToolTip.Tip="Repeat" />
+                        <Button Classes="control" Classes.active="{Binding ShowLyrics}" AutomationProperties.Name="Lyrics" Command="{Binding ToggleLyricsCommand}" Content="&#xE8BD;"
+                                ToolTip.Tip="Lyrics" IsVisible="{Binding HasLyrics}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding Music.ErrorMessage}" Foreground="#FF8A80"
+                               IsVisible="{Binding Music.ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Lyrics when they're on, else what's coming up. -->
+            <Panel x:Name="Lower" Grid.Row="1" Height="260" Margin="-80,16,-80,0">
+                <ScrollViewer x:Name="LyricsScroller" IsVisible="{Binding ShowsLyricsPanel}" Margin="80,0">
+                    <ItemsControl x:Name="LyricLines" ItemsSource="{Binding Lyrics}" Margin="0,24">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:LyricRow">
+                                <TextBlock Text="{Binding Text}" FontSize="20" Margin="0,7" Opacity="{Binding Opacity}"
+                                           FontWeight="{Binding IsCurrent, Converter={x:Static c:Converters.Bold}}" TextWrapping="Wrap" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+                <c:ShelfView Title="Up Next" Items="{Binding UpNext}" ItemTemplate="{StaticResource SquareCard}" IsVisible="{Binding ShowsUpNext}" />
+            </Panel>
+        </Grid>
+
+        <!-- The book. -->
+        <!-- The chapter list's column is sized in code: none while it's closed, a share of the room while open. -->
+        <Grid x:Name="BookLayout" IsVisible="{Binding ShowsBook}" Margin="80,72,80,40">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="400" />
+                <ColumnDefinition Width="Auto" MaxWidth="508" />
+            </Grid.ColumnDefinitions>
+            <Grid RowDefinitions="*,Auto" MaxWidth="560" VerticalAlignment="Center">
+                <Viewbox StretchDirection="DownOnly" MaxHeight="320" Margin="0,0,0,20">
+                    <Border Width="320" Height="320" CornerRadius="18" ClipToBounds="True" Background="#262626" BoxShadow="0 16 40 0 #99000000">
+                        <c:RemoteImage Url="{Binding BookCover}" />
+                    </Border>
+                </Viewbox>
+                <StackPanel Grid.Row="1" Spacing="20">
+                <StackPanel Spacing="6" HorizontalAlignment="Center">
+                    <TextBlock Text="{Binding BookTitle}" FontSize="30" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Center" MaxLines="2" />
+                    <TextBlock Text="{Binding BookAuthor}" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                    <TextBlock Text="{Binding ChapterTitle}" Foreground="{StaticResource Secondary}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <StackPanel Spacing="2">
+                    <Slider Minimum="0" Maximum="{Binding ChapterLength}" Value="{Binding ChapterSeek}" />
+                    <Grid ColumnDefinitions="*,Auto,*">
+                        <TextBlock Text="{Binding ChapterElapsed}" FontSize="12" Foreground="{StaticResource Secondary}" />
+                        <TextBlock Grid.Column="1" Text="{Binding BookLeft}" FontSize="12" Foreground="{StaticResource Secondary}" />
+                        <TextBlock Grid.Column="2" Text="{Binding ChapterRemaining}" FontSize="12" Foreground="{StaticResource Secondary}" HorizontalAlignment="Right" />
+                    </Grid>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
+                    <Button Classes="control" Command="{Binding PreviousChapterCommand}" Content="&#xE892;" ToolTip.Tip="Previous chapter" />
+                    <Button Classes="control" Command="{Binding BackFifteenCommand}" FontFamily="{StaticResource ContentControlThemeFontFamily}"
+                            FontSize="14" FontWeight="SemiBold" Content="−15" ToolTip.Tip="Back 15 seconds" />
+                    <Button Classes="control main" Command="{Binding ToggleCommand}" ToolTip.Tip="Play/Pause (Space)">
+                        <Panel>
+                            <TextBlock Text="&#xE769;" IsVisible="{Binding Books.IsPlaying}" />
+                            <TextBlock Text="&#xE768;" IsVisible="{Binding !Books.IsPlaying}" />
+                        </Panel>
+                    </Button>
+                    <Button Classes="control" Command="{Binding AheadThirtyCommand}" AutomationProperties.Name="Ahead 30 Seconds" FontFamily="{StaticResource ContentControlThemeFontFamily}"
+                            FontSize="14" FontWeight="SemiBold" Content="+30" ToolTip.Tip="Ahead 30 seconds" />
+                    <Button Classes="control" Command="{Binding NextChapterCommand}" Content="&#xE893;" ToolTip.Tip="Next chapter" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
+                    <Button Classes="control" Classes.active="{Binding RateChanged}" Width="72" CornerRadius="26"
+                            FontFamily="{StaticResource ContentControlThemeFontFamily}" FontSize="15" FontWeight="SemiBold"
+                            Content="{Binding RateLabel}" ToolTip.Tip="Speed">
+                        <Button.Flyout>
+                            <MenuFlyout ItemsSource="{Binding Speeds}">
+                                <MenuFlyout.ItemContainerTheme>
+                                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="vm:SpeedChoice">
+                                        <Setter Property="Header" Value="{Binding Title}" />
+                                        <Setter Property="Command" Value="{Binding Select}" />
+                                        <Setter Property="ToggleType" Value="Radio" />
+                                        <Setter Property="IsChecked" Value="{Binding IsSelected, Mode=OneWay}" />
+                                    </ControlTheme>
+                                </MenuFlyout.ItemContainerTheme>
+                            </MenuFlyout>
+                        </Button.Flyout>
+                    </Button>
+                    <Button Classes="control" Classes.active="{Binding ShowChapters}" AutomationProperties.Name="Chapters" Command="{Binding ToggleChaptersCommand}" Content="&#xE8FD;"
+                            ToolTip.Tip="Chapters" IsVisible="{Binding HasChapters}" />
+                </StackPanel>
+                <TextBlock Text="{Binding Books.ErrorMessage}" Foreground="#FF8A80" HorizontalAlignment="Center"
+                           IsVisible="{Binding Books.ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                </StackPanel>
+            </Grid>
+
+            <!-- The chapter list, beside, when open. -->
+            <ScrollViewer Grid.Column="1" Margin="48,0,0,0" IsVisible="{Binding ShowChapters}">
+                <ItemsControl ItemsSource="{Binding Chapters}" ItemTemplate="{StaticResource ChapterRowTemplate}" />
+            </ScrollViewer>
+        </Grid>
+
+        <Button Classes="corner" Command="{Binding CloseCommand}" AutomationProperties.Name="Close Player" Content="&#xE70D;" ToolTip.Tip="Close (Esc)"
+                HorizontalAlignment="Left" VerticalAlignment="Top" />
+        <Button Classes="corner" Command="{Binding StopCommand}" AutomationProperties.Name="Stop Playing" Content="&#xE711;" ToolTip.Tip="Stop"
+                HorizontalAlignment="Right" VerticalAlignment="Top" />
+    </Panel>
+</UserControl>

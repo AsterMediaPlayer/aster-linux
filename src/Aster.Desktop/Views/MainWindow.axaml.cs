@@ -24,6 +24,23 @@ public partial class MainWindow : Window
     {
         base.OnKeyDown(e);
         if (e.Handled) return;
+        // The song or book: Space (outside a text box or button) or the
+        // keyboard's play key toggles it; Esc puts its player away.
+        if (DataContext is MainViewModel { CurrentPage: ShellViewModel { Audio: { IsLoaded: true } audio } })
+        {
+            if (e.Key == Key.MediaPlayPause || (e.Key == Key.Space && e.Source is not (TextBox or Button)))
+            {
+                audio.Toggle();
+                e.Handled = true;
+                return;
+            }
+            if (e.Key == Key.Escape && audio.IsNowPlayingShown)
+            {
+                audio.IsNowPlayingShown = false;
+                e.Handled = true;
+                return;
+            }
+        }
         var back = e.Key == Key.BrowserBack
             || (e.Key == Key.Left && e.KeyModifiers == KeyModifiers.Alt)
             || (e.Key == Key.Back && e.Source is not TextBox);

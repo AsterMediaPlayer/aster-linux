@@ -194,6 +194,19 @@
         </Button>
     </DataTemplate>
 
+    <!-- A chapter of a book: a speaker by the one playing, its title, and where it starts in the book. -->
+    <DataTemplate x:Key="ChapterRowTemplate" x:DataType="vm:ChapterRow">
+        <Button Command="{Binding Play}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="12,9" Margin="0,0,0,6"
+                CornerRadius="10" Classes="track" Classes.current="{Binding IsCurrent}">
+            <Grid ColumnDefinitions="28,*,Auto">
+                <TextBlock Text="&#xE767;" FontFamily="{StaticResource IconFont}" Foreground="{StaticResource Secondary}"
+                           VerticalAlignment="Center" IsVisible="{Binding IsCurrent}" />
+                <TextBlock Grid.Column="1" Text="{Binding Chapter.Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Text="{Binding Start}" Foreground="{StaticResource Secondary}" Margin="12,0,0,0" VerticalAlignment="Center" />
+            </Grid>
+        </Button>
+    </DataTemplate>
+
     <!-- A cast or crew member: round picture, name and role; opens their filmography. -->
     <DataTemplate x:Key="PersonCard" x:DataType="vm:ItemCard">
         <StackPanel Width="{StaticResource PersonWidth}" Spacing="8">
@@ -210,4 +223,131 @@
                        TextTrimming="CharacterEllipsis" />
         </StackPanel>
     </DataTemplate>
+
+    <!-- Square artwork with a title underneath: albums, playlists and songs. -->
+    <DataTemplate x:Key="SquareCard" x:DataType="vm:ItemCard">
+        <StackPanel Width="{StaticResource PosterWidth}" Spacing="8">
+            <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}"
+                    Width="{StaticResource PosterWidth}" Height="{StaticResource PosterWidth}" ToolTip.Tip="{Binding Title}">
+                <Panel>
+                    <TextBlock Text="{Binding Placeholder}" FontFamily="{StaticResource IconFont}" FontSize="36" Opacity="0.35"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <c:RemoteImage Url="{Binding Image}" />
+                </Panel>
+            </Button>
+            <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
+                           IsVisible="{Binding Subtitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            </StackPanel>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- Round artwork for an artist. -->
+    <DataTemplate x:Key="RoundCard" x:DataType="vm:ItemCard">
+        <StackPanel Width="{StaticResource PosterWidth}" Spacing="10">
+            <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}" CornerRadius="80"
+                    Width="160" Height="160" HorizontalAlignment="Center" ToolTip.Tip="{Binding Title}">
+                <Panel>
+                    <TextBlock Text="&#xE77B;" FontFamily="{StaticResource IconFont}" FontSize="40" Opacity="0.35"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <c:RemoteImage Url="{Binding Image}" />
+                </Panel>
+            </Button>
+            <TextBlock Text="{Binding Title}" FontWeight="Medium" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- A book's cover, how far through it is, its title and author. -->
+    <DataTemplate x:Key="BookCard" x:DataType="vm:AudiobookCard">
+        <StackPanel Width="{StaticResource PosterWidth}" Spacing="8">
+            <Button Theme="{StaticResource CardButton}" Command="{Binding Open}"
+                    Width="{StaticResource PosterWidth}" Height="{StaticResource PosterWidth}" ToolTip.Tip="{Binding Title}">
+                <Panel>
+                    <TextBlock Text="&#xE82D;" FontFamily="{StaticResource IconFont}" FontSize="36" Opacity="0.35"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <c:RemoteImage Url="{Binding Cover}" />
+                    <ProgressBar IsVisible="{Binding HasProgress}" Value="{Binding Progress}" Minimum="0" Maximum="100"
+                                 VerticalAlignment="Bottom" Margin="10,0,10,8" MinHeight="5" Height="5" CornerRadius="3"
+                                 Foreground="White" Background="#4DFFFFFF" />
+                    <TextBlock IsVisible="{Binding IsFinished}" Text="&#xEC61;" FontFamily="{StaticResource IconFont}" FontSize="22"
+                               Foreground="White" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" />
+                </Panel>
+            </Button>
+            <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
+                           IsVisible="{Binding Subtitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            </StackPanel>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- An author or series: a stack of its first covers, its name and how many books. -->
+    <DataTemplate x:Key="BookShelfCard" x:DataType="vm:AudiobookShelfCard">
+        <StackPanel Width="{StaticResource PosterWidth}" Spacing="8">
+            <Button Command="{Binding Open}" Width="{StaticResource PosterWidth}" Height="{StaticResource PosterWidth}" Padding="0"
+                    Background="Transparent" Cursor="Hand" ToolTip.Tip="{Binding Title}">
+                <Panel>
+                    <Border Width="162" Height="162" CornerRadius="8" ClipToBounds="True" Background="{StaticResource CardBackground}"
+                            Opacity="0.5" IsVisible="{Binding HasSecond}" HorizontalAlignment="Right" VerticalAlignment="Top">
+                        <c:RemoteImage Url="{Binding SecondCover}" />
+                    </Border>
+                    <Border Width="162" Height="162" CornerRadius="8" ClipToBounds="True" Background="{StaticResource CardBackground}"
+                            HorizontalAlignment="Left" VerticalAlignment="Bottom" BoxShadow="0 4 12 0 #66000000">
+                        <Panel>
+                            <TextBlock Text="&#xE82D;" FontFamily="{StaticResource IconFont}" FontSize="36" Opacity="0.35"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <c:RemoteImage Url="{Binding Cover}" />
+                        </Panel>
+                    </Border>
+                </Panel>
+            </Button>
+            <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" />
+            </StackPanel>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- One song in a list: number or artwork, title, artist and length; right-click for more. -->
+    <DataTemplate x:Key="TrackCard" x:DataType="vm:TrackItem">
+        <Button Command="{Binding Play}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="12,8"
+                CornerRadius="10" Classes="track" Classes.current="{Binding IsCurrent}">
+            <Button.ContextMenu>
+                <ContextMenu ItemsSource="{Binding Actions}" IsVisible="{Binding HasActions}">
+                    <ContextMenu.ItemTemplate>
+                        <DataTemplate x:DataType="vm:TrackAction">
+                            <TextBlock Text="{Binding Title}" />
+                        </DataTemplate>
+                    </ContextMenu.ItemTemplate>
+                    <ContextMenu.ItemContainerTheme>
+                        <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="vm:TrackAction">
+                            <Setter Property="Command" Value="{Binding Command}" />
+                        </ControlTheme>
+                    </ContextMenu.ItemContainerTheme>
+                </ContextMenu>
+            </Button.ContextMenu>
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                <Panel Grid.Column="0" Width="44" Margin="0,0,12,0">
+                    <Border Width="44" Height="44" CornerRadius="6" ClipToBounds="True" Background="{StaticResource CardBackground}"
+                            IsVisible="{Binding ShowsArtwork}">
+                        <c:RemoteImage Url="{Binding Artwork}" />
+                    </Border>
+                    <TextBlock Text="{Binding Number}" Foreground="{StaticResource Secondary}" FontWeight="Medium"
+                               HorizontalAlignment="Right" VerticalAlignment="Center" IsVisible="{Binding ShowsNumber}" />
+                    <TextBlock Text="&#xE767;" FontFamily="{StaticResource IconFont}" Foreground="{StaticResource Secondary}"
+                               HorizontalAlignment="Right" VerticalAlignment="Center" IsVisible="{Binding IsCurrent}" />
+                </Panel>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                    <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Artist}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
+                               IsVisible="{Binding Artist, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                </StackPanel>
+                <TextBlock Grid.Column="2" Text="&#xEB52;" FontFamily="{StaticResource IconFont}" FontSize="12" Margin="12,0"
+                           Foreground="{StaticResource Secondary}" VerticalAlignment="Center" IsVisible="{Binding IsFavorite}" />
+                <TextBlock Grid.Column="3" Text="{Binding Length}" Foreground="{StaticResource Secondary}" VerticalAlignment="Center" />
+            </Grid>
+        </Button>
+    </DataTemplate>
+
 </ResourceDictionary>

@@ -48,6 +48,11 @@
                         <Panel>
                             <Border Background="#141414" />
                             <c:RemoteImage Url="{Binding Backdrop}" />
+                            <c:RemoteImage Url="{Binding Cover}" IsVisible="{Binding HasCover}">
+                                <c:RemoteImage.Effect>
+                                    <BlurEffect Radius="60" />
+                                </c:RemoteImage.Effect>
+                            </c:RemoteImage>
                             <Border>
                                 <Border.Background>
                                     <LinearGradientBrush StartPoint="50%,45%" EndPoint="50%,100%">
@@ -65,27 +70,33 @@
                                     </LinearGradientBrush>
                                 </Border.Background>
                             </Border>
-                            <StackPanel Spacing="14" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="64,0,64,72" MaxWidth="760">
-                                <Panel HorizontalAlignment="Left">
-                                    <c:RemoteImage x:Name="Logo" Url="{Binding Logo}" Stretch="Uniform" MaxWidth="360" MaxHeight="130" HorizontalAlignment="Left" />
-                                    <TextBlock Text="{Binding Title}" FontSize="44" FontWeight="Bold" TextWrapping="Wrap" MaxLines="2"
-                                               IsVisible="{Binding !#Logo.HasImage}" />
-                                </Panel>
-                                <TextBlock Text="{Binding EpisodeLine}" FontSize="20" FontWeight="SemiBold"
-                                           IsVisible="{Binding EpisodeLine, Converter={x:Static ObjectConverters.IsNotNull}}" />
-                                <ContentControl Content="{Binding Metadata}" ContentTemplate="{StaticResource MetadataTemplate}" />
-                                <TextBlock Text="{Binding Overview}" Foreground="{StaticResource Secondary}" TextWrapping="Wrap" MaxLines="3"
-                                           TextTrimming="CharacterEllipsis" MaxWidth="640" HorizontalAlignment="Left" />
-                                <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding PlayCommand}"
-                                        HorizontalAlignment="Left" Padding="26,12">
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <TextBlock Text="&#xE768;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
-                                        <TextBlock Text="{Binding PlayLabel}" />
-                                        <TextBlock Text="{Binding Remaining}" Opacity="0.6"
-                                                   IsVisible="{Binding Remaining, Converter={x:Static ObjectConverters.IsNotNull}}" />
-                                    </StackPanel>
-                                </Button>
-                            </StackPanel>
+                            <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Bottom" Margin="64,0,64,72">
+                                <Border Width="200" Height="200" CornerRadius="14" ClipToBounds="True" Background="#262626" BoxShadow="0 12 30 0 #80000000"
+                                        Margin="0,0,40,0" VerticalAlignment="Bottom" IsVisible="{Binding HasCover}">
+                                    <c:RemoteImage Url="{Binding Cover}" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Spacing="14" VerticalAlignment="Bottom" HorizontalAlignment="Left" MaxWidth="760">
+                                    <Panel HorizontalAlignment="Left">
+                                        <c:RemoteImage x:Name="Logo" Url="{Binding Logo}" Stretch="Uniform" MaxWidth="360" MaxHeight="130" HorizontalAlignment="Left" />
+                                        <TextBlock Text="{Binding Title}" FontSize="44" FontWeight="Bold" TextWrapping="Wrap" MaxLines="2"
+                                                   IsVisible="{Binding !#Logo.HasImage}" />
+                                    </Panel>
+                                    <TextBlock Text="{Binding EpisodeLine}" FontSize="20" FontWeight="SemiBold"
+                                               IsVisible="{Binding EpisodeLine, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                    <ContentControl Content="{Binding Metadata}" ContentTemplate="{StaticResource MetadataTemplate}" />
+                                    <TextBlock Text="{Binding Overview}" Foreground="{StaticResource Secondary}" TextWrapping="Wrap" MaxLines="3"
+                                               TextTrimming="CharacterEllipsis" MaxWidth="640" HorizontalAlignment="Left" />
+                                    <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding PlayCommand}"
+                                            HorizontalAlignment="Left" Padding="26,12">
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <TextBlock Text="&#xE768;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding PlayLabel}" />
+                                            <TextBlock Text="{Binding Remaining}" Opacity="0.6"
+                                                       IsVisible="{Binding Remaining, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
                         </Panel>
                     </Button>
                 </DataTemplate>

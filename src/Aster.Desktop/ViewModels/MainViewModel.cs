@@ -65,6 +65,7 @@ public partial class MainViewModel : ViewModelBase
 
     private void ShowSignIn(string? message = null)
     {
+        shell?.Dispose();
         shell = null;
         ImageLoader.Client = null;
         CurrentPage = new SignInViewModel(ShowShell) { Message = message };
@@ -128,5 +129,6 @@ public partial class MainViewModel : ViewModelBase
             player.SaveProgressNow();
             player.Stop();
         }
+        shell?.Dispose();
     }
 }

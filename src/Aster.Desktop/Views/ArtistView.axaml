@@ -1,0 +1,69 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             xmlns:c="using:Aster.Desktop.Controls"
+             x:Class="Aster.Desktop.Views.ArtistView"
+             x:DataType="vm:ArtistViewModel"
+             Background="#141414">
+
+    <Panel>
+        <c:RemoteImage Url="{Binding Backdrop}">
+            <c:RemoteImage.Effect>
+                <BlurEffect Radius="60" />
+            </c:RemoteImage.Effect>
+        </c:RemoteImage>
+        <Border Background="#BF000000" />
+
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="28" Margin="0,80,0,60">
+                <Grid ColumnDefinitions="Auto,*" Margin="64,0">
+                    <Border Width="220" Height="220" CornerRadius="110" ClipToBounds="True" Background="#262626" BoxShadow="0 12 30 0 #80000000">
+                        <Panel>
+                            <TextBlock Text="&#xE77B;" FontFamily="{StaticResource IconFont}" FontSize="48" Opacity="0.35"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <c:RemoteImage Url="{Binding Photo}" />
+                        </Panel>
+                    </Border>
+                    <StackPanel Grid.Column="1" Spacing="12" Margin="32,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Title}" FontSize="34" FontWeight="Bold" TextWrapping="Wrap" MaxLines="2" />
+                        <TextBlock Text="{Binding Genres}" Foreground="{StaticResource Secondary}"
+                                   IsVisible="{Binding Genres, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                        <TextBlock Text="{Binding Overview}" Foreground="{StaticResource Secondary}" TextWrapping="Wrap" MaxLines="4"
+                                   TextTrimming="CharacterEllipsis" MaxWidth="900" HorizontalAlignment="Left"
+                                   IsVisible="{Binding Overview, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                        <WrapPanel ItemSpacing="12" LineSpacing="12" Margin="0,6,0,0">
+                            <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding PlayCommand}" AutomationProperties.Name="Play">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="&#xE768;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                                    <TextBlock Text="Play" />
+                                </StackPanel>
+                            </Button>
+                            <Button Theme="{StaticResource PillButton}" Command="{Binding ShuffleCommand}" AutomationProperties.Name="Shuffle">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="&#xE8B1;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                                    <TextBlock Text="Shuffle" />
+                                </StackPanel>
+                            </Button>
+                            <Button Theme="{StaticResource PillButton}" Command="{Binding InstantMixCommand}" Content="Instant Mix" />
+                            <Button Theme="{StaticResource PillButton}" Command="{Binding ToggleFavoriteCommand}" ToolTip.Tip="Favorite" Width="44" Padding="0">
+                                <Panel>
+                                    <TextBlock Text="&#xEB52;" FontFamily="{StaticResource IconFont}" IsVisible="{Binding IsFavorite}" HorizontalAlignment="Center" />
+                                    <TextBlock Text="&#xEB51;" FontFamily="{StaticResource IconFont}" IsVisible="{Binding !IsFavorite}" HorizontalAlignment="Center" />
+                                </Panel>
+                            </Button>
+                        </WrapPanel>
+                    </StackPanel>
+                </Grid>
+
+                <TextBlock Text="{Binding Message}" Foreground="{StaticResource Secondary}" HorizontalAlignment="Center"
+                           IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                <c:ShelfView Title="Albums" Items="{Binding Albums}" ItemTemplate="{StaticResource SquareCard}" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Command="{Binding BackCommand}" ToolTip.Tip="Back (Alt+←)" AutomationProperties.Name="Back" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
+                Width="44" Height="44" CornerRadius="22" Background="#B3000000" Foreground="White" HorizontalContentAlignment="Center">
+            <TextBlock Text="&#xE72B;" FontFamily="{StaticResource IconFont}" />
+        </Button>
+    </Panel>
+</UserControl>

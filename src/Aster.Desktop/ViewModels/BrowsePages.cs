@@ -164,7 +164,7 @@ public sealed class LibraryGridViewModel : BrowsePageViewModel
     }
 
     protected override bool HasGrid => true;
-    public override bool LandscapeGrid => parent.CollectionType is "homevideos" or "musicvideos";
+    public override CardStyle GridStyle => parent.CollectionType is "homevideos" or "musicvideos" ? CardStyle.Landscape : CardStyle.Poster;
 
     protected override Query GridQuery()
     {

@@ -6,9 +6,9 @@ file by file, so keep the two in step when either changes.
 
 | Project | What it is |
 | --- | --- |
-| `src/Aster.Core` | Jellyfin client, models, device profile, resume points, session storage (Windows Credential Manager), subtitle and trickplay helpers, JellyDisc models |
+| `src/Aster.Core` | Jellyfin client, models, device profile, resume points, session storage (Windows Credential Manager), subtitle and trickplay helpers, JellyDisc models, audiobooks (grouping, chapters, speeds) |
 | `src/Aster.Mpv` | Bindings for libmpv: the player, its events, and OpenGL rendering into the UI |
-| `src/Aster.Desktop` | The Avalonia app: sign-in, Home, Movies, TV Shows, Anime, Library, title and person pages, and the player |
+| `src/Aster.Desktop` | The Avalonia app: sign-in, Home, Movies, TV Shows, Anime, Music, Audiobooks, Library, title, person, album, artist and book pages, the video player, and the music and audiobook players |
 | `tests/Aster.Core.Tests` | xUnit tests for the core (against a stub server) and for libmpv (with a clip made by ffmpeg, when it's installed) |
 
 ## Build and run
@@ -29,13 +29,14 @@ These leave the saved session alone:
 - `ASTER_SERVER`, `ASTER_TOKEN` (an API key or access token) and
   `ASTER_USER_ID` sign in for that run.
 - `--open <itemId>` opens a title's (or library's, or person's) page.
-- `--tab <movies|shows|anime|library>` starts on a tab; `--sort <Name|DateAdded|ReleaseDate|Rating>` sorts it.
+- `--tab <movies|shows|anime|music|audiobooks|library>` starts on a tab; `--sort <Name|DateAdded|ReleaseDate|Rating>` sorts it.
 - Signing out of such a session only ends it; the saved sign-in is left alone.
 - `--play <itemId>` plays a title straight away, from its resume point;
   `--start <seconds>` and `--max-bitrate <bps>` change where it starts and
   cap its quality (which makes the server convert it).
 - `ASTER_LOG=<file>` writes the app's and mpv's messages to a file:
   which stream was chosen, the track mapping, the decoder, dropped frames.
+- `ASTER_MUTE=1` mutes mpv, for trying playback without the sound.
 
 Playing a title this way reports progress and saves resume points like
 any other playback.
@@ -69,9 +70,8 @@ page is one virtualized list, so a library of thousands scrolls smoothly.
 
 Back: the page's arrow, the mouse's back button, Alt+← or Backspace.
 
-Not yet: the sidebar's other tabs (Music, Audiobooks, Upcoming, Live TV,
-Channels, Search, Settings), theme music and videos, disc menus, openings
-and endings, playlists' own pages. Chinese titles sort under # in the letter
+Not yet: the sidebar's other tabs (Upcoming, Live TV, Channels, Search,
+Settings), theme music and videos, disc menus, and openings and endings. Chinese titles sort under # in the letter
 index; the Apple app files them by pinyin, which .NET has no table for.
 
 ## The player
@@ -95,6 +95,36 @@ a double-click full screen, Esc leaves full screen and then the player.
 Not yet: Live TV, Channels, OP/ED song cards, trickplay previews,
 chapters, downloads, and HDR passthrough (HDR is tone-mapped to SDR, since
 the video is drawn through OpenGL so the controls can sit on top of it).
+
+## Music and audiobooks
+
+The Music and Audiobooks tabs show when the server has a music or books
+library. Music has Albums (Recently Added, Recently Played, Favorite Albums,
+then every album, sortable), Artists, Playlists and Songs. An album or
+playlist page lists its tracks by disc, with Play, Shuffle, Instant Mix and
+favourite; a playlist's tracks can be moved and removed from their menu. An
+artist's page has their albums.
+
+Audiobooks are grouped as the Apple app groups them: a book is a folder of
+parts, its author and series taken from the folders above it. The tab has a
+banner of books in progress and new, Continue Listening, Recently Added,
+then every book, or by author or series. A book's page has its chapters
+(from the files' chapter marks, or one per part), Play or Resume and From
+the Beginning.
+
+Both play through a second, headless mpv, never at the same time as each
+other or a video. While one plays, the sidebar shows it, with play/pause
+and stop; clicking it opens the full player: for a song, its artwork,
+seeking, shuffle, repeat, synced lyrics when the server has them, and Up
+Next; for a book, the chapter's progress and the time left in the book, back
+15 and ahead 30 seconds, chapters, and a speed kept per book (in
+`%LOCALAPPDATA%\Aster\audiobook-rates.json`). Space or the keyboard's
+play/pause key pauses either; Esc closes the full player. Progress goes to
+the server every 10 seconds, so a book resumes where it was left on any
+device.
+
+Not yet: the Windows media overlay and media keys beyond play/pause, Add to
+Playlist, downloads, and the sleep timer.
 
 ## Differences from the Apple app
 

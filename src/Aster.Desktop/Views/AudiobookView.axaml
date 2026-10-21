@@ -1,0 +1,69 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             xmlns:c="using:Aster.Desktop.Controls"
+             x:Class="Aster.Desktop.Views.AudiobookView"
+             x:DataType="vm:AudiobookViewModel"
+             Background="#141414">
+
+    <Panel>
+        <c:RemoteImage Url="{Binding Backdrop}">
+            <c:RemoteImage.Effect>
+                <BlurEffect Radius="80" />
+            </c:RemoteImage.Effect>
+        </c:RemoteImage>
+        <Border Background="#B8000000" />
+
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="28" Margin="64,80,64,60">
+                <Grid ColumnDefinitions="Auto,*">
+                    <Border Width="240" Height="240" CornerRadius="16" ClipToBounds="True" Background="#262626" BoxShadow="0 12 30 0 #80000000">
+                        <Panel>
+                            <TextBlock Text="&#xE82D;" FontFamily="{StaticResource IconFont}" FontSize="48" Opacity="0.35"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <c:RemoteImage Url="{Binding Cover}" />
+                        </Panel>
+                    </Border>
+                    <StackPanel Grid.Column="1" Spacing="12" Margin="32,0,0,0" VerticalAlignment="Bottom">
+                        <TextBlock Text="{Binding Title}" FontSize="34" FontWeight="Bold" TextWrapping="Wrap" MaxLines="2" />
+                        <TextBlock Text="{Binding Author}" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource Secondary}"
+                                   IsVisible="{Binding Author, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                        <TextBlock Text="{Binding InfoLine}" Foreground="{StaticResource Secondary}" />
+                        <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding ProgressText, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <ProgressBar Width="200" Height="5" MinHeight="5" CornerRadius="3" Value="{Binding Progress}" Minimum="0" Maximum="100"
+                                         Foreground="White" Background="#4DFFFFFF" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding ProgressText}" FontSize="12" Foreground="{StaticResource Secondary}" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding Overview}" Foreground="{StaticResource Secondary}" TextWrapping="Wrap" MaxLines="4"
+                                   TextTrimming="CharacterEllipsis" MaxWidth="900" HorizontalAlignment="Left"
+                                   IsVisible="{Binding Overview, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                        <WrapPanel ItemSpacing="12" LineSpacing="12" Margin="0,6,0,0">
+                            <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding PlayCommand}" AutomationProperties.Name="Play">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="&#xE768;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding PlayLabel}" />
+                                </StackPanel>
+                            </Button>
+                            <Button Theme="{StaticResource PillButton}" Command="{Binding FromBeginningCommand}" AutomationProperties.Name="From the Beginning" IsVisible="{Binding ShowsFromBeginning}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="&#xE892;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                                    <TextBlock Text="From the Beginning" />
+                                </StackPanel>
+                            </Button>
+                        </WrapPanel>
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Spacing="8" IsVisible="{Binding HasChapters}">
+                    <TextBlock Text="Chapters" FontSize="20" FontWeight="SemiBold" />
+                    <ItemsControl ItemsSource="{Binding Chapters}" ItemTemplate="{StaticResource ChapterRowTemplate}" />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Command="{Binding BackCommand}" ToolTip.Tip="Back (Alt+←)" AutomationProperties.Name="Back" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
+                Width="44" Height="44" CornerRadius="22" Background="#B3000000" Foreground="White" HorizontalContentAlignment="Center">
+            <TextBlock Text="&#xE72B;" FontFamily="{StaticResource IconFont}" />
+        </Button>
+    </Panel>
+</UserControl>

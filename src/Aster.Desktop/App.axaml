@@ -18,5 +18,12 @@
 
     <Application.Styles>
         <FluentTheme />
+        <!-- A song or chapter row: a faint panel, a little brighter for the one playing. -->
+        <Style Selector="Button.track">
+            <Setter Property="Background" Value="#0FFFFFFF" />
+        </Style>
+        <Style Selector="Button.track.current">
+            <Setter Property="Background" Value="#1FFFFFFF" />
+        </Style>
     </Application.Styles>
 </Application>

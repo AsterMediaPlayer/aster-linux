@@ -11,23 +11,34 @@
         </DataTemplate>
 
         <DataTemplate DataType="vm:TitleRow">
-            <DockPanel Classes="title" Classes.pushed="{Binding Page.IsPushed}">
-                <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding Page.SortTitles}" SelectedIndex="{Binding Page.SortIndex}"
-                          IsVisible="{Binding Page.ShowsSort}" MinWidth="170" VerticalAlignment="Center" ToolTip.Tip="Sort by" />
-                <TextBlock Text="{Binding Title}" FontSize="32" FontWeight="Bold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-            </DockPanel>
+            <StackPanel Classes="title" Classes.pushed="{Binding Page.IsPushed}" Spacing="12">
+                <DockPanel>
+                    <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding Page.SortTitles}" SelectedIndex="{Binding Page.SortIndex}"
+                              IsVisible="{Binding Page.ShowsSort}" MinWidth="170" VerticalAlignment="Center" ToolTip.Tip="Sort by" />
+                    <TextBlock Text="{Binding Title}" FontSize="32" FontWeight="Bold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                </DockPanel>
+                <TextBlock Text="{Binding Subtitle}" Foreground="{StaticResource Secondary}"
+                           IsVisible="{Binding Subtitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                <!-- Albums / Artists / Playlists / Songs, or Books / Authors / Series. -->
+                <ItemsControl ItemsSource="{Binding Page.Sections}" IsVisible="{Binding Page.HasSections}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="10" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:Choice">
+                            <Button Theme="{StaticResource PillButton}" Classes.selected="{Binding IsSelected}" Command="{Binding Select}"
+                                    Content="{Binding Title}" MinHeight="36" Padding="16,6" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
         </DataTemplate>
 
-        <DataTemplate DataType="vm:LandscapeShelfRow">
-            <c:ShelfView Title="{Binding Shelf.Title}" Items="{Binding Shelf.Cards}" ItemTemplate="{StaticResource LandscapeCard}" Margin="0,0,0,16" />
-        </DataTemplate>
-
-        <DataTemplate DataType="vm:PosterShelfRow">
-            <c:ShelfView Title="{Binding Shelf.Title}" Items="{Binding Shelf.Cards}" ItemTemplate="{StaticResource PosterCard}" Margin="0,0,0,16" />
-        </DataTemplate>
-
-        <DataTemplate DataType="vm:TileShelfRow">
-            <c:ShelfView Title="{Binding Shelf.Title}" Items="{Binding Shelf.Cards}" ItemTemplate="{StaticResource TileCard}" Margin="0,0,0,16" />
+        <DataTemplate DataType="vm:ShelfRow">
+            <c:ShelfView Title="{Binding Title}" Items="{Binding Cards}" Margin="0,0,0,16"
+                         ItemTemplate="{Binding Style, Converter={x:Static c:Converters.CardTemplate}}" />
         </DataTemplate>
 
         <DataTemplate DataType="vm:HeadingRow">
@@ -38,24 +49,20 @@
             </Panel>
         </DataTemplate>
 
-        <DataTemplate DataType="vm:PosterCardsRow">
-            <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource PosterCard}" Margin="48,10,48,14">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal" Spacing="24" />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-            </ItemsControl>
-        </DataTemplate>
-
-        <DataTemplate DataType="vm:LandscapeCardsRow">
-            <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource LandscapeCard}" Margin="48,10,48,14">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal" Spacing="24" />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-            </ItemsControl>
+        <DataTemplate DataType="vm:CardsRow">
+            <Panel>
+                <ItemsControl ItemsSource="{Binding Cards}" Margin="48,6,48,10" IsVisible="{Binding !IsTrack}"
+                              ItemTemplate="{ReflectionBinding Style, Converter={x:Static c:Converters.CardTemplate}}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="24" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+                <!-- A song: the full width. -->
+                <ItemsControl ItemsSource="{Binding Cards}" Margin="48,3" IsVisible="{Binding IsTrack}"
+                              ItemTemplate="{StaticResource TrackCard}" />
+            </Panel>
         </DataTemplate>
 
         <DataTemplate DataType="vm:StatusRow">
@@ -114,10 +121,10 @@
     </Panel>
 
     <UserControl.Styles>
-        <Style Selector="DockPanel.title">
+        <Style Selector="StackPanel.title">
             <Setter Property="Margin" Value="48,28,48,12" />
         </Style>
-        <Style Selector="DockPanel.title.pushed">
+        <Style Selector="StackPanel.title.pushed">
             <Setter Property="Margin" Value="48,80,48,12" />
         </Style>
         <Style Selector="Button.indexLetter">

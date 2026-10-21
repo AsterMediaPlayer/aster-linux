@@ -9,11 +9,15 @@ using CommunityToolkit.Mvvm.Input;
 namespace Aster.Desktop.ViewModels;
 
 /// <summary>One page of a featured banner.</summary>
-public sealed partial class HeroPage(INavigator navigator, BaseItem item) : ObservableObject
+public sealed partial class HeroPage(INavigator navigator, BaseItem item, Action<BaseItem>? open = null, Action<BaseItem>? play = null, bool squareArt = false) : ObservableObject
 {
     public BaseItem Item { get; } = item;
-    public Uri? Backdrop { get; } = navigator.Client.BackdropUrl(item, width: 1920);
-    public Uri? Logo { get; } = navigator.Client.LogoUrl(item);
+    public Uri? Backdrop { get; } = squareArt ? null : navigator.Client.BackdropUrl(item, width: 1920);
+    public Uri? Logo { get; } = squareArt ? null : navigator.Client.LogoUrl(item);
+
+    /// <summary>A book's square cover: shown beside the text, and blurred behind it all.</summary>
+    public Uri? Cover { get; } = squareArt ? navigator.Client.PosterUrl(item, width: 600) : null;
+    public bool HasCover => Cover is not null;
     public string Title => Item.Kind == ItemKind.Episode ? Item.SeriesName ?? Item.DisplayTitle : Item.DisplayTitle;
     public string? EpisodeLine => Item.Kind == ItemKind.Episode ? string.Join(" · ", new[] { Item.EpisodeCode, Item.Name }.OfType<string>()) : null;
     public MetadataLine Metadata { get; } = MetadataLine.For(item);
@@ -22,20 +26,31 @@ public sealed partial class HeroPage(INavigator navigator, BaseItem item) : Obse
     public string? Remaining => Item.RemainingText is { } left ? $"·  {left}" : null;
 
     /// <summary>The page opens.</summary>
-    [RelayCommand] private void Open() => navigator.Open(Item);
+    [RelayCommand]
+    private void Open()
+    {
+        if (open is not null) open(Item); else navigator.Open(Item);
+    }
 
     /// <summary>
     /// Play and Resume: the title's page opens and starts playing at once,
     /// so closing the player leaves the viewer on that page.
     /// </summary>
-    [RelayCommand] private void Play() => navigator.Open(Item, playOnOpen: true);
+    [RelayCommand]
+    private void Play()
+    {
+        if (play is not null) play(Item); else navigator.Open(Item, playOnOpen: true);
+    }
 }
 
 /// <summary>
 /// The featured banner at the top of Home and the Movies, TV Shows and Anime
 /// tabs: up to 8 titles, paged with arrows, dots or the arrow keys.
 /// </summary>
-public sealed partial class HeroModel(INavigator navigator) : ObservableObject
+/// <param name="open">What opening a page does, in place of the title's page (a book's own page).</param>
+/// <param name="play">What Play does, in place of opening the page and playing (a book plays at once).</param>
+/// <param name="squareArt">The titles have only square art (books), shown as a cover rather than a backdrop.</param>
+public sealed partial class HeroModel(INavigator navigator, Action<BaseItem>? open = null, Action<BaseItem>? play = null, bool squareArt = false) : ObservableObject
 {
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasPages), nameof(Dots), nameof(HasNext))]
@@ -69,9 +84,9 @@ public sealed partial class HeroModel(INavigator navigator) : ObservableObject
             if (picks.Count == 8) break;
         }
         var current = Index < Pages.Count ? Pages[Index].Item.Id : null;
-        var pages = picks.Select(item => new HeroPage(navigator, item)).ToList();
+        var pages = picks.Select(item => new HeroPage(navigator, item, open, play, squareArt)).ToList();
         Pages = pages;
         Index = Math.Max(0, pages.FindIndex(p => p.Item.Id == current));
-        ImageLoader.Prefetch(pages.SelectMany(p => new[] { p.Backdrop, p.Logo }));
+        ImageLoader.Prefetch(pages.SelectMany(p => new[] { p.Backdrop, p.Logo, p.Cover }));
     }
 }

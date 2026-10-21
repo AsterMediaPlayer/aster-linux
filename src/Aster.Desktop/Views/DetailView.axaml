@@ -61,7 +61,7 @@
                                    IsVisible="{Binding UpNextLine, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
                         <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,8,0,0">
-                            <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding PlayResumeCommand}" x:Name="PlayButton">
+                            <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding PlayResumeCommand}" AutomationProperties.Name="Play" x:Name="PlayButton">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <TextBlock Text="&#xE768;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding PlayLabel}" />
@@ -154,7 +154,7 @@
             </StackPanel>
         </ScrollViewer>
 
-        <Button Command="{Binding BackCommand}" ToolTip.Tip="Back (Alt+←)" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
+        <Button Command="{Binding BackCommand}" ToolTip.Tip="Back (Alt+←)" AutomationProperties.Name="Back" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
                 Width="44" Height="44" CornerRadius="22" Background="#B3000000" Foreground="White" HorizontalContentAlignment="Center">
             <TextBlock Text="&#xE72B;" FontFamily="{StaticResource IconFont}" />
         </Button>

@@ -1,6 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Aster.Desktop.ViewModels"
+             xmlns:c="using:Aster.Desktop.Controls"
+             xmlns:v="using:Aster.Desktop.Views"
              x:Class="Aster.Desktop.Views.ShellView"
              x:DataType="vm:ShellViewModel">
 
@@ -16,53 +18,89 @@
             <Setter Property="Background" Value="#26FFFFFF" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
+        <Style Selector="Button.bar">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="6" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+        </Style>
     </UserControl.Styles>
 
-    <Grid ColumnDefinitions="200,*">
-        <!-- The sidebar. -->
-        <Border Grid.Column="0" Background="#141414" BorderBrush="#22FFFFFF" BorderThickness="0,0,1,0" Padding="12,20">
-            <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="Aster" FontSize="24" FontWeight="Bold" Margin="14,0,0,24" />
-                <StackPanel DockPanel.Dock="Bottom" Spacing="4">
-                    <TextBlock Text="{Binding UserName}" FontWeight="SemiBold" Margin="14,0" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Text="{Binding ServerName}" FontSize="12" Foreground="{StaticResource Secondary}" Margin="14,0,14,8" TextTrimming="CharacterEllipsis" />
-                    <!-- Asks first: a stray click or Enter shouldn't sign anyone out. -->
-                    <Button Classes="nav">
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <TextBlock Text="&#xF3B1;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
-                            <TextBlock Text="Sign Out" />
-                        </StackPanel>
-                        <Button.Flyout>
-                            <Flyout Placement="RightEdgeAlignedBottom">
-                                <StackPanel Spacing="12" MaxWidth="260">
-                                    <TextBlock Text="{Binding ServerName, StringFormat='Sign out of {0}?'}" TextWrapping="Wrap" FontWeight="SemiBold" />
-                                    <Button Content="Sign Out" Command="{Binding SignOutCommand}" HorizontalAlignment="Right" />
-                                </StackPanel>
-                            </Flyout>
-                        </Button.Flyout>
-                    </Button>
-                </StackPanel>
-                <ItemsControl ItemsSource="{Binding Tabs}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Spacing="2" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:SidebarTab">
-                            <Button Classes="nav" Classes.selected="{Binding IsSelected}" Command="{Binding Select}">
-                                <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <TextBlock Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding Title}" />
-                                </StackPanel>
-                            </Button>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </DockPanel>
-        </Border>
+    <Panel>
+        <Grid ColumnDefinitions="200,*">
+            <!-- The sidebar. -->
+            <Border Grid.Column="0" Background="#141414" BorderBrush="#22FFFFFF" BorderThickness="0,0,1,0" Padding="12,20">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Aster" FontSize="24" FontWeight="Bold" Margin="14,0,0,24" />
+                    <StackPanel DockPanel.Dock="Bottom" Spacing="4">
+                        <!-- The song or book playing, whichever page is showing: the rest opens the full player. -->
+                        <Border Background="#1FFFFFFF" CornerRadius="10" Padding="6" Margin="0,0,0,16" IsVisible="{Binding Audio.IsLoaded}">
+                            <Grid ColumnDefinitions="*,Auto,Auto">
+                                <Button Command="{Binding Audio.ShowPlayerCommand}" Background="Transparent" Padding="0" AutomationProperties.Name="Now Playing"
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" ToolTip.Tip="Open the player">
+                                    <Grid ColumnDefinitions="Auto,*">
+                                        <Border Width="36" Height="36" CornerRadius="6" ClipToBounds="True" Background="{StaticResource CardBackground}">
+                                            <c:RemoteImage Url="{Binding Audio.Artwork}" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Audio.Title}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding Audio.Detail}" FontSize="11" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Button>
+                                <Button Grid.Column="1" Classes="bar" Command="{Binding Audio.ToggleCommand}" AutomationProperties.Name="Play or Pause" ToolTip.Tip="Play/Pause (Space)">
+                                    <Panel>
+                                        <TextBlock Text="&#xE769;" IsVisible="{Binding Audio.IsPlaying}" />
+                                        <TextBlock Text="&#xE768;" IsVisible="{Binding !Audio.IsPlaying}" />
+                                    </Panel>
+                                </Button>
+                                <Button Grid.Column="2" Classes="bar" Command="{Binding Audio.StopCommand}" AutomationProperties.Name="Stop" Content="&#xE711;" FontSize="11"
+                                        Foreground="{StaticResource Secondary}" ToolTip.Tip="Stop" />
+                            </Grid>
+                        </Border>
+                        <TextBlock Text="{Binding UserName}" FontWeight="SemiBold" Margin="14,0" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding ServerName}" FontSize="12" Foreground="{StaticResource Secondary}" Margin="14,0,14,8" TextTrimming="CharacterEllipsis" />
+                        <!-- Asks first: a stray click or Enter shouldn't sign anyone out. -->
+                        <Button Classes="nav">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="&#xF3B1;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                                <TextBlock Text="Sign Out" />
+                            </StackPanel>
+                            <Button.Flyout>
+                                <Flyout Placement="RightEdgeAlignedBottom">
+                                    <StackPanel Spacing="12" MaxWidth="260">
+                                        <TextBlock Text="{Binding ServerName, StringFormat='Sign out of {0}?'}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                                        <Button Content="Sign Out" Command="{Binding SignOutCommand}" HorizontalAlignment="Right" />
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding Tabs}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="2" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:SidebarTab">
+                                <Button Classes="nav" Classes.selected="{Binding IsSelected}" Command="{Binding Select}" AutomationProperties.Name="{Binding Title}">
+                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                        <TextBlock Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Title}" />
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
+            </Border>
 
-        <!-- The page. -->
-        <ContentControl Grid.Column="1" Content="{Binding CurrentPage}" />
-    </Grid>
+            <!-- The page. -->
+            <ContentControl Grid.Column="1" Content="{Binding CurrentPage}" />
+        </Grid>
+
+        <!-- The full player, over everything, while it's open. -->
+        <v:NowPlayingView DataContext="{Binding NowPlaying}" IsVisible="{Binding IsShown}" />
+    </Panel>
 </UserControl>

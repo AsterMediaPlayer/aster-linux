@@ -131,6 +131,10 @@ public partial class PlayerViewModel : ViewModelBase
         ["ytdl"] = "no",
         ["audio-display"] = "no",
         ["user-agent"] = $"{JellyfinDevice.ClientName}/{JellyfinDevice.Version}",
+#if DEBUG
+        // ASTER_MUTE: silent, for trying the app without disturbing anyone.
+        ["mute"] = Environment.GetEnvironmentVariable("ASTER_MUTE") is null ? "no" : "yes",
+#endif
     };
 
     public MpvPlayer? Player { get; }
