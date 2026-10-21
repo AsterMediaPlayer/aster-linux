@@ -63,6 +63,8 @@ public partial class PlayerView : UserControl
     {
         base.OnAttachedToVisualTree(e);
         Focus();
+        // Settings' "Play videos full screen"; the window comes back as the player closes.
+        if (Aster.Core.AppSettings.Current.FullScreenPlayback && Window is { WindowState: not WindowState.FullScreen }) ToggleFullScreen();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)

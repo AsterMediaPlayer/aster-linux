@@ -41,6 +41,13 @@ public partial class MainWindow : Window
                 return;
             }
         }
+        // Ctrl+F: the Search tab, its box ready for typing.
+        if (e.Key == Key.F && e.KeyModifiers == KeyModifiers.Control && DataContext is MainViewModel { CurrentPage: ShellViewModel shell })
+        {
+            shell.ShowTab(AppTab.Search);
+            e.Handled = true;
+            return;
+        }
         var back = e.Key == Key.BrowserBack
             || (e.Key == Key.Left && e.KeyModifiers == KeyModifiers.Alt)
             || (e.Key == Key.Back && e.Source is not TextBox);

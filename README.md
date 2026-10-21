@@ -29,7 +29,7 @@ These leave the saved session alone:
 - `ASTER_SERVER`, `ASTER_TOKEN` (an API key or access token) and
   `ASTER_USER_ID` sign in for that run.
 - `--open <itemId>` opens a title's (or library's, or person's) page.
-- `--tab <movies|shows|anime|music|audiobooks|library>` starts on a tab; `--sort <Name|DateAdded|ReleaseDate|Rating>` sorts it.
+- `--tab <search|movies|shows|anime|music|audiobooks|library|settings>` starts on a tab; `--sort <Name|DateAdded|ReleaseDate|Rating>` sorts it.
 - Signing out of such a session only ends it; the saved sign-in is left alone.
 - `--play <itemId>` plays a title straight away, from its resume point;
   `--start <seconds>` and `--max-bitrate <bps>` change where it starts and
@@ -70,9 +70,37 @@ page is one virtualized list, so a library of thousands scrolls smoothly.
 
 Back: the page's arrow, the mouse's back button, Alt+← or Backspace.
 
-Not yet: the sidebar's other tabs (Upcoming, Live TV, Channels, Search,
-Settings), theme music and videos, disc menus, and openings and endings. Chinese titles sort under # in the letter
-index; the Apple app files them by pinyin, which .NET has no table for.
+Search (or Ctrl+F) looks as typing pauses: movies and shows as a grid,
+then shelves of episodes, albums and playlists, artists and songs; a song
+plays the songs found, from it.
+
+Not yet: the sidebar's other tabs (Upcoming, Live TV, Channels), theme
+music and videos, disc menus, and openings and endings. Chinese titles sort
+under # in the letter index; the Apple app files them by pinyin, which .NET
+has no table for.
+
+## Settings
+
+Settings has the Apple app's Playback, Audio & Subtitles, Account and
+About pages on one page, as the Mac's Settings window has them:
+
+- **On this computer** (`%LOCALAPPDATA%\Aster\settings.json`): the
+  maximum streaming quality, and playing videos full screen (on, as on the
+  Mac; the window comes back as the player closes).
+- **Following the user** between devices and the Apple app: autoplaying
+  the next episode, skipping intros, and drawing ASS/SSA subtitles styled
+  (off, mpv strips them to plain text). They're fetched at sign-in and
+  when Settings opens, a change is saved as it's made, and a setting never
+  chosen on this computer keeps the default rather than overwriting
+  another device's choice.
+- **The user's Jellyfin settings**, shared with the web app: the preferred
+  audio and subtitle languages and when subtitles show.
+- **Account:** the server, its address and Jellyfin version, and the user,
+  with Switch User and Change Server (both sign out, after asking; Switch
+  User keeps the server's address filled in).
+
+Not yet: the Disc Menus, Title Pages and Channels pages, and the anime song
+cards, which wait on those features.
 
 ## The player
 

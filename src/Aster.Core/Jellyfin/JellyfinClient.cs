@@ -625,8 +625,11 @@ public sealed class JellyfinClient
             .Order(StringComparer.CurrentCultureIgnoreCase)
             .ToList();
 
-    /// <summary>The signed-in user, including their server-side settings.</summary>
-    public Task<JellyfinUser> MeAsync(CancellationToken ct = default) => GetAsync<JellyfinUser>("/Users/Me", ct: ct);
+    /// <summary>
+    /// The signed-in user, including their server-side settings. Asked for by
+    /// id rather than /Users/Me, which an API key has no user for.
+    /// </summary>
+    public Task<JellyfinUser> MeAsync(CancellationToken ct = default) => GetAsync<JellyfinUser>($"/Users/{RequireUser()}", ct: ct);
 
     /// <summary>Replaces the user's settings wholesale; send a complete configuration.</summary>
     public Task UpdateConfigurationAsync(UserConfiguration configuration, CancellationToken ct = default) =>

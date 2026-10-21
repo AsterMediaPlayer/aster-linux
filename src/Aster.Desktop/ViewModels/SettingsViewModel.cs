@@ -1,0 +1,208 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
+using Aster.Core;
+using Aster.Core.Jellyfin;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace Aster.Desktop.ViewModels;
+
+/// <summary>A choice in a settings list, shown by its title.</summary>
+public sealed record SettingOption<T>(string Title, T Value)
+{
+    public override string ToString() => Title;
+}
+
+/// <summary>
+/// The Settings tab: the Apple app's Playback, Audio &amp; Subtitles, Account
+/// and About pages, on one page as the Mac's Settings window has them. The
+/// Up Next, intro and styled-subtitle switches follow the user between
+/// devices (<see cref="SettingsSync"/>); the languages are the user's own
+/// Jellyfin settings, shared with the web app.
+/// </summary>
+public sealed partial class SettingsViewModel : ViewModelBase
+{
+    private readonly INavigator navigator;
+    private readonly Func<SignOutKind, Task> signOut;
+    private UserConfiguration? configuration;
+
+    /// <summary>True while values are being shown, rather than chosen.</summary>
+    private bool showing;
+
+    public SettingsViewModel(INavigator navigator, string userName, string serverName, Func<SignOutKind, Task> signOut)
+    {
+        this.navigator = navigator;
+        this.signOut = signOut;
+        UserName = userName;
+        ServerName = serverName;
+        ServerAddress = navigator.Client.BaseUrl.ToString().TrimEnd('/');
+        ShowLocal();
+        _ = LoadAsync();
+    }
+
+    // ---- Playback ----
+
+    public IReadOnlyList<SettingOption<int>> Bitrates { get; } =
+    [
+        new("Auto (120 Mbps)", 120_000_000),
+        new("60 Mbps", 60_000_000),
+        new("40 Mbps", 40_000_000),
+        new("20 Mbps", 20_000_000),
+        new("10 Mbps", 10_000_000),
+        new("4 Mbps", 4_000_000),
+    ];
+
+    [ObservableProperty] public partial SettingOption<int>? Bitrate { get; set; }
+    [ObservableProperty] public partial bool FullScreenPlayback { get; set; }
+    [ObservableProperty] public partial bool AutoplayNext { get; set; }
+    [ObservableProperty] public partial bool AutoSkipIntro { get; set; }
+    [ObservableProperty] public partial bool StyledSubtitles { get; set; }
+
+    partial void OnBitrateChanged(SettingOption<int>? value)
+    {
+        if (value is not null) Change(s => s with { MaxBitrate = value.Value });
+    }
+
+    partial void OnFullScreenPlaybackChanged(bool value) => Change(s => s with { FullScreenPlayback = value });
+    partial void OnAutoplayNextChanged(bool value) => Change(s => s with { AutoplayNext = value });
+    partial void OnAutoSkipIntroChanged(bool value) => Change(s => s with { AutoSkipIntro = value });
+    partial void OnStyledSubtitlesChanged(bool value) => Change(s => s with { StyledSubtitles = value });
+
+    private void Change(Func<AppSettings, AppSettings> change)
+    {
+        if (!showing) _ = SettingsSync.ChangeAsync(navigator.Client, change);
+    }
+
+    /// <summary>This computer's settings, as they are now.</summary>
+    private void ShowLocal()
+    {
+        var settings = AppSettings.Current;
+        showing = true;
+        Bitrate = Bitrates.FirstOrDefault(b => b.Value == settings.MaxBitrate) ?? Bitrates[0];
+        FullScreenPlayback = settings.FullScreenPlayback;
+        AutoplayNext = settings.AutoplayNext;
+        AutoSkipIntro = settings.AutoSkipIntro;
+        StyledSubtitles = settings.StyledSubtitles;
+        showing = false;
+    }
+
+    // ---- Audio & Subtitles ----
+
+    /// <summary>ISO 639-2 codes as Jellyfin stores them, with an "Any" entry.</summary>
+    private static readonly SettingOption<string>[] Languages =
+    [
+        new("Any", ""), new("English", "eng"), new("Spanish", "spa"), new("French", "fre"), new("German", "ger"),
+        new("Italian", "ita"), new("Portuguese", "por"), new("Japanese", "jpn"), new("Korean", "kor"), new("Chinese", "chi"),
+        new("Russian", "rus"), new("Arabic", "ara"), new("Hindi", "hin"), new("Dutch", "dut"), new("Swedish", "swe"),
+        new("Norwegian", "nor"), new("Danish", "dan"), new("Finnish", "fin"), new("Polish", "pol"), new("Turkish", "tur"),
+        new("Hebrew", "heb"), new("Thai", "tha"), new("Vietnamese", "vie"), new("Greek", "gre"), new("Czech", "cze"), new("Hungarian", "hun"),
+    ];
+
+    [ObservableProperty] public partial IReadOnlyList<SettingOption<string>> AudioLanguages { get; set; } = Languages;
+    [ObservableProperty] public partial IReadOnlyList<SettingOption<string>> SubtitleLanguages { get; set; } = Languages;
+
+    public IReadOnlyList<SettingOption<SubtitleMode>> SubtitleModes { get; } =
+        Enum.GetValues<SubtitleMode>().Select(m => new SettingOption<SubtitleMode>(m.Title, m)).ToList();
+
+    [ObservableProperty] public partial SettingOption<string>? AudioLanguage { get; set; }
+    [ObservableProperty] public partial SettingOption<string>? SubtitleLanguage { get; set; }
+    [ObservableProperty] public partial SettingOption<SubtitleMode>? SubtitleModeChoice { get; set; }
+
+    /// <summary>The language settings can be changed once the user's server settings are in.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LanguageNote))]
+    public partial bool HasConfiguration { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LanguageNote))]
+    public partial string? ConfigurationError { get; set; }
+
+    public string LanguageNote => ConfigurationError is { } error
+        ? $"Your Jellyfin settings couldn't be loaded: {error}"
+        : HasConfiguration
+            ? "Synced with your Jellyfin profile, so the web app and this PC make the same choices. A title's own Audio & Subtitles menu overrides them for that title."
+            : "Loading your Jellyfin settings…";
+
+    partial void OnAudioLanguageChanged(SettingOption<string>? value)
+    {
+        if (value is not null) UpdateConfiguration(c => c with { AudioLanguagePreference = value.Value });
+    }
+
+    partial void OnSubtitleLanguageChanged(SettingOption<string>? value)
+    {
+        if (value is not null) UpdateConfiguration(c => c with { SubtitleLanguagePreference = value.Value });
+    }
+
+    partial void OnSubtitleModeChoiceChanged(SettingOption<SubtitleMode>? value)
+    {
+        if (value is not null) UpdateConfiguration(c => c with { SubtitleMode = value.Value.ToString() });
+    }
+
+    /// <summary>The language list, plus the current value if the server uses a code that isn't in it, so the list never shows nothing.</summary>
+    private static IReadOnlyList<SettingOption<string>> LanguagesWith(string current) =>
+        current.Length == 0 || Languages.Any(l => l.Value == current) ? Languages : [.. Languages, new(current.ToUpperInvariant(), current)];
+
+    private async void UpdateConfiguration(Func<UserConfiguration, UserConfiguration> change)
+    {
+        if (showing || configuration is null) return;
+        var updated = change(configuration);
+        configuration = updated;
+        try { await navigator.Client.UpdateConfigurationAsync(updated); }
+        catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException)
+        {
+            ConfigurationError = error.Message;
+        }
+    }
+
+    // ---- Account ----
+
+    public string UserName { get; }
+    public string ServerName { get; }
+    public string ServerAddress { get; }
+    [ObservableProperty] public partial string? ServerVersion { get; set; }
+
+    [RelayCommand] private Task SwitchUser() => signOut(SignOutKind.SwitchUser);
+    [RelayCommand] private Task ChangeServer() => signOut(SignOutKind.ChangeServer);
+
+    // ---- About ----
+
+    public string AppVersion { get; } =
+        typeof(SettingsViewModel).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "";
+
+    /// <summary>
+    /// The server's copies: the synced switches, the languages and the
+    /// server's version, each shown as it arrives.
+    /// </summary>
+    private async Task LoadAsync()
+    {
+        var pull = SettingsSync.PullAsync(navigator.Client);
+        var info = navigator.Client.PublicSystemInfoAsync();
+        try
+        {
+            configuration = (await navigator.Client.MeAsync()).Configuration ?? new UserConfiguration();
+            var audio = configuration.AudioLanguagePreference ?? "";
+            var subtitles = configuration.SubtitleLanguagePreference ?? "";
+            var mode = Enum.TryParse<SubtitleMode>(configuration.SubtitleMode, out var parsed) ? parsed : SubtitleMode.Default;
+            showing = true;
+            AudioLanguages = LanguagesWith(audio);
+            SubtitleLanguages = LanguagesWith(subtitles);
+            AudioLanguage = AudioLanguages.First(l => l.Value == audio);
+            SubtitleLanguage = SubtitleLanguages.First(l => l.Value == subtitles);
+            SubtitleModeChoice = SubtitleModes.First(m => m.Value == mode);
+            showing = false;
+            HasConfiguration = true;
+        }
+        catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException)
+        {
+            if (error is JellyfinException { StatusCode: 401 }) await navigator.SessionExpiredAsync();
+            ConfigurationError = error.Message;
+        }
+        await pull;
+        ShowLocal();
+        try { ServerVersion = (await info).Version; }
+        catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException) { }
+    }
+}

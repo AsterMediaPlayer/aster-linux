@@ -63,6 +63,7 @@ public sealed record SidebarTab(string Title, string Glyph, bool IsSelected, IRe
 
 public enum AppTab
 {
+    Search,
     Home,
     Movies,
     Shows,
@@ -70,26 +71,39 @@ public enum AppTab
     Music,
     Audiobooks,
     Library,
+    Settings,
+}
+
+/// <summary>Why the user is signing out, which decides what sign-in starts with.</summary>
+public enum SignOutKind
+{
+    /// <summary>Sign in again, or as someone else: the server's address stays filled in.</summary>
+    SwitchUser,
+
+    /// <summary>Another server: sign-in starts empty.</summary>
+    ChangeServer,
+
+    /// <summary>The server ended the session itself (401).</summary>
+    Expired,
 }
 
 /// <summary>
 /// The signed-in app: the sidebar and the pages opened from it, each over
 /// the last, with Back going down the stack. The Apple app's sidebar also
-/// has Upcoming, Live TV, Channels, Settings and Search; they join as
-/// they're ported.
+/// has Upcoming, Live TV and Channels; they join as they're ported.
 /// </summary>
 public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
 {
     private readonly Action<PlaybackQueueItem, Action<BaseItem?>?> play;
-    private readonly Func<bool, Task> signOut;
+    private readonly Func<SignOutKind, Task> signOut;
     private readonly List<ViewModelBase> stack = [];
     private readonly Dictionary<AppTab, ViewModelBase> tabs = [];
     private AppTab tab = AppTab.Home;
     private bool userDataChanged;
     private readonly HashSet<ViewModelBase> refreshTabs = [];
 
-    /// <param name="signOut">Signs out; true when the server ended the session itself.</param>
-    public ShellViewModel(JellyfinClient client, StoredSession session, Action<PlaybackQueueItem, Action<BaseItem?>?> play, Func<bool, Task> signOut)
+    /// <param name="signOut">Signs out, saying why.</param>
+    public ShellViewModel(JellyfinClient client, StoredSession session, Action<PlaybackQueueItem, Action<BaseItem?>?> play, Func<SignOutKind, Task> signOut)
     {
         Client = client;
         this.play = play;
@@ -107,6 +121,8 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
         // The Anime, Music and Audiobooks tabs show once it's known there's some.
         _ = Anime.ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTabs));
         _ = Libraries.ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTabs));
+        // The settings that follow the user, as their other devices left them.
+        _ = Aster.Core.SettingsSync.PullAsync(client);
     }
 
     public JellyfinClient Client { get; }
@@ -125,6 +141,9 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
 
     [ObservableProperty] public partial IReadOnlyList<SidebarTab> Tabs { get; set; } = [];
 
+    /// <summary>Settings, at the foot of the sidebar.</summary>
+    [ObservableProperty] public partial SidebarTab? SettingsTab { get; set; }
+
     private void UpdateTabs()
     {
         var hasAnime = Anime.IsCompletedSuccessfully && Anime.Result.HasAnime;
@@ -133,6 +152,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
         var hasBooks = libraries.Any(l => l.CollectionType == "books");
         var all = new (AppTab Tab, string Title, string Glyph)[]
         {
+            (AppTab.Search, "Search", ""),
             (AppTab.Home, "Home", ""),
             (AppTab.Movies, "Movies", ""),
             (AppTab.Shows, "TV Shows", ""),
@@ -151,6 +171,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
             })
             .Select(t => new SidebarTab(t.Title, t.Glyph, t.Tab == tab, new RelayCommand(() => ShowTab(t.Tab))))
             .ToList();
+        SettingsTab = new SidebarTab("Settings", "", tab == AppTab.Settings, new RelayCommand(() => ShowTab(AppTab.Settings)));
     }
 
     /// <summary>A tab's page, from the top: made the first time, kept after.</summary>
@@ -166,6 +187,8 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
                 AppTab.Music => new MusicViewModel(this),
                 AppTab.Audiobooks => new AudiobooksViewModel(this),
                 AppTab.Library => new LibraryViewModel(this),
+                AppTab.Search => new SearchViewModel(this),
+                AppTab.Settings => new SettingsViewModel(this, UserName, ServerName, signOut),
                 _ => Home,
             };
             tabs[chosen] = page;
@@ -176,6 +199,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
         CurrentPage = page;
         UpdateTabs();
         Shown();
+        if (page is SearchViewModel search) search.RequestFocus();
     }
     public HomeViewModel Home { get; }
     public string UserName { get; }
@@ -265,9 +289,9 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
     }
 
     [RelayCommand]
-    private Task SignOutAsync() => signOut(false);
+    private Task SignOutAsync() => signOut(SignOutKind.SwitchUser);
 
-    public Task SessionExpiredAsync() => signOut(true);
+    public Task SessionExpiredAsync() => signOut(SignOutKind.Expired);
 
     /// <summary>Signing out: the song or book stops, its place saved.</summary>
     public void Dispose() => Audio.Dispose();

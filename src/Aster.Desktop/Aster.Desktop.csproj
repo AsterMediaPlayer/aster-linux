@@ -4,6 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- The Apple app's version, which this port follows. -->
+    <Version>0.7.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

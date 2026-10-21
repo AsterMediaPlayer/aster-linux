@@ -88,9 +88,9 @@ public partial class PlayerViewModel : ViewModelBase
         try
         {
 #if DEBUG
-            Player = MpvPlayer.Create(MpvOptions, logLevel: "info");
+            Player = MpvPlayer.Create(Options(), logLevel: "info");
 #else
-            Player = MpvPlayer.Create(MpvOptions);
+            Player = MpvPlayer.Create(Options());
 #endif
             Player.PropertyChanged += (name, value) => Dispatcher.UIThread.Post(() => OnPlayerProperty(name, value));
             Player.FileLoaded += () => loading?.TrySetResult();
@@ -110,6 +110,13 @@ public partial class PlayerViewModel : ViewModelBase
         }
         _ = StartAsync();
     }
+
+    /// <summary>mpv's options, with the subtitle style chosen in Settings.</summary>
+    private Dictionary<string, string> Options() => new(MpvOptions)
+    {
+        // Off: ASS and SSA lose their positions, drawings and fonts, as plain text at the bottom.
+        ["sub-ass-override"] = settings.StyledSubtitles ? "scale" : "strip",
+    };
 
     private static readonly Dictionary<string, string> MpvOptions = new()
     {

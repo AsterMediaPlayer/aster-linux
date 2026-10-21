@@ -63,18 +63,19 @@ public partial class MainViewModel : ViewModelBase
         return null;
     }
 
-    private void ShowSignIn(string? message = null)
+    /// <param name="serverAddress">Filled in, to sign in to the same server again.</param>
+    private void ShowSignIn(string? message = null, string? serverAddress = null)
     {
         shell?.Dispose();
         shell = null;
         ImageLoader.Client = null;
-        CurrentPage = new SignInViewModel(ShowShell) { Message = message };
+        CurrentPage = new SignInViewModel(ShowShell) { Message = message, ServerAddress = serverAddress ?? "" };
     }
 
     private void ShowShell(JellyfinClient client, StoredSession session)
     {
         ImageLoader.Client = client;
-        shell = new ShellViewModel(client, session, (entry, closed) => Play(client, entry, closed), expired => SignOutAsync(client, expired));
+        shell = new ShellViewModel(client, session, (entry, closed) => Play(client, entry, closed), kind => SignOutAsync(client, kind));
         CurrentPage = shell;
     }
 
@@ -107,18 +108,20 @@ public partial class MainViewModel : ViewModelBase
         catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException) { }
     }
 
-    private async Task SignOutAsync(JellyfinClient client, bool expired)
+    private async Task SignOutAsync(JellyfinClient client, SignOutKind kind)
     {
+        var expired = kind == SignOutKind.Expired;
+        var address = kind == SignOutKind.ChangeServer ? null : client.BaseUrl.ToString().TrimEnd('/');
         if (developmentSession)
         {
             // Neither ends the key's access nor forgets the real sign-in.
             developmentSession = false;
-            ShowSignIn("Signed out of the development session.");
+            ShowSignIn("Signed out of the development session.", address);
             return;
         }
         if (!expired) await client.LogoutAsync();
         StoredSession.Clear();
-        ShowSignIn(expired ? "Your session has ended. Please sign in again." : null);
+        ShowSignIn(expired ? "Your session has ended. Please sign in again." : null, address);
     }
 
     /// <summary>The app is closing: a title playing reports where it stopped.</summary>

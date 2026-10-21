@@ -18,10 +18,23 @@ public sealed record AppSettings
     /// <summary>Skips intros by themselves, once each.</summary>
     public bool AutoSkipIntro { get; init; }
 
+    /// <summary>ASS and SSA subtitles drawn as styled; off, as plain text at the bottom.</summary>
+    public bool StyledSubtitles { get; init; } = true;
+
+    /// <summary>A video takes the whole screen as it starts (the Mac's setting).</summary>
+    public bool FullScreenPlayback { get; init; } = true;
+
+    /// <summary>
+    /// The synced settings (by their server keys) chosen on this computer, so
+    /// one never chosen keeps the default rather than overwriting another
+    /// device's choice on the server. See <see cref="SettingsSync"/>.
+    /// </summary>
+    public IReadOnlyList<string> Chosen { get; init; } = [];
+
     /// <summary>Below the top choice, a file over the limit is converted down to it.</summary>
     public bool LimitsQuality => MaxBitrate < 120_000_000;
 
-    private static readonly string FilePath = Path.Combine(AppPaths.Data, "settings.json");
+    private static string filePath = Path.Combine(AppPaths.Data, "settings.json");
     private static readonly Lock Gate = new();
     private static AppSettings? current;
 
@@ -33,12 +46,22 @@ public sealed record AppSettings
         }
     }
 
+    /// <summary>Keeps the settings in another file, for tests, which mustn't touch the real ones.</summary>
+    internal static void UseFile(string path)
+    {
+        lock (Gate)
+        {
+            filePath = path;
+            current = null;
+        }
+    }
+
     public static void Save(AppSettings settings)
     {
         lock (Gate)
         {
             current = settings;
-            try { File.WriteAllText(FilePath, JsonSerializer.Serialize(settings, JellyfinJson.Options)); }
+            try { File.WriteAllText(filePath, JsonSerializer.Serialize(settings, JellyfinJson.Options)); }
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
         }
@@ -46,7 +69,7 @@ public sealed record AppSettings
 
     private static AppSettings Load()
     {
-        try { return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath), JellyfinJson.Options) ?? new(); }
+        try { return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(filePath), JellyfinJson.Options) ?? new(); }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException) { return new(); }
     }
 }
