@@ -134,7 +134,15 @@ commercials, trailers and interstitials, lined up on the mark or not.
 On a channel the player follows the schedule: no timeline or seeking, the
 channel's name in place of it, no markers or Up Next, and nothing reported,
 so resume points and watched state stay as they were. When a title ends,
-what the channel shows now plays; PageUp and PageDown change channel. The
+what the channel shows now plays.
+
+Up on a channel (Live TV's or Channels') opens the Apple TV's channel row
+over the picture: what's on the picked channel, its picture, times and
+bug, and the channels either side. Left and right go round them, Enter
+changes channel, Up picks Go to Episode (or Movie: what's on, played on
+its own from where it was left off), and Down or Esc closes it; it closes
+itself after 8 seconds left alone, and everything in it can be clicked.
+PageUp and PageDown change channel straight away. The
 channel's bug sits in its corner of the picture, steps aside for breaks,
 and fades after `bug-hide` seconds.
 

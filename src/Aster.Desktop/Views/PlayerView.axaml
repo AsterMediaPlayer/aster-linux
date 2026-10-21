@@ -20,6 +20,40 @@
             <Setter Property="MinWidth" Value="44" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
         </Style>
+        <!-- The channel row's cards: faint, lighter and outlined when picked. -->
+        <Style Selector="Button.flickCard">
+            <Setter Property="Background" Value="#14FFFFFF" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="BorderThickness" Value="3" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.flickCard.selected">
+            <Setter Property="Background" Value="#38FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E6FFFFFF" />
+        </Style>
+        <Style Selector="Button.flickCard:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#30FFFFFF" />
+        </Style>
+        <Style Selector="Button.flickCard.selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#38FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E6FFFFFF" />
+        </Style>
+        <Style Selector="Button.goTo">
+            <Setter Property="Background" Value="#26FFFFFF" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="20,9" />
+        </Style>
+        <Style Selector="Button.goTo.picked">
+            <Setter Property="Background" Value="#D9FFFFFF" />
+            <Setter Property="Foreground" Value="Black" />
+        </Style>
+        <Style Selector="Button.goTo.picked TextBlock">
+            <Setter Property="Foreground" Value="Black" />
+        </Style>
         <Style Selector="Button.pill">
             <Setter Property="Background" Value="#E6FFFFFF" />
             <Setter Property="Foreground" Value="Black" />
@@ -130,6 +164,10 @@
                             <Button Classes="bar" Command="{Binding Forward10Command}" Content="+10" ToolTip.Tip="Forward 10 seconds (→)" IsVisible="{Binding HasTimeline}" />
                         </StackPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
+                            <Button Classes="bar" Command="{Binding ShowChannelsCommand}" IsVisible="{Binding HasBadge}" ToolTip.Tip="Channels (↑)"
+                                    AutomationProperties.Name="Channels">
+                                <TextBlock Classes="icon" Text="&#xE8FD;" />
+                            </Button>
                             <Button Classes="bar" ToolTip.Tip="Audio">
                                 <TextBlock Classes="icon" Text="&#xE8D6;" />
                                 <Button.Flyout>
@@ -160,6 +198,90 @@
                 </StackPanel>
             </Border>
         </Grid>
+
+        <!-- The channel row (Up on a channel): what's on the picked channel, then the channels either side of it. -->
+        <Border DataContext="{Binding Flick}" x:DataType="vm:ChannelFlickViewModel"
+                IsVisible="{Binding $self.DataContext, Converter={x:Static ObjectConverters.IsNotNull}}"
+                VerticalAlignment="Bottom" Margin="48,0,48,36" Padding="28" CornerRadius="28" Background="#E01C1C1C"
+                BoxShadow="0 12 40 0 #80000000">
+            <StackPanel Spacing="22">
+                <Grid ColumnDefinitions="Auto,*,Auto" MinHeight="150">
+                    <Border Width="267" Height="150" CornerRadius="12" ClipToBounds="True" Background="#14FFFFFF" VerticalAlignment="Top"
+                            IsVisible="{Binding Image, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <c:RemoteImage Url="{Binding Image}" Stretch="UniformToFill" />
+                    </Border>
+                    <StackPanel Grid.Column="1" Margin="24,0,16,0" Spacing="6">
+                        <TextBlock Text="{Binding ChannelLine}" FontSize="16" Foreground="#B3FFFFFF" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Title}" FontSize="28" FontWeight="Bold" Foreground="White" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Subtitle}" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"
+                                   IsVisible="{Binding Subtitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                        <TextBlock Text="{Binding Overview}" Foreground="#BFFFFFFF" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"
+                                   IsVisible="{Binding Overview, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                        <StackPanel Orientation="Horizontal" Spacing="14">
+                            <TextBlock Text="{Binding TimeRange}" Foreground="#BFFFFFFF" VerticalAlignment="Center" />
+                            <ProgressBar Value="{Binding ProgressPercent}" Minimum="0" Maximum="100" Width="160" Height="5" MinHeight="5" CornerRadius="3"
+                                         Foreground="White" Background="#40FFFFFF" VerticalAlignment="Center" IsVisible="{Binding HasProgress}" />
+                            <TextBlock Text="{Binding TimeLeft}" Foreground="#BFFFFFFF" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="22" Margin="0,6,0,0">
+                            <Button Classes="goTo" Classes.picked="{Binding IsOnGoTo}" IsVisible="{Binding CanGoTo}"
+                                    Command="{Binding $parent[UserControl].((vm:PlayerViewModel)DataContext).FlickGoToCommand}"
+                                    AutomationProperties.Name="{Binding GoToTitle}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="&#xE70E;" FontFamily="{StaticResource IconFont}" FontSize="12" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding GoToTitle}" FontWeight="SemiBold" />
+                                </StackPanel>
+                            </Button>
+                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                <TextBlock Text="&#xE7F4;" FontFamily="{StaticResource IconFont}" Foreground="#99FFFFFF" VerticalAlignment="Center"
+                                           IsVisible="{Binding IsCurrentSelected}" />
+                                <TextBlock Text="&#xEA3A;" FontFamily="{StaticResource IconFont}" Foreground="White" VerticalAlignment="Center"
+                                           IsVisible="{Binding !IsCurrentSelected}" />
+                                <TextBlock Text="{Binding WatchHint}" FontWeight="SemiBold" Foreground="White" Opacity="{Binding IsCurrentSelected, Converter={x:Static c:Converters.DimWhen}}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                    <!-- The channel's bug, in the top right beside what's on. -->
+                    <c:RemoteImage Grid.Column="2" Url="{Binding Bug}" Width="180" MaxHeight="110" Stretch="Uniform" VerticalAlignment="Top" />
+                </Grid>
+
+                <!-- Five places sharing the width, an empty one kept where the row is short. -->
+                <ItemsControl ItemsSource="{Binding Cards}" Margin="-8,0">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="5" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:FlickCard">
+                            <Button Classes="flickCard" Classes.selected="{Binding IsSelected}" Height="104" Margin="8,0" HorizontalAlignment="Stretch"
+                                    Opacity="{Binding IsEmpty, Converter={x:Static c:Converters.HiddenWhen}}" IsHitTestVisible="{Binding !IsEmpty}"
+                                    Command="{Binding $parent[UserControl].((vm:PlayerViewModel)DataContext).FlickToCommand}" CommandParameter="{Binding}"
+                                    AutomationProperties.Name="{Binding Channel.Name}">
+                                <Grid RowDefinitions="Auto,*,Auto" Margin="14,12">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="&#xE768;" FontFamily="{StaticResource IconFont}" FontSize="11" Foreground="#B3FFFFFF"
+                                                   VerticalAlignment="Center" IsVisible="{Binding IsCurrent}" />
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding Channel.Number}" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" />
+                                            <Panel>
+                                                <TextBlock Text="{Binding Channel.Name}" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"
+                                                           MaxWidth="150" VerticalAlignment="Center" IsVisible="{Binding !#FlickLogo.HasImage}" />
+                                                <c:RemoteImage x:Name="FlickLogo" Url="{Binding Channel.Logo}" Height="26" MaxWidth="130" Stretch="Uniform" HorizontalAlignment="Left" />
+                                            </Panel>
+                                        </StackPanel>
+                                    </DockPanel>
+                                    <TextBlock Grid.Row="1" Text="{Binding Channel.Now.Title}" FontSize="12" Foreground="#CCFFFFFF" TextWrapping="Wrap" MaxLines="2"
+                                               TextTrimming="CharacterEllipsis" Margin="0,6,0,0" />
+                                    <ProgressBar Grid.Row="2" Value="{Binding ProgressPercent}" Minimum="0" Maximum="100" Height="4" MinHeight="4" CornerRadius="2"
+                                                 Foreground="White" Background="#40FFFFFF" IsVisible="{Binding HasProgress}" />
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
 
         <Border IsVisible="{Binding Toast, Converter={x:Static ObjectConverters.IsNotNull}}" Background="#C0000000" CornerRadius="8"
                 Padding="16,10" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,110,0,0">

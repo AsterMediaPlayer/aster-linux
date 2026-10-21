@@ -12,6 +12,12 @@ public static class Converters
         new FuncValueConverter<bool, double>(current => current ? 0.95 : 0.35);
 
     /// <summary>Bold for the current one (a lyric line being sung), regular for the rest.</summary>
+    /// <summary>True dims to 60%: "Watching" beside a channel's row, rather than an action.</summary>
+    public static readonly IValueConverter DimWhen = new FuncValueConverter<bool, double>(dim => dim ? 0.6 : 1);
+
+    /// <summary>True hides by opacity, keeping the place: an empty spot in the channel row.</summary>
+    public static readonly IValueConverter HiddenWhen = new FuncValueConverter<bool, double>(hidden => hidden ? 0 : 1);
+
     public static readonly IValueConverter Bold =
         new FuncValueConverter<bool, Avalonia.Media.FontWeight>(current => current ? Avalonia.Media.FontWeight.SemiBold : Avalonia.Media.FontWeight.Normal);
 

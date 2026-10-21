@@ -86,6 +86,7 @@ public partial class PlayerViewModel : ViewModelBase
         hideTimer.Tick += (_, _) => HideControlsIfIdle();
         toastTimer.Tick += (_, _) => { toastTimer.Stop(); Toast = null; };
         bugTimer.Tick += (_, _) => { bugTimer.Stop(); BugOpacity = 0; };
+        flickTimer.Tick += (_, _) => CloseFlick();
         try
         {
 #if DEBUG
@@ -189,6 +190,115 @@ public partial class PlayerViewModel : ViewModelBase
     [ObservableProperty] public partial double VideoAspect { get; private set; }
 
     private readonly DispatcherTimer bugTimer = new();
+
+    // ---- Flicking through channels ----
+
+    /// <summary>The row of channels along the bottom, while it's open.</summary>
+    [ObservableProperty] public partial ChannelFlickViewModel? Flick { get; private set; }
+
+    /// <summary>The row closes itself after a while left alone.</summary>
+    private readonly DispatcherTimer flickTimer = new() { Interval = TimeSpan.FromSeconds(8) };
+
+    /// <summary>Opens the row on the channel playing; false when this isn't a channel.</summary>
+    public bool OpenFlick()
+    {
+        if (stopped || ChannelFlickViewModel.For(client, IsLive ? entry.ItemId : null, entry.ChannelId) is not { } flick) return false;
+        Flick = flick;
+        ControlsVisible = false;
+        FlickActivity();
+        _ = flick.RefreshAsync();
+        return true;
+    }
+
+    [RelayCommand] private void ShowChannels() => OpenFlick();
+
+    /// <summary>A card clicked: that channel.</summary>
+    [RelayCommand]
+    private void FlickTo(FlickCard card)
+    {
+        if (card.Channel is not { } channel) return;
+        Flick?.Select(channel.Id);
+        ChooseFromFlick();
+    }
+
+    /// <summary>Go to Episode clicked.</summary>
+    [RelayCommand]
+    private void FlickGoTo()
+    {
+        Flick?.PickGoTo(true);
+        ChooseFromFlick();
+    }
+
+    public void CloseFlick()
+    {
+        flickTimer.Stop();
+        Flick = null;
+    }
+
+    /// <summary>Something was done in the row: it stays open a while longer.</summary>
+    public void FlickActivity()
+    {
+        flickTimer.Stop();
+        flickTimer.Start();
+    }
+
+    /// <summary>Changes to the picked channel, or just closes on the one playing; with Go to Episode picked, plays what's on by itself.</summary>
+    public void ChooseFromFlick()
+    {
+        if (Flick is not { } flick) return;
+        CloseFlick();
+        if (flick.IsOnGoTo && flick.Selected?.Now?.ItemId is { } itemId) _ = GoToAsync(itemId);
+        else if (flick.Selected is { } picked && picked.Id != flick.CurrentId) Tune(picked);
+    }
+
+    /// <summary>Another channel, Live TV or Channels, in this same player.</summary>
+    private void Tune(FlickChannel channel)
+    {
+        if (IsLive)
+        {
+            LeaveCurrent();
+            Play(new BaseItem { Id = channel.Id, Name = channel.Name, Type = "TvChannel" }, new PlaybackQueueItem { ItemId = channel.Id });
+        }
+        else if (Aster.Core.Channels.ChannelTuner.Live(channel.Id) is var (item, next))
+        {
+            LeaveCurrent();
+            Play(item, next);
+        }
+        ShowToast(string.Join("  ", new[] { channel.Number, channel.Name }.OfType<string>()));
+    }
+
+    /// <summary>
+    /// Leaves the channel for what's on it, played on its own as if picked
+    /// from its show or the library: from where it was left off, with
+    /// progress saved, its markers, and Up Next after it.
+    /// </summary>
+    private async Task GoToAsync(string itemId)
+    {
+        BaseItem found;
+        try { found = await client.ItemAsync(itemId); }
+        catch (Exception error) when (IsServerError(error))
+        {
+            ShowToast("Couldn't open that title");
+            return;
+        }
+        if (stopped) return;
+        LeaveCurrent();
+        Play(found, new PlaybackQueueItem { ItemId = found.Id, StartTicks = found.UserData?.PlaybackPositionTicks ?? 0 });
+    }
+
+    /// <summary>What's playing is being left for something else: the server hears it stopped, and lets go of its stream.</summary>
+    private void LeaveCurrent()
+    {
+        reportTimer.Stop();
+        if (HasStarted && !stopReported && !OnChannel)
+        {
+            stopReported = true;
+            _ = client.ReportStoppedAsync(Report(paused: true));
+        }
+        StopServerSession();
+        if (liveStreamId is { } live) _ = client.CloseLiveStreamAsync(live);
+        liveStreamId = null;
+    }
 
     /// <summary>The server's live stream for a channel, closed when it's done.</summary>
     private string? liveStreamId;
@@ -346,20 +456,16 @@ public partial class PlayerViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// The next or previous Channel, by number, from what it's on now; false
-    /// when this isn't a channel or there's no other.
+    /// The next or previous channel (Live TV's in the guide's order,
+    /// Channels' by number) from what it's on now; false when this isn't a
+    /// channel or there's no other.
     /// </summary>
     public bool SwitchChannel(int step)
     {
-        if (entry.ChannelId is not { } current || stopped) return false;
-        var channels = Aster.Core.Channels.ChannelTuner.OrderedChannels;
-        var index = channels.ToList().FindIndex(c => c.Id == current);
-        if (channels.Count < 2 || index < 0) return false;
-        var next = channels[(index + step + channels.Count) % channels.Count];
-        if (Aster.Core.Channels.ChannelTuner.Live(next.Id) is not var (item, nextEntry)) return false;
-        StopServerSession();
-        Play(item, nextEntry);
-        ShowToast($"{next.Number}  {next.Name}");
+        if (stopped || ChannelFlickViewModel.For(client, IsLive ? entry.ItemId : null, entry.ChannelId) is not { Channels.Count: > 1 } row) return false;
+        row.Move(step);
+        if (row.Selected is not { } next) return false;
+        Tune(next);
         return true;
     }
 
@@ -694,6 +800,7 @@ public partial class PlayerViewModel : ViewModelBase
         Item = next;
         entry = nextEntry;
         reachedCut = false;
+        IsLive = false;
         _ = StartAsync();
     }
 
@@ -1100,6 +1207,7 @@ public partial class PlayerViewModel : ViewModelBase
         try { Player.Command("stop"); }
         catch (MpvException) { }
         bugTimer.Stop();
+        flickTimer.Stop();
         if (HasStarted && !stopReported && !OnChannel)
         {
             stopReported = true;

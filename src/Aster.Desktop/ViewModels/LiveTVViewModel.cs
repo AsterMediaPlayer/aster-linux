@@ -161,6 +161,8 @@ public sealed partial class LiveTVViewModel : ViewModelBase, IRefreshable, IGuid
             var kids = OrEmpty(Client.RecommendedProgramsAsync(limit: 20, isKids: true));
             var news = OrEmpty(Client.RecommendedProgramsAsync(limit: 20, isNews: true));
             Channels = LiveGuide.Order(await channels);
+            // So the player can flick through them in the same order.
+            LiveChannelDirectory.Register(Channels);
             OnNow = await onNow;
             Movies = await movies;
             Sports = await sports;

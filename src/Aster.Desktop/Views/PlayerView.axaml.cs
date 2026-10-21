@@ -125,6 +125,22 @@ public partial class PlayerView : UserControl
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
         if (Model is not { } model || e.Handled) return;
+        // The channel row has the arrows while it's open.
+        if (model.Flick is { } flick)
+        {
+            switch (e.Key)
+            {
+                case Key.Left: flick.Move(-1); model.FlickActivity(); break;
+                case Key.Right: flick.Move(1); model.FlickActivity(); break;
+                case Key.Up: flick.PickGoTo(true); model.FlickActivity(); break;
+                case Key.Down when flick.IsOnGoTo: flick.PickGoTo(false); model.FlickActivity(); break;
+                case Key.Down or Key.Escape or Key.BrowserBack: model.CloseFlick(); break;
+                case Key.Enter or Key.Space: model.ChooseFromFlick(); break;
+                default: return;
+            }
+            e.Handled = true;
+            return;
+        }
         switch (e.Key)
         {
             case Key.Space or Key.K or Key.MediaPlayPause:
@@ -151,6 +167,11 @@ public partial class PlayerView : UserControl
             case Key.M or Key.VolumeMute:
                 model.ToggleMute();
                 break;
+            // On a channel, Up opens the channel row, as on the Apple TV.
+            case Key.Up when model.OpenFlick():
+                // The row over the picture, without the controls coming up under it.
+                e.Handled = true;
+                return;
             case Key.Up or Key.VolumeUp:
                 model.ChangeVolume(5);
                 break;
