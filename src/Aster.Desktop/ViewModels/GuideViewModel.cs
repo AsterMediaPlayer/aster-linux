@@ -17,6 +17,7 @@ namespace Aster.Desktop.ViewModels;
 /// when its start has scrolled off to the left.
 /// </summary>
 public sealed record GuideCell(
+    BaseItem Program,
     string Title,
     string Subtitle,
     Thickness Margin,
@@ -55,6 +56,13 @@ public interface IGuideSource
     bool CanFavorite { get; }
 
     Task<IReadOnlyList<BaseItem>> ProgramsAsync(string channelId, DateTimeOffset from, DateTimeOffset to);
+
+    /// <summary>A programme's full record for the panel (its picture and overview), which a listing can leave out.</summary>
+    Task<BaseItem> DetailAsync(BaseItem program);
+
+    /// <summary>The panel's picture of a programme.</summary>
+    Uri? PanelImageUrl(BaseItem program);
+
     void OpenProgram(BaseItem program);
     void PlayChannel(string channelId);
     void SetFavorite(string channelId, bool favorite);
@@ -135,6 +143,7 @@ public sealed partial class GuideRowViewModel(GuideViewModel guide, IGuideSource
             var aired = airing ? Math.Clamp((now - start) / (end - start), 0, 1) * width : 0;
             var subtitle = program.EpisodeTitle is { } episode && episode != program.Name ? episode : LiveTVFormat.TimeRange(program.Start, program.End);
             cells.Add(new GuideCell(
+                program,
                 program.DisplayTitle,
                 subtitle,
                 new Thickness(left, 0, 0, 0),
@@ -148,6 +157,7 @@ public sealed partial class GuideRowViewModel(GuideViewModel guide, IGuideSource
         }
         Cells = cells;
         Placeholder = cells.Count == 0 ? "No guide data" : null;
+        guide.RowLaidOut(this);
     }
 }
 
@@ -160,12 +170,12 @@ public sealed partial class GuideRowViewModel(GuideViewModel guide, IGuideSource
 /// </summary>
 public sealed partial class GuideViewModel : ViewModelBase, IRefreshable
 {
-    public const double PixelsPerMinute = 6;
+    public const double PixelsPerMinute = 7;
     public const double CellGap = 6;
     public const double MinimumCellWidth = 24;
 
     /// <summary>A cell keeps at least this much of itself readable when its start is scrolled out of view.</summary>
-    public const double MinimumVisibleCell = 140;
+    public const double MinimumVisibleCell = 160;
 
     private readonly IGuideSource source;
     private readonly DispatcherTimer minute = new() { Interval = TimeSpan.FromMinutes(1) };
@@ -231,6 +241,61 @@ public sealed partial class GuideViewModel : ViewModelBase, IRefreshable
         }
         Rows = source.GuideChannels.Select(c => new GuideRowViewModel(this, source, c)).ToList();
         Relayout();
+    }
+
+    // ---- The panel: what's highlighted, or what's on now on the first row ----
+
+    private readonly Dictionary<string, BaseItem> details = [];
+    private BaseItem? highlighted;
+
+    [ObservableProperty] public partial Uri? PanelImage { get; private set; }
+    [ObservableProperty] public partial string? PanelTitle { get; private set; }
+    [ObservableProperty] public partial string? PanelEpisode { get; private set; }
+    [ObservableProperty] public partial string? PanelOverview { get; private set; }
+
+    /// <summary>The pointer or the keyboard is on a programme: the panel shows it.</summary>
+    public void Highlight(BaseItem program)
+    {
+        if (highlighted?.Id == program.Id) return;
+        highlighted = program;
+        ShowPanel(program);
+    }
+
+    /// <summary>Nothing highlighted yet: what's on now on the first row, once its listings are in.</summary>
+    internal void RowLaidOut(GuideRowViewModel row)
+    {
+        if (highlighted is not null || Rows.Count == 0 || Rows[0] != row) return;
+        if (row.Cells.FirstOrDefault(c => c.IsAiring)?.Program is { } airing) ShowPanel(airing);
+    }
+
+    private async void ShowPanel(BaseItem program)
+    {
+        Fill(details.GetValueOrDefault(program.Id) ?? program, program);
+        if (details.ContainsKey(program.Id)) return;
+        try
+        {
+            var detail = await source.DetailAsync(program);
+            details[program.Id] = detail;
+            // Only if it's still the one to show.
+            if (highlighted is null || highlighted.Id == program.Id) Fill(detail, program);
+        }
+        catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException) { }
+    }
+
+    /// <summary>
+    /// The title, "S3, E12 · Episode Name" (or whichever parts there are),
+    /// the overview, and the picture: the detail's, or the listing's when the
+    /// detail leaves its picture out.
+    /// </summary>
+    private void Fill(BaseItem detail, BaseItem listing)
+    {
+        PanelTitle = detail.DisplayTitle;
+        var parts = new List<string>();
+        if (detail.IndexNumber is { } episode) parts.Add(detail.ParentIndexNumber is { } season ? $"S{season}, E{episode}" : $"Episode {episode}");
+        if (detail.EpisodeTitle is { } name && name != detail.Name) parts.Add(name);
+        PanelEpisode = parts.Count > 0 ? string.Join(" · ", parts) : null;
+        PanelOverview = detail.Overview;
+        PanelImage = source.PanelImageUrl(detail.ImageTags is { Count: > 0 } ? detail : listing);
     }
 
     /// <summary>The days a guide of several reaches into; none for a guide of a day, which has no day picker.</summary>

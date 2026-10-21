@@ -155,7 +155,7 @@
         </ScrollViewer>
 
         <Button Command="{Binding BackCommand}" ToolTip.Tip="Back (Alt+←)" AutomationProperties.Name="Back" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
-                Width="44" Height="44" CornerRadius="22" Background="#B3000000" Foreground="White" HorizontalContentAlignment="Center">
+                Width="44" Height="44" CornerRadius="22" Background="#B3000000" Foreground="White" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Padding="0">
             <TextBlock Text="&#xE72B;" FontFamily="{StaticResource IconFont}" />
         </Button>
 

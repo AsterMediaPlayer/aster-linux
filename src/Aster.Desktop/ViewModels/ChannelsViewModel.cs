@@ -116,6 +116,17 @@ public sealed partial class ChannelsViewModel : ViewModelBase, IGuideSource, IRe
         return listing;
     }
 
+    /// <summary>Listings already carry everything there is.</summary>
+    public Task<BaseItem> DetailAsync(BaseItem program) => Task.FromResult(program);
+
+    /// <summary>The item's own wide art (an episode's still), looked up by its real id.</summary>
+    public Uri? PanelImageUrl(BaseItem program)
+    {
+        ScheduledProgram? found;
+        lock (scheduled) found = scheduled.GetValueOrDefault(program.Id);
+        return found is null ? null : navigator.Client.LandscapeUrl(found.Item, width: 400);
+    }
+
     /// <summary>What's on now tunes in; anything later opens its page.</summary>
     public void OpenProgram(BaseItem program)
     {

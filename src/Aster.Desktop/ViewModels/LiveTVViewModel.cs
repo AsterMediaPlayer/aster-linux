@@ -224,6 +224,11 @@ public sealed partial class LiveTVViewModel : ViewModelBase, IRefreshable, IGuid
 
     public Task<IReadOnlyList<BaseItem>> ProgramsAsync(string channelId, DateTimeOffset from, DateTimeOffset to) => Client.ProgramsAsync(channelId, from, to);
 
+    public Task<BaseItem> DetailAsync(BaseItem program) => Client.ProgramAsync(program.Id);
+
+    /// <summary>The programme's own picture, else its channel's logo.</summary>
+    public Uri? PanelImageUrl(BaseItem program) => Client.ProgramImageUrl(program, width: 400);
+
     // ---- Sections ----
 
     [ObservableProperty] public partial IReadOnlyList<Choice> Sections { get; private set; } = [];

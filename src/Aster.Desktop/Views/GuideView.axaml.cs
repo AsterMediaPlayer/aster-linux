@@ -21,6 +21,9 @@ public partial class GuideView : UserControl
         {
             if (Model is { } guide && e.Index < guide.Rows.Count) guide.RowShown(guide.Rows[e.Index]);
         };
+        // The programme under the pointer, or with the keyboard on it, fills the panel.
+        RowList.AddHandler(PointerMovedEvent, (_, e) => Highlight(e.Source), RoutingStrategies.Bubble, handledEventsToo: true);
+        RowList.AddHandler(GotFocusEvent, (_, e) => Highlight(e.Source), RoutingStrategies.Bubble);
         Scroller.AddHandler(PointerWheelChangedEvent, (_, e) =>
         {
             var sideways = e.Delta.X != 0 ? -e.Delta.X : e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? -e.Delta.Y : 0;
@@ -32,6 +35,18 @@ public partial class GuideView : UserControl
     }
 
     private GuideViewModel? Model => DataContext as GuideViewModel;
+
+    private void Highlight(object? source)
+    {
+        for (var node = source as StyledElement; node is not null; node = node.Parent)
+        {
+            if (node.DataContext is GuideCell cell)
+            {
+                Model?.Highlight(cell.Program);
+                return;
+            }
+        }
+    }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {

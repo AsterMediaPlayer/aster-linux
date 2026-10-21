@@ -29,14 +29,20 @@
             <Setter Property="Foreground" Value="Black" />
         </Style>
         <Style Selector="TextBlock.cellTitle">
-            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontSize" Value="15" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
         </Style>
         <Style Selector="TextBlock.cellDetail">
-            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontSize" Value="13" />
             <Setter Property="Foreground" Value="{StaticResource Secondary}" />
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+        <Style Selector="Button.day">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource Secondary}" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style Selector="Button.step">
             <Setter Property="Background" Value="#26FFFFFF" />
@@ -53,40 +59,47 @@
 
     <Panel>
         <DockPanel Margin="48,8,48,0" IsVisible="{Binding MessageTitle, Converter={x:Static ObjectConverters.IsNull}}">
-            <!-- The day, Earlier and Later, then the half hours across the window. -->
-            <Grid DockPanel.Dock="Top" ColumnDefinitions="200,*" Height="40" Margin="0,0,0,8">
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <!-- What's highlighted (or on now on the first row): its picture, then its title, episode and overview. -->
+            <Grid DockPanel.Dock="Top" ColumnDefinitions="5*,7*" Height="150" Margin="0,4,0,16">
+                <Border CornerRadius="10" ClipToBounds="True" HorizontalAlignment="Left" VerticalAlignment="Top">
+                    <c:RemoteImage Url="{Binding PanelImage}" Stretch="Uniform" MaxHeight="150" MaxWidth="267" />
+                </Border>
+                <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock Text="{Binding PanelTitle}" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding PanelEpisode}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                               IsVisible="{Binding PanelEpisode, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <TextBlock Text="{Binding PanelOverview}" Foreground="{StaticResource Secondary}" TextWrapping="Wrap" MaxLines="4"
+                               TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </Grid>
+
+            <!-- The day (with Now, Earlier and Later beside it), then the half hours across the window. -->
+            <Grid DockPanel.Dock="Top" ColumnDefinitions="220,*" Height="40" Margin="0,0,0,8">
+                <TextBlock Text="{Binding DayLabel}" FontSize="20" Foreground="{StaticResource Secondary}" VerticalAlignment="Center"
+                           IsVisible="{Binding !HasDays}" />
+                <!-- A week's guide: the day picks the day, at the time it is now. -->
+                <Button Classes="day" IsVisible="{Binding HasDays}" AutomationProperties.Name="Day">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding DayLabel}" FontSize="20" />
+                        <TextBlock Text="&#xE70D;" FontFamily="{StaticResource IconFont}" FontSize="11" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Button.Flyout>
+                        <MenuFlyout ItemsSource="{Binding Days}">
+                            <MenuFlyout.ItemContainerTheme>
+                                <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="vm:GuideDay">
+                                    <Setter Property="Header" Value="{Binding Title}" />
+                                    <Setter Property="Command" Value="{Binding Select}" />
+                                </ControlTheme>
+                            </MenuFlyout.ItemContainerTheme>
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
+                <!-- The wheel with Shift (or a sideways swipe) moves through time too. -->
+                <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" Margin="0,0,4,0" VerticalAlignment="Center">
+                    <Button Theme="{StaticResource PillButton}" Command="{Binding NowCommand}" IsVisible="{Binding CanJumpToNow}"
+                            MinHeight="30" Padding="12,3" AutomationProperties.Name="Now" Content="Now" FontSize="13" />
                     <Button Classes="step" Content="&#xE76B;" Command="{Binding EarlierCommand}" ToolTip.Tip="An hour earlier (Shift+wheel)"
                             AutomationProperties.Name="Earlier" />
-                    <!-- A week's guide: the day picks the day, at the time it is now. -->
-                    <Button Theme="{StaticResource PillButton}" IsVisible="{Binding HasDays}" MinHeight="30" Padding="12,3" MinWidth="88"
-                            AutomationProperties.Name="Day">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="{Binding DayLabel}" FontSize="13" />
-                            <TextBlock Text="&#xE70D;" FontFamily="{StaticResource IconFont}" FontSize="9" VerticalAlignment="Center" />
-                        </StackPanel>
-                        <Button.Flyout>
-                            <MenuFlyout ItemsSource="{Binding Days}">
-                                <MenuFlyout.ItemContainerTheme>
-                                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="vm:GuideDay">
-                                        <Setter Property="Header" Value="{Binding Title}" />
-                                        <Setter Property="Command" Value="{Binding Select}" />
-                                    </ControlTheme>
-                                </MenuFlyout.ItemContainerTheme>
-                            </MenuFlyout>
-                        </Button.Flyout>
-                    </Button>
-                    <Panel MinWidth="88" IsVisible="{Binding !HasDays}">
-                        <TextBlock Text="{Binding DayLabel}" FontWeight="SemiBold" Foreground="{StaticResource Secondary}" VerticalAlignment="Center"
-                                   HorizontalAlignment="Center" IsVisible="{Binding !CanJumpToNow}" />
-                        <Button Theme="{StaticResource PillButton}" Command="{Binding NowCommand}" IsVisible="{Binding CanJumpToNow}"
-                                MinHeight="30" Padding="12,3" HorizontalAlignment="Center" AutomationProperties.Name="Now">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="&#xE7A7;" FontFamily="{StaticResource IconFont}" FontSize="11" VerticalAlignment="Center" />
-                                <TextBlock Text="Now" FontSize="13" />
-                            </StackPanel>
-                        </Button>
-                    </Panel>
                     <Button Classes="step" Content="&#xE76C;" Command="{Binding LaterCommand}" ToolTip.Tip="An hour later (Shift+wheel)"
                             AutomationProperties.Name="Later" />
                 </StackPanel>
@@ -99,7 +112,7 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:GuideTick">
-                                <TextBlock Text="{Binding Text}" Margin="{Binding Margin}" FontWeight="SemiBold" Foreground="{StaticResource Secondary}"
+                                <TextBlock Text="{Binding Text}" Margin="{Binding Margin}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource Secondary}"
                                            HorizontalAlignment="Left" VerticalAlignment="Center" />
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -118,9 +131,9 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:GuideRowViewModel">
-                            <Grid ColumnDefinitions="200,*" Height="64" Margin="0,0,0,8">
+                            <Grid ColumnDefinitions="220,*" Height="76" Margin="0,0,0,10">
                                 <!-- The channel: its number and logo (or name); Watch, or favourite it from its menu. -->
-                                <Button Classes="cell" Width="200" Command="{Binding PlayCommand}" AutomationProperties.Name="{Binding AccessibleName}"
+                                <Button Classes="cell" Width="220" Command="{Binding PlayCommand}" AutomationProperties.Name="{Binding AccessibleName}"
                                         ToolTip.Tip="{Binding Name}">
                                     <Button.ContextMenu>
                                         <ContextMenu>
@@ -128,7 +141,7 @@
                                             <MenuItem Header="{Binding FavoriteLabel}" Command="{Binding ToggleFavoriteCommand}" IsVisible="{Binding CanFavorite}" />
                                         </ContextMenu>
                                     </Button.ContextMenu>
-                                    <Grid ColumnDefinitions="40,*" Margin="12,8">
+                                    <Grid ColumnDefinitions="44,*" Margin="14,10">
                                         <TextBlock Text="{Binding Number}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Secondary}"
                                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                         <Panel Grid.Column="1">
