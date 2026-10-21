@@ -60,7 +60,12 @@ public partial class BrowsePageView : UserControl
     private void UpdateColumns()
     {
         if (Model is not { } page || Page.Bounds.Width <= 0) return;
-        var card = page.GridStyle is CardStyle.Landscape or CardStyle.Tile ? 300 : 180;
+        var card = page.GridStyle switch
+        {
+            CardStyle.Landscape or CardStyle.Tile or CardStyle.Program or CardStyle.Timer or CardStyle.SeriesRule or CardStyle.Upcoming => 300,
+            CardStyle.Channel => 200,
+            _ => 180,
+        };
         var room = Page.Bounds.Width - PagePadding - (page.IndexKeys.Count > 0 ? IndexRoom : 0);
         page.SetColumns((int)Math.Floor((room + CardSpacing) / (card + CardSpacing)));
 

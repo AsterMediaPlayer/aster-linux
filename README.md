@@ -29,7 +29,7 @@ These leave the saved session alone:
 - `ASTER_SERVER`, `ASTER_TOKEN` (an API key or access token) and
   `ASTER_USER_ID` sign in for that run.
 - `--open <itemId>` opens a title's (or library's, or person's) page.
-- `--tab <search|movies|shows|anime|music|audiobooks|library|settings>` starts on a tab; `--sort <Name|DateAdded|ReleaseDate|Rating>` sorts it.
+- `--tab <search|movies|shows|anime|music|audiobooks|upcoming|livetv|library|settings>` starts on a tab; `--sort <Name|DateAdded|ReleaseDate|Rating>` sorts it.
 - Signing out of such a session only ends it; the saved sign-in is left alone.
 - `--play <itemId>` plays a title straight away, from its resume point;
   `--start <seconds>` and `--max-bitrate <bps>` change where it starts and
@@ -74,10 +74,42 @@ Search (or Ctrl+F) looks as typing pauses: movies and shows as a grid,
 then shelves of episodes, albums and playlists, artists and songs; a song
 plays the songs found, from it.
 
-Not yet: the sidebar's other tabs (Upcoming, Live TV, Channels), theme
+Not yet: the sidebar's Channels tab, theme
 music and videos, disc menus, and openings and endings. Chinese titles sort
 under # in the letter index; the Apple app files them by pinyin, which .NET
 has no table for.
+
+## Upcoming and Live TV
+
+Upcoming shows when shows in the library have episodes airing soon: a
+banner of the next to air, with a countdown ("Tomorrow"), then a row for
+each day. Most are placeholders from the show's schedule, so a card has the
+show's picture and logo, and opens the show; one already on the server is
+marked Available and opens itself.
+
+Live TV shows when the server has it, in four sections:
+
+- **On Now:** what's airing, then Movies, Sports, Kids and News, and the
+  favourite channels.
+- **Guide:** a row per channel (favourites first, then by number), its
+  programmes laid out along a timeline from the current half hour to a day
+  ahead. Earlier and Later (or Shift and the wheel, or a sideways swipe)
+  move through time; Now comes back. Rows load their listings as they
+  scroll into view.
+- **Channels:** every channel as a logo; a right-click makes it a
+  favourite.
+- **Recordings:** what's been recorded, what's scheduled, and the series
+  rules, each rule with its own options page (new episodes only, any
+  channel or time, how many to keep and for how long, padding).
+
+A programme's page has Watch (or Watch Channel, later on), Record or Cancel
+Recording, Record Series or Series Options, and the channel's favourite. A
+channel plays the server's live stream in the player, with LIVE in place of
+the timeline; its captions follow the subtitle setting, on only when
+subtitles are always on.
+
+Not yet: the Apple app's mini player, which keeps a channel playing in the
+Live TV header after leaving full screen.
 
 ## Settings
 
@@ -120,7 +152,7 @@ Keys: Space or K pause, ← → (J L) 10 seconds, ↑ ↓ volume, M mute, A next
 audio track, S or C next subtitle track, Enter takes the skip on offer, F or
 a double-click full screen, Esc leaves full screen and then the player.
 
-Not yet: Live TV, Channels, OP/ED song cards, trickplay previews,
+Not yet: Channels, OP/ED song cards, trickplay previews,
 chapters, downloads, and HDR passthrough (HDR is tone-mapped to SDR, since
 the video is drawn through OpenGL so the controls can sit on top of it).
 

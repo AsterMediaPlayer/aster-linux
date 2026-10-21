@@ -76,6 +76,11 @@
                                     <c:RemoteImage Url="{Binding Cover}" />
                                 </Border>
                                 <StackPanel Grid.Column="1" Spacing="14" VerticalAlignment="Bottom" HorizontalAlignment="Left" MaxWidth="760">
+                                    <!-- White with black text, readable over any backdrop. -->
+                                    <Border Background="White" CornerRadius="14" Padding="14,5" HorizontalAlignment="Left"
+                                            IsVisible="{Binding Tag, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                        <TextBlock Text="{Binding Tag}" Foreground="Black" FontWeight="Bold" LetterSpacing="1.5" />
+                                    </Border>
                                     <Panel HorizontalAlignment="Left">
                                         <c:RemoteImage x:Name="Logo" Url="{Binding Logo}" Stretch="Uniform" MaxWidth="360" MaxHeight="130" HorizontalAlignment="Left" />
                                         <TextBlock Text="{Binding Title}" FontSize="44" FontWeight="Bold" TextWrapping="Wrap" MaxLines="2"
@@ -89,7 +94,7 @@
                                     <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding PlayCommand}"
                                             HorizontalAlignment="Left" Padding="26,12">
                                         <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <TextBlock Text="&#xE768;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding PlayGlyph}" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
                                             <TextBlock Text="{Binding PlayLabel}" />
                                             <TextBlock Text="{Binding Remaining}" Opacity="0.6"
                                                        IsVisible="{Binding Remaining, Converter={x:Static ObjectConverters.IsNotNull}}" />

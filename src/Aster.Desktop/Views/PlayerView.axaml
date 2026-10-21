@@ -95,7 +95,11 @@
                     </LinearGradientBrush>
                 </Border.Background>
                 <StackPanel Spacing="4">
-                    <Grid ColumnDefinitions="Auto,*,Auto">
+                    <!-- A channel has no timeline: LIVE in its place. -->
+                    <Border Background="#E53935" CornerRadius="4" Padding="8,2" HorizontalAlignment="Left" IsVisible="{Binding IsLive}">
+                        <TextBlock Text="LIVE" Foreground="White" FontWeight="Bold" FontSize="12" LetterSpacing="1" />
+                    </Border>
+                    <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding HasTimeline}">
                         <TextBlock Grid.Column="0" Text="{Binding PositionText}" Foreground="White" VerticalAlignment="Center" MinWidth="56" />
                         <Slider Grid.Column="1" x:Name="SeekBar" Minimum="0" Maximum="{Binding Duration}"
                                 Value="{Binding SeekBarValue}" Margin="8,0" />
@@ -109,8 +113,8 @@
                                     <TextBlock Classes="icon" Text="&#xE769;" IsVisible="{Binding !IsPaused}" />
                                 </Panel>
                             </Button>
-                            <Button Classes="bar" Command="{Binding Back10Command}" Content="−10" ToolTip.Tip="Back 10 seconds (←)" />
-                            <Button Classes="bar" Command="{Binding Forward10Command}" Content="+10" ToolTip.Tip="Forward 10 seconds (→)" />
+                            <Button Classes="bar" Command="{Binding Back10Command}" Content="−10" ToolTip.Tip="Back 10 seconds (←)" IsVisible="{Binding HasTimeline}" />
+                            <Button Classes="bar" Command="{Binding Forward10Command}" Content="+10" ToolTip.Tip="Forward 10 seconds (→)" IsVisible="{Binding HasTimeline}" />
                         </StackPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
                             <Button Classes="bar" ToolTip.Tip="Audio">
@@ -125,12 +129,12 @@
                                     <MenuFlyout ItemsSource="{Binding SubtitleChoices}" ItemContainerTheme="{StaticResource ChoiceItem}" />
                                 </Button.Flyout>
                             </Button>
-                            <Button Classes="bar" Content="Speed">
+                            <Button Classes="bar" Content="Speed" IsVisible="{Binding HasTimeline}">
                                 <Button.Flyout>
                                     <MenuFlyout ItemsSource="{Binding SpeedChoices}" ItemContainerTheme="{StaticResource ChoiceItem}" />
                                 </Button.Flyout>
                             </Button>
-                            <Button Classes="bar" Content="Quality">
+                            <Button Classes="bar" Content="Quality" IsVisible="{Binding HasTimeline}">
                                 <Button.Flyout>
                                     <MenuFlyout ItemsSource="{Binding QualityChoices}" ItemContainerTheme="{StaticResource ChoiceItem}" />
                                 </Button.Flyout>

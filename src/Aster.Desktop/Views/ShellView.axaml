@@ -83,23 +83,26 @@
                             </Button.Flyout>
                         </Button>
                     </StackPanel>
-                    <ItemsControl ItemsSource="{Binding Tabs}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Spacing="2" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:SidebarTab">
-                                <Button Classes="nav" Classes.selected="{Binding IsSelected}" Command="{Binding Select}" AutomationProperties.Name="{Binding Title}">
-                                    <StackPanel Orientation="Horizontal" Spacing="12">
-                                        <TextBlock Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
-                                        <TextBlock Text="{Binding Title}" />
-                                    </StackPanel>
-                                </Button>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <!-- The tabs scroll when a short window has no room for them all. -->
+                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Tabs}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="2" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:SidebarTab">
+                                    <Button Classes="nav" Classes.selected="{Binding IsSelected}" Command="{Binding Select}" AutomationProperties.Name="{Binding Title}">
+                                        <StackPanel Orientation="Horizontal" Spacing="12">
+                                            <TextBlock Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding Title}" />
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
                 </DockPanel>
             </Border>
 

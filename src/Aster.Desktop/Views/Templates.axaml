@@ -139,6 +139,150 @@
         </StackPanel>
     </DataTemplate>
 
+    <!-- An episode airing soon: the show's picture, its logo or name, the episode, and "Available" when it's out early. -->
+    <DataTemplate x:Key="UpcomingCard" x:DataType="vm:UpcomingCard">
+        <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}"
+                Width="{StaticResource LandscapeWidth}" Height="{StaticResource LandscapeHeight}"
+                AutomationProperties.Name="{Binding AccessibleName}" ToolTip.Tip="{Binding Title}">
+            <Panel>
+                <TextBlock Text="&#xE7F4;" FontFamily="{StaticResource IconFont}" FontSize="36" Opacity="0.35"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <c:RemoteImage Url="{Binding Image}" />
+                <Border>
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="50%,35%" EndPoint="50%,100%">
+                            <GradientStop Offset="0" Color="#00000000" />
+                            <GradientStop Offset="1" Color="#D9000000" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+                <StackPanel Spacing="4" Margin="12" VerticalAlignment="Bottom" HorizontalAlignment="Left">
+                    <Panel HorizontalAlignment="Left">
+                        <c:RemoteImage x:Name="Logo" Url="{Binding Logo}" Stretch="Uniform" MaxWidth="165" MaxHeight="47" HorizontalAlignment="Left" />
+                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="276"
+                                   IsVisible="{Binding !#Logo.HasImage}" />
+                    </Panel>
+                    <TextBlock Text="{Binding EpisodeLine}" FontSize="12" FontWeight="SemiBold" Foreground="#D9FFFFFF" TextTrimming="CharacterEllipsis" MaxWidth="276" />
+                </StackPanel>
+                <Border Background="{DynamicResource SystemAccentColor}" CornerRadius="10" Padding="8,3" Margin="10"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="{Binding IsAvailable}">
+                    <TextBlock Text="Available" FontSize="11" FontWeight="Bold" />
+                </Border>
+            </Panel>
+        </Button>
+    </DataTemplate>
+
+    <!-- A Live TV programme that's on: its picture, channel, LIVE and progress, then its title and episode or time. -->
+    <DataTemplate x:Key="ProgramCard" x:DataType="vm:ProgramCard">
+        <StackPanel Width="{StaticResource LandscapeWidth}" Spacing="8">
+            <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}"
+                    Width="{StaticResource LandscapeWidth}" Height="{StaticResource LandscapeHeight}" AutomationProperties.Name="{Binding Title}">
+                <Panel>
+                    <TextBlock Text="&#xE7F4;" FontFamily="{StaticResource IconFont}" FontSize="36" Opacity="0.35"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <c:RemoteImage Url="{Binding Image}" />
+                    <Border>
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="50%,50%" EndPoint="50%,100%">
+                                <GradientStop Offset="0" Color="#00000000" />
+                                <GradientStop Offset="1" Color="#B3000000" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                    </Border>
+                    <DockPanel VerticalAlignment="Bottom" Margin="12,0,12,14">
+                        <Border DockPanel.Dock="Right" Background="#E53935" CornerRadius="4" Padding="6,1" IsVisible="{Binding IsLive}">
+                            <TextBlock Text="LIVE" FontSize="11" FontWeight="Bold" />
+                        </Border>
+                        <TextBlock Text="{Binding ChannelLine}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    </DockPanel>
+                    <ProgressBar IsVisible="{Binding HasProgress}" Value="{Binding Progress}" Minimum="0" Maximum="100"
+                                 VerticalAlignment="Bottom" Margin="12,0,12,6" MinHeight="4" Height="4" CornerRadius="2"
+                                 Foreground="White" Background="#4DFFFFFF" />
+                </Panel>
+            </Button>
+            <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- A Live TV channel: its logo (or number) on a dark tile, what's on underneath; favourites from its menu. -->
+    <DataTemplate x:Key="ChannelCard" x:DataType="vm:ChannelCard">
+        <StackPanel Width="200" Spacing="8">
+            <Button Theme="{StaticResource CardButton}" Command="{Binding PlayCommand}" Width="200" Height="113"
+                    AutomationProperties.Name="{Binding Title}" ToolTip.Tip="{Binding Title}">
+                <Button.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Watch" Command="{Binding PlayCommand}" />
+                        <MenuItem Header="{Binding FavoriteLabel}" Command="{Binding ToggleFavoriteCommand}" />
+                    </ContextMenu>
+                </Button.ContextMenu>
+                <Panel>
+                    <Panel.Background>
+                        <LinearGradientBrush StartPoint="50%,0%" EndPoint="50%,100%">
+                            <GradientStop Offset="0" Color="#383838" />
+                            <GradientStop Offset="1" Color="#1F1F1F" />
+                        </LinearGradientBrush>
+                    </Panel.Background>
+                    <TextBlock Text="{Binding Badge}" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding !#ChannelLogo.HasImage}" />
+                    <c:RemoteImage x:Name="ChannelLogo" Url="{Binding Logo}" Stretch="Uniform" Margin="22" />
+                    <TextBlock Text="&#xEB52;" FontFamily="{StaticResource IconFont}" FontSize="12" Margin="8"
+                               HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="{Binding IsFavorite}" />
+                    <ProgressBar IsVisible="{Binding HasProgress}" Value="{Binding Progress}" Minimum="0" Maximum="100"
+                                 VerticalAlignment="Bottom" Margin="10,0,10,8" MinHeight="4" Height="4" CornerRadius="2"
+                                 Foreground="White" Background="#4DFFFFFF" />
+                </Panel>
+            </Button>
+            <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding NowTitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
+                           IsVisible="{Binding NowTitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            </StackPanel>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- A scheduled recording: red while it's recording, a clock until then. -->
+    <DataTemplate x:Key="TimerCard" x:DataType="vm:TimerCard">
+        <StackPanel Width="{StaticResource LandscapeWidth}" Spacing="8">
+            <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}"
+                    Width="{StaticResource LandscapeWidth}" Height="{StaticResource LandscapeHeight}" AutomationProperties.Name="{Binding Title}">
+                <Panel>
+                    <TextBlock Text="&#xE7C8;" FontFamily="{StaticResource IconFont}" FontSize="36" Opacity="0.35"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <c:RemoteImage Url="{Binding Image}" />
+                    <Ellipse Width="14" Height="14" Fill="#E53935" Margin="12" HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="{Binding IsRecording}" />
+                    <TextBlock Text="&#xE823;" FontFamily="{StaticResource IconFont}" Margin="12" HorizontalAlignment="Right" VerticalAlignment="Top"
+                               IsVisible="{Binding !IsRecording}" />
+                </Panel>
+            </Button>
+            <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- A series recording rule: its picture, name and options in brief. -->
+    <DataTemplate x:Key="SeriesRuleCard" x:DataType="vm:SeriesRuleCard">
+        <StackPanel Width="{StaticResource LandscapeWidth}" Spacing="8">
+            <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}"
+                    Width="{StaticResource LandscapeWidth}" Height="{StaticResource LandscapeHeight}" AutomationProperties.Name="{Binding Title}">
+                <Panel>
+                    <TextBlock Text="&#xE7C8;" FontFamily="{StaticResource IconFont}" FontSize="36" Opacity="0.35"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <c:RemoteImage Url="{Binding Image}" />
+                    <TextBlock Text="&#xE8EE;" FontFamily="{StaticResource IconFont}" Margin="12" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                </Panel>
+            </Button>
+            <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+        </StackPanel>
+    </DataTemplate>
+
     <!-- 2:3 poster artwork with the title and year underneath. -->
     <DataTemplate x:Key="PosterCard" x:DataType="vm:ItemCard">
         <StackPanel Width="{StaticResource PosterWidth}" Spacing="8">

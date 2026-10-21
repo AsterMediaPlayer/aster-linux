@@ -66,6 +66,21 @@ public enum CardStyle
 
     /// <summary>A song as a row of a list, one to a row.</summary>
     Track,
+
+    /// <summary>An episode airing soon: its show's picture and logo.</summary>
+    Upcoming,
+
+    /// <summary>A Live TV programme that's on, with its channel and progress.</summary>
+    Program,
+
+    /// <summary>A Live TV channel's logo.</summary>
+    Channel,
+
+    /// <summary>A scheduled recording.</summary>
+    Timer,
+
+    /// <summary>A series recording rule.</summary>
+    SeriesRule,
 }
 
 /// <summary>A card a grid can tell apart from the others, so unchanged rows are kept as pages arrive.</summary>

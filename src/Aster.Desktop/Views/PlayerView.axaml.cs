@@ -62,6 +62,7 @@ public partial class PlayerView : UserControl
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        Window?.AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
         Focus();
         // Settings' "Play videos full screen"; the window comes back as the player closes.
         if (Aster.Core.AppSettings.Current.FullScreenPlayback && Window is { WindowState: not WindowState.FullScreen }) ToggleFullScreen();
@@ -69,13 +70,19 @@ public partial class PlayerView : UserControl
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        Window?.RemoveHandler(KeyDownEvent, OnWindowKeyDown);
         if (Window is { WindowState: WindowState.FullScreen } window) window.WindowState = stateBeforeFullScreen;
         base.OnDetachedFromVisualTree(e);
     }
 
-    protected override void OnKeyDown(KeyEventArgs e)
+    /// <summary>
+    /// The player's keys, heard at the window before anything else, so they
+    /// work wherever the keyboard focus was left (on the button that started
+    /// playback, say, on the page now hidden behind).
+    /// </summary>
+    private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
-        if (Model is not { } model) return;
+        if (Model is not { } model || e.Handled) return;
         switch (e.Key)
         {
             case Key.Space or Key.K or Key.MediaPlayPause:

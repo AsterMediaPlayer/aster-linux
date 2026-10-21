@@ -1,0 +1,170 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             xmlns:c="using:Aster.Desktop.Controls"
+             x:Class="Aster.Desktop.Views.GuideView"
+             x:DataType="vm:GuideViewModel">
+
+    <UserControl.Styles>
+        <!-- Flat cells, lighter while airing, white under the pointer as on the Apple TV. -->
+        <Style Selector="Button.cell">
+            <Setter Property="Background" Value="#292929" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="ClipToBounds" Value="True" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.cell.airing">
+            <Setter Property="Background" Value="#383838" />
+        </Style>
+        <Style Selector="Button.cell:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="White" />
+        </Style>
+        <Style Selector="Button.cell:pointerover TextBlock">
+            <Setter Property="Foreground" Value="Black" />
+        </Style>
+        <Style Selector="TextBlock.cellTitle">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+        <Style Selector="TextBlock.cellDetail">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{StaticResource Secondary}" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+        <Style Selector="Button.step">
+            <Setter Property="Background" Value="#26FFFFFF" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+    </UserControl.Styles>
+
+    <Panel>
+        <DockPanel Margin="48,8,48,0" IsVisible="{Binding MessageTitle, Converter={x:Static ObjectConverters.IsNull}}">
+            <!-- The day, Earlier and Later, then the half hours across the window. -->
+            <Grid DockPanel.Dock="Top" ColumnDefinitions="200,*" Height="40" Margin="0,0,0,8">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button Classes="step" Content="&#xE76B;" Command="{Binding EarlierCommand}" ToolTip.Tip="An hour earlier (Shift+wheel)"
+                            AutomationProperties.Name="Earlier" />
+                    <Panel MinWidth="88">
+                        <TextBlock Text="{Binding DayLabel}" FontWeight="SemiBold" Foreground="{StaticResource Secondary}" VerticalAlignment="Center"
+                                   HorizontalAlignment="Center" IsVisible="{Binding !CanJumpToNow}" />
+                        <Button Theme="{StaticResource PillButton}" Command="{Binding NowCommand}" IsVisible="{Binding CanJumpToNow}"
+                                MinHeight="30" Padding="12,3" HorizontalAlignment="Center" AutomationProperties.Name="Now">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="&#xE7A7;" FontFamily="{StaticResource IconFont}" FontSize="11" VerticalAlignment="Center" />
+                                <TextBlock Text="Now" FontSize="13" />
+                            </StackPanel>
+                        </Button>
+                    </Panel>
+                    <Button Classes="step" Content="&#xE76C;" Command="{Binding LaterCommand}" ToolTip.Tip="An hour later (Shift+wheel)"
+                            AutomationProperties.Name="Later" />
+                </StackPanel>
+                <Panel Grid.Column="1" x:Name="Timeline" Margin="12,0,0,0" ClipToBounds="True">
+                    <ItemsControl ItemsSource="{Binding Ticks}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <Panel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:GuideTick">
+                                <TextBlock Text="{Binding Text}" Margin="{Binding Margin}" FontWeight="SemiBold" Foreground="{StaticResource Secondary}"
+                                           HorizontalAlignment="Left" VerticalAlignment="Center" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Rectangle Fill="#E53935" Width="3" Height="28" HorizontalAlignment="Left" VerticalAlignment="Center"
+                               Margin="{Binding NowMargin}" IsVisible="{Binding ShowsNow}" />
+                </Panel>
+            </Grid>
+
+            <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl x:Name="RowList" ItemsSource="{Binding Rows}" Margin="0,4,0,60">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:GuideRowViewModel">
+                            <Grid ColumnDefinitions="200,*" Height="64" Margin="0,0,0,8">
+                                <!-- The channel: its number and logo (or name); Watch, or favourite it from its menu. -->
+                                <Button Classes="cell" Width="200" Command="{Binding PlayCommand}" AutomationProperties.Name="{Binding AccessibleName}"
+                                        ToolTip.Tip="{Binding Name}">
+                                    <Button.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Watch" Command="{Binding PlayCommand}" />
+                                            <MenuItem Header="{Binding FavoriteLabel}" Command="{Binding ToggleFavoriteCommand}" />
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
+                                    <Grid ColumnDefinitions="40,*" Margin="12,8">
+                                        <TextBlock Text="{Binding Number}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Secondary}"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                        <Panel Grid.Column="1">
+                                            <TextBlock Classes="cellTitle" Text="{Binding Name}" VerticalAlignment="Center" TextWrapping="Wrap" MaxLines="2"
+                                                       IsVisible="{Binding !#RowLogo.HasImage}" />
+                                            <c:RemoteImage x:Name="RowLogo" Url="{Binding Logo}" Stretch="Uniform" HorizontalAlignment="Left" />
+                                        </Panel>
+                                    </Grid>
+                                </Button>
+                                <Panel Grid.Column="1" Margin="12,0,0,0" ClipToBounds="True">
+                                    <Border Background="#1F1F1F" CornerRadius="8" IsVisible="{Binding IsLoading}">
+                                        <ProgressBar IsIndeterminate="True" Width="80" HorizontalAlignment="Left" Margin="16,0" />
+                                    </Border>
+                                    <Button Classes="cell" Command="{Binding PlayCommand}" HorizontalAlignment="Stretch"
+                                            IsVisible="{Binding Placeholder, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                        <TextBlock Classes="cellDetail" Text="{Binding Placeholder}" Margin="16,0" VerticalAlignment="Center" />
+                                    </Button>
+                                    <ItemsControl ItemsSource="{Binding Cells}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <Panel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:GuideCell">
+                                                <Button Classes="cell" Classes.airing="{Binding IsAiring}" Width="{Binding Width}" Margin="{Binding Margin}"
+                                                        Command="{Binding Open}" AutomationProperties.Name="{Binding AccessibleName}" ToolTip.Tip="{Binding Title}">
+                                                    <Panel>
+                                                        <Border Background="#1FFFFFFF" Width="{Binding AiredWidth}" HorizontalAlignment="Left" />
+                                                        <StackPanel Margin="{Binding Inset}" Spacing="3" VerticalAlignment="Center">
+                                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                <Ellipse Width="8" Height="8" Fill="#E53935" VerticalAlignment="Center" IsVisible="{Binding IsRecording}" />
+                                                                <TextBlock Classes="cellTitle" Text="{Binding Title}" />
+                                                            </StackPanel>
+                                                            <TextBlock Classes="cellDetail" Text="{Binding Subtitle}" />
+                                                        </StackPanel>
+                                                    </Panel>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Panel>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </DockPanel>
+
+        <ProgressBar IsIndeterminate="True" Width="200" VerticalAlignment="Top" Margin="0,80" IsVisible="{Binding IsLoading}" />
+        <StackPanel Spacing="10" Margin="48,100" HorizontalAlignment="Center" VerticalAlignment="Top"
+                    IsVisible="{Binding MessageTitle, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <TextBlock Text="{Binding MessageTitle}" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />
+            <TextBlock Text="{Binding MessageDetail}" Foreground="{StaticResource Secondary}" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="480" />
+        </StackPanel>
+    </Panel>
+</UserControl>

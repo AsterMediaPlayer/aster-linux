@@ -155,6 +155,16 @@ public partial class PlayerViewModel : ViewModelBase
     /// <summary>Playing has begun, so the loading cover can come off.</summary>
     [ObservableProperty] public partial bool HasStarted { get; set; }
 
+    /// <summary>A Live TV channel: no timeline, no skipping, no speeds.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTimeline))]
+    public partial bool IsLive { get; set; }
+
+    public bool HasTimeline => !IsLive;
+
+    /// <summary>The server's live stream for a channel, closed when it's done.</summary>
+    private string? liveStreamId;
+
     [ObservableProperty] public partial bool IsPaused { get; set; }
     [ObservableProperty] public partial bool IsBuffering { get; set; }
     [ObservableProperty] public partial double Position { get; set; }
@@ -243,6 +253,15 @@ public partial class PlayerViewModel : ViewModelBase
             var item = await client.ItemAsync(entry.ItemId);
             if (stopped) return;
             Item = item;
+            if (item.Kind == ItemKind.TvChannel)
+            {
+                IsLive = true;
+                Title = string.Join("  ", new[] { item.ChannelNumber, item.DisplayTitle }.OfType<string>());
+                Subtitle = item.CurrentProgram?.Name;
+                await LoadLiveAsync();
+                if (!stopped) await BeginAsync();
+                return;
+            }
             Title = item.SeriesName ?? item.DisplayTitle;
             Subtitle = item.SeriesName is null ? string.Join(" · ", item.MetadataLine) : $"{item.EpisodeCode} · {item.DisplayTitle}";
             await LoadTitleAsync(item);
@@ -275,6 +294,41 @@ public partial class PlayerViewModel : ViewModelBase
 
     private static bool IsServerError(Exception error) =>
         error is JellyfinException or HttpRequestException or TimeoutException or TaskCanceledException;
+
+    /// <summary>
+    /// A Live TV channel: the server opens its live stream, and mpv plays
+    /// the HLS it offers (converted, or the tuner's own when it speaks HLS).
+    /// </summary>
+    private async Task LoadLiveAsync()
+    {
+        var info = await client.PlaybackInfoAsync(entry.ItemId, 0, settings.MaxBitrate, subtitleStreamIndex: -1);
+        if (info.ErrorCode is { } code) throw JellyfinException.Http(0, code);
+        var source = info.MediaSources.FirstOrDefault() ?? throw JellyfinException.Http(0, "No media source");
+        playSessionId = info.PlaySessionId;
+        mediaSourceId = source.Id;
+        liveStreamId = source.LiveStreamId;
+        Uri? url;
+        if (source.TranscodingUrl is { } path && client.AbsoluteUrl(path) is { } converted)
+        {
+            playMethod = "Transcode";
+            url = converted;
+        }
+        else if (source.Path is { } direct && direct.Contains("m3u8", StringComparison.OrdinalIgnoreCase)
+                 && Uri.TryCreate(direct, UriKind.Absolute, out var hls) && hls.Scheme.StartsWith("http", StringComparison.Ordinal))
+        {
+            playMethod = "DirectPlay";
+            url = hls;
+        }
+        else
+        {
+            throw JellyfinException.Http(0, "This channel's stream format isn't supported.");
+        }
+        System.Diagnostics.Debug.WriteLine($"Playback: live channel {Item?.DisplayTitle} ({playMethod})");
+        await LoadAsync(url, 0);
+        // A broadcast's captions aren't listed by the server, so they follow
+        // the subtitle setting alone: on only when subtitles are always on.
+        if (!stopped && preferences?.SubtitleMode != SubtitleMode.Always) Player!.SetProperty("sid", "no");
+    }
 
     /// <summary>A movie, episode or other video: the file itself, or a stream the server converts.</summary>
     private async Task LoadTitleAsync(BaseItem item)
@@ -477,6 +531,13 @@ public partial class PlayerViewModel : ViewModelBase
     private void FallBack(string reason)
     {
         if (stopped) return;
+        // A channel has no other stream to step down to.
+        if (IsLive)
+        {
+            ErrorMessage = reason;
+            ControlsVisible = true;
+            return;
+        }
         StreamFallback? next = entry.Fallback switch
         {
             StreamFallback.None => isConverted ? StreamFallback.MostCompatible : StreamFallback.ServerTranscode,
@@ -558,14 +619,14 @@ public partial class PlayerViewModel : ViewModelBase
 
     public void SeekBy(double seconds)
     {
-        if (!HasStarted || Player is null) return;
+        if (!HasStarted || Player is null || IsLive) return;
         _ = SafeCommand("seek", seconds.ToString(CultureInfo.InvariantCulture), "relative+exact");
         PokeControls();
     }
 
     public void SeekTo(double seconds)
     {
-        if (!HasStarted || Player is null) return;
+        if (!HasStarted || Player is null || IsLive) return;
         _ = SafeCommand("seek", Math.Max(0, seconds).ToString(CultureInfo.InvariantCulture), "absolute");
         PokeControls();
     }
@@ -942,6 +1003,7 @@ public partial class PlayerViewModel : ViewModelBase
         {
             _ = client.StopTranscodingAsync(session);
         }
+        if (liveStreamId is { } live) _ = client.CloseLiveStreamAsync(live);
         Player.Dispose();
     }
 }

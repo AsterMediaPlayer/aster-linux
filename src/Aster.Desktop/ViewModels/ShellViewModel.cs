@@ -29,6 +29,9 @@ public interface INavigator
     /// <summary>An author's books, or a series.</summary>
     void OpenShelf(Aster.Core.Audio.AudiobookShelf shelf);
 
+    /// <summary>A page of the caller's own over the current one (a programme, a recording rule).</summary>
+    void Push(ViewModelBase page);
+
     /// <summary>
     /// Opens a title's page over the current one. A stub item (id, name,
     /// type) is enough; the page loads the rest. With <paramref name="playOnOpen"/>
@@ -70,6 +73,8 @@ public enum AppTab
     Anime,
     Music,
     Audiobooks,
+    Upcoming,
+    LiveTV,
     Library,
     Settings,
 }
@@ -110,6 +115,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
         this.signOut = signOut;
         Anime = AnimeCatalog.FindAsync(client);
         Libraries = LoadLibrariesAsync(client);
+        HasUpcoming = CheckUpcomingAsync(client);
         Audio = new Aster.Desktop.Audio.AudioSession(client);
         NowPlaying = new NowPlayingViewModel(this);
         UserName = session.UserName;
@@ -121,6 +127,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
         // The Anime, Music and Audiobooks tabs show once it's known there's some.
         _ = Anime.ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTabs));
         _ = Libraries.ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTabs));
+        _ = HasUpcoming.ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTabs));
         // The settings that follow the user, as their other devices left them.
         _ = Aster.Core.SettingsSync.PullAsync(client);
     }
@@ -132,6 +139,15 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
 
     /// <summary>The full player for the song or book, over the window.</summary>
     public NowPlayingViewModel NowPlaying { get; }
+
+    /// <summary>Whether shows in the library have episodes airing soon, which the Upcoming tab needs.</summary>
+    private Task<bool> HasUpcoming { get; }
+
+    private static async Task<bool> CheckUpcomingAsync(JellyfinClient client)
+    {
+        try { return (await client.UpcomingAsync(limit: 1)).Count > 0; }
+        catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException) { return false; }
+    }
 
     private static async Task<IReadOnlyList<BaseItem>> LoadLibrariesAsync(JellyfinClient client)
     {
@@ -159,6 +175,8 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
             (AppTab.Anime, "Anime", ""),
             (AppTab.Music, "Music", ""),
             (AppTab.Audiobooks, "Audiobooks", ""),
+            (AppTab.Upcoming, "Upcoming", ""),
+            (AppTab.LiveTV, "Live TV", ""),
             (AppTab.Library, "Library", ""),
         };
         Tabs = all
@@ -167,6 +185,8 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
                 AppTab.Anime => hasAnime,
                 AppTab.Music => hasMusic,
                 AppTab.Audiobooks => hasBooks,
+                AppTab.Upcoming => HasUpcoming.IsCompletedSuccessfully && HasUpcoming.Result,
+                AppTab.LiveTV => libraries.Any(l => l.CollectionType == "livetv"),
                 _ => true,
             })
             .Select(t => new SidebarTab(t.Title, t.Glyph, t.Tab == tab, new RelayCommand(() => ShowTab(t.Tab))))
@@ -186,6 +206,8 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
                 AppTab.Anime => new AnimeViewModel(this),
                 AppTab.Music => new MusicViewModel(this),
                 AppTab.Audiobooks => new AudiobooksViewModel(this),
+                AppTab.Upcoming => new UpcomingViewModel(this),
+                AppTab.LiveTV => new LiveTVViewModel(this),
                 AppTab.Library => new LibraryViewModel(this),
                 AppTab.Search => new SearchViewModel(this),
                 AppTab.Settings => new SettingsViewModel(this, UserName, ServerName, signOut),
@@ -235,7 +257,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
 
     public void OpenShelf(Aster.Core.Audio.AudiobookShelf shelf) => Push(new AudiobookShelfViewModel(this, shelf) { IsPushed = true });
 
-    private void Push(ViewModelBase page)
+    public void Push(ViewModelBase page)
     {
         stack.Add(CurrentPage);
         CurrentPage = page;

@@ -1,0 +1,114 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             xmlns:c="using:Aster.Desktop.Controls"
+             x:Class="Aster.Desktop.Views.ProgramView"
+             x:DataType="vm:ProgramViewModel"
+             Background="#141414">
+
+    <Panel>
+        <c:RemoteImage Url="{Binding Backdrop}" />
+        <Border>
+            <Border.Background>
+                <LinearGradientBrush StartPoint="50%,0%" EndPoint="50%,100%">
+                    <GradientStop Offset="0" Color="#33000000" />
+                    <GradientStop Offset="0.5" Color="#BF000000" />
+                    <GradientStop Offset="1" Color="#F7000000" />
+                </LinearGradientBrush>
+            </Border.Background>
+        </Border>
+
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalContentAlignment="Bottom">
+            <StackPanel Spacing="16" Margin="64,100,64,48" VerticalAlignment="Bottom">
+                <TextBlock Text="{Binding ChannelLine}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource Secondary}" />
+                <TextBlock Text="{Binding Title}" FontSize="34" FontWeight="Bold" TextWrapping="Wrap" MaxLines="2" />
+                <TextBlock Text="{Binding EpisodeTitle}" FontSize="18" FontWeight="SemiBold"
+                           IsVisible="{Binding EpisodeTitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                <WrapPanel ItemSpacing="10" LineSpacing="8">
+                    <TextBlock Text="{Binding Airing}" Foreground="{StaticResource Secondary}" VerticalAlignment="Center" />
+                    <ItemsControl ItemsSource="{Binding Badges}" VerticalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="8" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <Border BorderBrush="{StaticResource Secondary}" BorderThickness="1" CornerRadius="4" Padding="6,1">
+                                    <TextBlock Text="{Binding}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Secondary}" />
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="{Binding Genres}" Foreground="{StaticResource Secondary}" VerticalAlignment="Center"
+                               IsVisible="{Binding Genres, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                </WrapPanel>
+                <TextBlock Text="{Binding Overview}" TextWrapping="Wrap" MaxLines="5" TextTrimming="CharacterEllipsis" MaxWidth="900"
+                           HorizontalAlignment="Left" IsVisible="{Binding Overview, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="100" Width="400" Height="5" MinHeight="5" CornerRadius="3"
+                             Foreground="White" Background="#4DFFFFFF" HorizontalAlignment="Left" IsVisible="{Binding HasProgress}" />
+
+                <!-- This showing, then the series and the channel. -->
+                <WrapPanel ItemSpacing="12" LineSpacing="12" Margin="0,8,0,0" IsEnabled="{Binding !IsWorking}">
+                    <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding WatchCommand}" IsVisible="{Binding CanWatch}"
+                            AutomationProperties.Name="Watch">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="&#xE768;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                            <TextBlock Text="Watch" />
+                        </StackPanel>
+                    </Button>
+                    <Button Theme="{StaticResource PillButton}" Command="{Binding WatchCommand}" IsVisible="{Binding CanWatchChannel}"
+                            AutomationProperties.Name="Watch Channel">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="&#xE7F4;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                            <TextBlock Text="Watch Channel" />
+                        </StackPanel>
+                    </Button>
+                    <Button Theme="{StaticResource PillButton}" Command="{Binding RecordCommand}" IsVisible="{Binding CanRecord}"
+                            AutomationProperties.Name="Record">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Ellipse Width="12" Height="12" Fill="#E53935" VerticalAlignment="Center" />
+                            <TextBlock Text="Record" />
+                        </StackPanel>
+                    </Button>
+                    <Button Theme="{StaticResource PillButton}" Command="{Binding CancelRecordingCommand}" IsVisible="{Binding CanCancelRecording}"
+                            AutomationProperties.Name="Cancel Recording">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="&#xE711;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                            <TextBlock Text="Cancel Recording" />
+                        </StackPanel>
+                    </Button>
+                    <Button Theme="{StaticResource PillButton}" Command="{Binding RecordSeriesCommand}" IsVisible="{Binding CanRecordSeries}"
+                            AutomationProperties.Name="Record Series">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="&#xE8EE;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                            <TextBlock Text="Record Series" />
+                        </StackPanel>
+                    </Button>
+                    <Button Theme="{StaticResource PillButton}" Command="{Binding SeriesOptionsCommand}" IsVisible="{Binding HasSeriesOptions}"
+                            AutomationProperties.Name="Series Options">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="&#xE9E9;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                            <TextBlock Text="Series Options" />
+                        </StackPanel>
+                    </Button>
+                    <Button Theme="{StaticResource PillButton}" Command="{Binding ToggleChannelFavoriteCommand}" IsVisible="{Binding HasChannel}"
+                            ToolTip.Tip="{Binding FavoriteLabel}" AutomationProperties.Name="{Binding FavoriteLabel}" Width="44" Padding="0">
+                        <Panel>
+                            <TextBlock Text="&#xEB52;" FontFamily="{StaticResource IconFont}" IsVisible="{Binding IsChannelFavorite}" HorizontalAlignment="Center" />
+                            <TextBlock Text="&#xEB51;" FontFamily="{StaticResource IconFont}" IsVisible="{Binding !IsChannelFavorite}" HorizontalAlignment="Center" />
+                        </Panel>
+                    </Button>
+                    <ProgressBar IsIndeterminate="True" Width="60" VerticalAlignment="Center" IsVisible="{Binding IsWorking}" />
+                </WrapPanel>
+                <TextBlock Text="{Binding Message}" Foreground="#FF8A80" TextWrapping="Wrap"
+                           IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Command="{Binding BackCommand}" ToolTip.Tip="Back (Alt+←)" AutomationProperties.Name="Back" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
+                Width="44" Height="44" CornerRadius="22" Background="#B3000000" Foreground="White" HorizontalContentAlignment="Center">
+            <TextBlock Text="&#xE72B;" FontFamily="{StaticResource IconFont}" />
+        </Button>
+    </Panel>
+</UserControl>
