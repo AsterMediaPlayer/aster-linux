@@ -1,4 +1,5 @@
 using System;
+using Aster.Core.Channels;
 using Aster.Desktop.ViewModels;
 using Avalonia;
 using Avalonia.Controls;
@@ -32,6 +33,15 @@ public partial class PlayerView : UserControl
             m.SeekTo(SeekBar.Value);
         }, RoutingStrategies.Bubble, handledEventsToo: true);
         FullScreenButton.Click += (_, _) => ToggleFullScreen();
+        BugLayer.SizeChanged += (_, _) => PlaceBug();
+        DataContextChanged += (_, _) =>
+        {
+            if (Model is not { } model) return;
+            model.PropertyChanged += (_, change) =>
+            {
+                if (change.PropertyName is nameof(PlayerViewModel.VideoAspect) or nameof(PlayerViewModel.BugCorner) or nameof(PlayerViewModel.BugWidth)) PlaceBug();
+            };
+        };
         Surface.PointerMoved += (_, _) => Model?.PokeControls();
         Surface.DoubleTapped += (_, e) =>
         {
@@ -56,6 +66,38 @@ public partial class PlayerView : UserControl
     }
 
     private PlayerViewModel? Model => DataContext as PlayerViewModel;
+
+    /// <summary>
+    /// The bug in its corner of the picture itself, so a 4:3 show between
+    /// black bars keeps it on the picture: in from the picture's edges by a
+    /// share of its size, as on the Apple TV.
+    /// </summary>
+    private void PlaceBug()
+    {
+        if (Model is not { } model) return;
+        var (width, height) = (BugLayer.Bounds.Width, BugLayer.Bounds.Height);
+        if (width <= 0 || height <= 0) return;
+        var (left, top, pictureWidth, pictureHeight) = (0.0, 0.0, width, height);
+        var aspect = model.VideoAspect;
+        if (aspect > 0 && double.IsFinite(aspect))
+        {
+            if (width / height > aspect)
+            {
+                pictureWidth = height * aspect;
+                left = (width - pictureWidth) / 2;
+            }
+            else
+            {
+                pictureHeight = width / aspect;
+                top = (height - pictureHeight) / 2;
+            }
+        }
+        var size = model.BugWidth;
+        var x = model.BugCorner.IsLeft ? left + pictureWidth * 0.094 : left + pictureWidth * (1 - 0.094) - size;
+        var y = model.BugCorner.IsTop ? top + pictureHeight * 0.12 : top + pictureHeight * (1 - 0.12) - size;
+        Canvas.SetLeft(Bug, x);
+        Canvas.SetTop(Bug, y);
+    }
 
     private Window? Window => TopLevel.GetTopLevel(this) as Window;
 
@@ -114,6 +156,11 @@ public partial class PlayerView : UserControl
                 break;
             case Key.Down or Key.VolumeDown:
                 model.ChangeVolume(-5);
+                break;
+            // Channel up and down, on a Channel.
+            case Key.PageUp when model.SwitchChannel(1):
+                break;
+            case Key.PageDown when model.SwitchChannel(-1):
                 break;
             case Key.Escape when Window is { WindowState: WindowState.FullScreen }:
                 ToggleFullScreen();

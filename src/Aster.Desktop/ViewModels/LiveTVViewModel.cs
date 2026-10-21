@@ -106,7 +106,7 @@ public sealed partial class SeriesRuleCard(LiveTVViewModel live, SeriesTimerInfo
 /// one header. What they show is loaded here once and shared; each section
 /// is its own page beneath it. A port of the Apple app's LiveTVView.
 /// </summary>
-public sealed partial class LiveTVViewModel : ViewModelBase, IRefreshable
+public sealed partial class LiveTVViewModel : ViewModelBase, IRefreshable, IGuideSource
 {
     private enum Section { OnNow, Guide, Channels, Recordings }
 
@@ -207,6 +207,22 @@ public sealed partial class LiveTVViewModel : ViewModelBase, IRefreshable
         RecordingsLoaded = LoadRecordingsAsync();
         foreach (var page in pages.Values.OfType<IRefreshable>()) page.Refresh();
     }
+
+    // ---- The guide ----
+
+    public (string Title, string Detail)? Problem =>
+        ErrorMessage is { } error ? ("Live TV isn't available", error)
+        : Channels.Count == 0 ? ("No channels", "Add a tuner or M3U source in the Jellyfin dashboard.")
+        : null;
+
+    public IReadOnlyList<GuideChannel> GuideChannels => Channels
+        .Select(c => new GuideChannel(c.Id, c.ChannelNumber, c.DisplayTitle, Client.ChannelLogoUrl(c, width: 200), c.UserData?.IsFavorite == true))
+        .ToList();
+
+    public TimeSpan GuideLength => TimeSpan.FromHours(24);
+    public bool CanFavorite => true;
+
+    public Task<IReadOnlyList<BaseItem>> ProgramsAsync(string channelId, DateTimeOffset from, DateTimeOffset to) => Client.ProgramsAsync(channelId, from, to);
 
     // ---- Sections ----
 

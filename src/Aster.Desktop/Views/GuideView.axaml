@@ -58,7 +58,25 @@
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <Button Classes="step" Content="&#xE76B;" Command="{Binding EarlierCommand}" ToolTip.Tip="An hour earlier (Shift+wheel)"
                             AutomationProperties.Name="Earlier" />
-                    <Panel MinWidth="88">
+                    <!-- A week's guide: the day picks the day, at the time it is now. -->
+                    <Button Theme="{StaticResource PillButton}" IsVisible="{Binding HasDays}" MinHeight="30" Padding="12,3" MinWidth="88"
+                            AutomationProperties.Name="Day">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="{Binding DayLabel}" FontSize="13" />
+                            <TextBlock Text="&#xE70D;" FontFamily="{StaticResource IconFont}" FontSize="9" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Button.Flyout>
+                            <MenuFlyout ItemsSource="{Binding Days}">
+                                <MenuFlyout.ItemContainerTheme>
+                                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="vm:GuideDay">
+                                        <Setter Property="Header" Value="{Binding Title}" />
+                                        <Setter Property="Command" Value="{Binding Select}" />
+                                    </ControlTheme>
+                                </MenuFlyout.ItemContainerTheme>
+                            </MenuFlyout>
+                        </Button.Flyout>
+                    </Button>
+                    <Panel MinWidth="88" IsVisible="{Binding !HasDays}">
                         <TextBlock Text="{Binding DayLabel}" FontWeight="SemiBold" Foreground="{StaticResource Secondary}" VerticalAlignment="Center"
                                    HorizontalAlignment="Center" IsVisible="{Binding !CanJumpToNow}" />
                         <Button Theme="{StaticResource PillButton}" Command="{Binding NowCommand}" IsVisible="{Binding CanJumpToNow}"
@@ -107,7 +125,7 @@
                                     <Button.ContextMenu>
                                         <ContextMenu>
                                             <MenuItem Header="Watch" Command="{Binding PlayCommand}" />
-                                            <MenuItem Header="{Binding FavoriteLabel}" Command="{Binding ToggleFavoriteCommand}" />
+                                            <MenuItem Header="{Binding FavoriteLabel}" Command="{Binding ToggleFavoriteCommand}" IsVisible="{Binding CanFavorite}" />
                                         </ContextMenu>
                                     </Button.ContextMenu>
                                     <Grid ColumnDefinitions="40,*" Margin="12,8">

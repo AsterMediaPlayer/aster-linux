@@ -31,17 +31,50 @@ public sealed record GuideCell(
 /// <summary>A half-hour mark along the top of the guide.</summary>
 public sealed record GuideTick(string Text, Thickness Margin);
 
+/// <summary>A row's channel, as the guide shows it.</summary>
+public sealed record GuideChannel(string Id, string? Number, string Name, Uri? Logo, bool IsFavorite);
+
+/// <summary>
+/// Where a guide's channels and listings come from: Live TV's, fetched from
+/// the server, or Channels', worked out from their schedules.
+/// </summary>
+public interface IGuideSource
+{
+    /// <summary>The channels, loading or loaded.</summary>
+    Task Loaded { get; }
+
+    /// <summary>Why there's no guide (it couldn't load, or there are no channels); null when there is one.</summary>
+    (string Title, string Detail)? Problem { get; }
+
+    IReadOnlyList<GuideChannel> GuideChannels { get; }
+
+    /// <summary>How far ahead the guide reaches: a day for Live TV, a week for Channels.</summary>
+    TimeSpan GuideLength { get; }
+
+    /// <summary>Whether a channel can be made a favourite from its cell.</summary>
+    bool CanFavorite { get; }
+
+    Task<IReadOnlyList<BaseItem>> ProgramsAsync(string channelId, DateTimeOffset from, DateTimeOffset to);
+    void OpenProgram(BaseItem program);
+    void PlayChannel(string channelId);
+    void SetFavorite(string channelId, bool favorite);
+}
+
+/// <summary>A day the guide reaches into, for its day picker.</summary>
+public sealed record GuideDay(string Title, IRelayCommand Select);
+
 /// <summary>A channel's row: its cell, then its programmes, loaded when the row first shows.</summary>
-public sealed partial class GuideRowViewModel(GuideViewModel guide, LiveTVViewModel live, BaseItem channel) : ObservableObject
+public sealed partial class GuideRowViewModel(GuideViewModel guide, IGuideSource source, GuideChannel channel) : ObservableObject
 {
     private IReadOnlyList<BaseItem>? programs;
     private bool loading;
 
     public string ChannelId => channel.Id;
-    public Uri? Logo { get; } = live.Client.ChannelLogoUrl(channel, width: 200);
-    public string? Number => channel.ChannelNumber;
-    public string Name => channel.DisplayTitle;
-    public string AccessibleName => $"Watch {string.Join(" ", new[] { channel.ChannelNumber, channel.DisplayTitle }.OfType<string>())}";
+    public Uri? Logo => channel.Logo;
+    public string? Number => channel.Number;
+    public string Name => channel.Name;
+    public bool CanFavorite => source.CanFavorite;
+    public string AccessibleName => $"Watch {string.Join(" ", new[] { channel.Number, channel.Name }.OfType<string>())}";
 
     [ObservableProperty] public partial IReadOnlyList<GuideCell> Cells { get; private set; } = [];
 
@@ -52,17 +85,17 @@ public sealed partial class GuideRowViewModel(GuideViewModel guide, LiveTVViewMo
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FavoriteLabel))]
-    public partial bool IsFavorite { get; set; } = channel.UserData?.IsFavorite == true;
+    public partial bool IsFavorite { get; set; } = channel.IsFavorite;
 
     public string FavoriteLabel => IsFavorite ? "Remove from Favorites" : "Add to Favorites";
 
-    [RelayCommand] private void Play() => live.PlayChannel(channel.Id);
+    [RelayCommand] private void Play() => source.PlayChannel(channel.Id);
 
     [RelayCommand]
     private void ToggleFavorite()
     {
         IsFavorite = !IsFavorite;
-        live.SetFavorite(channel.Id, IsFavorite);
+        source.SetFavorite(channel.Id, IsFavorite);
     }
 
     /// <summary>Starts loading the listings, once; a failed load is tried again the next time the row shows.</summary>
@@ -72,7 +105,7 @@ public sealed partial class GuideRowViewModel(GuideViewModel guide, LiveTVViewMo
         loading = true;
         try
         {
-            var loaded = await live.Client.ProgramsAsync(channel.Id, guide.GuideStart, guide.GuideEnd);
+            var loaded = await source.ProgramsAsync(channel.Id, guide.GuideStart, guide.GuideEnd);
             programs = loaded.Where(p => p.End is { } end && end > guide.GuideStart.AddMinutes(1)).ToList();
             IsLoading = false;
             Layout();
@@ -111,7 +144,7 @@ public sealed partial class GuideRowViewModel(GuideViewModel guide, LiveTVViewMo
                 program.TimerId is not null || program.SeriesTimerId is not null,
                 aired,
                 string.Join(", ", new[] { program.Name, program.EpisodeTitle, LiveTVFormat.TimeRange(program.Start, program.End) }.OfType<string>()),
-                new RelayCommand(() => live.OpenProgram(program))));
+                new RelayCommand(() => source.OpenProgram(program))));
         }
         Cells = cells;
         Placeholder = cells.Count == 0 ? "No guide data" : null;
@@ -121,8 +154,9 @@ public sealed partial class GuideRowViewModel(GuideViewModel guide, LiveTVViewMo
 /// <summary>
 /// The programme guide: a row per channel, with its programmes laid out
 /// along a timeline that starts at the current half hour and reaches a day
-/// ahead. The window of time in view moves with Earlier and Later (or
-/// Shift and the mouse wheel). A port of the Apple app's GuideView.
+/// ahead (a week for Channels, with a day picker). The window of time in
+/// view moves with Earlier and Later (or Shift and the mouse wheel). A port
+/// of the Apple app's GuideView.
 /// </summary>
 public sealed partial class GuideViewModel : ViewModelBase, IRefreshable
 {
@@ -133,16 +167,17 @@ public sealed partial class GuideViewModel : ViewModelBase, IRefreshable
     /// <summary>A cell keeps at least this much of itself readable when its start is scrolled out of view.</summary>
     public const double MinimumVisibleCell = 140;
 
-    private readonly LiveTVViewModel live;
+    private readonly IGuideSource source;
     private readonly DispatcherTimer minute = new() { Interval = TimeSpan.FromMinutes(1) };
     private double timelineWidth = 900;
 
-    public GuideViewModel(LiveTVViewModel live)
+    public GuideViewModel(IGuideSource source)
     {
-        this.live = live;
+        this.source = source;
         GuideStart = LiveGuide.FloorToHalfHour(DateTimeOffset.UtcNow);
-        GuideEnd = GuideStart.AddHours(24);
+        GuideEnd = GuideStart + source.GuideLength;
         WindowStart = GuideStart;
+        Days = MakeDays();
         // The red line and what's on move on as the clock does.
         minute.Tick += (_, _) => Relayout();
         _ = LoadAsync();
@@ -187,19 +222,41 @@ public sealed partial class GuideViewModel : ViewModelBase, IRefreshable
 
     private async Task LoadAsync()
     {
-        await live.Loaded;
+        await source.Loaded;
         IsLoading = false;
-        if (live.ErrorMessage is { } error)
+        if (source.Problem is var (title, detail))
         {
-            (MessageTitle, MessageDetail) = ("Live TV isn't available", error);
+            (MessageTitle, MessageDetail) = (title, detail);
             return;
         }
-        if (live.Channels.Count == 0)
+        Rows = source.GuideChannels.Select(c => new GuideRowViewModel(this, source, c)).ToList();
+        Relayout();
+    }
+
+    /// <summary>The days a guide of several reaches into; none for a guide of a day, which has no day picker.</summary>
+    public IReadOnlyList<GuideDay> Days { get; }
+
+    public bool HasDays => Days.Count > 0;
+
+    private IReadOnlyList<GuideDay> MakeDays()
+    {
+        if (GuideEnd - GuideStart <= TimeSpan.FromHours(26)) return [];
+        var days = new List<GuideDay>();
+        var now = DateTimeOffset.Now;
+        for (var day = GuideStart.ToLocalTime().Date; day < GuideEnd.ToLocalTime().DateTime; day = day.AddDays(1))
         {
-            (MessageTitle, MessageDetail) = ("No channels", "Add a tuner or M3U source in the Jellyfin dashboard.");
-            return;
+            var start = new DateTimeOffset(day, TimeZoneInfo.Local.GetUtcOffset(day));
+            days.Add(new GuideDay(LiveTVFormat.DayLabel(start, now), new RelayCommand(() => JumpTo(start))));
         }
-        Rows = live.Channels.Select(c => new GuideRowViewModel(this, live, c)).ToList();
+        return days;
+    }
+
+    /// <summary>Another day at the time of day it is now, as a TV guide's day buttons do; today goes back to now.</summary>
+    private void JumpTo(DateTimeOffset day)
+    {
+        var now = DateTimeOffset.Now;
+        var target = day.Date == now.Date ? now : day + now.TimeOfDay;
+        WindowStart = LiveGuide.Clamp(LiveGuide.FloorToHalfHour(target), VisibleMinutes, GuideStart, GuideEnd);
         Relayout();
     }
 

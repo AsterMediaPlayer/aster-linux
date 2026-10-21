@@ -52,6 +52,18 @@
     <Grid x:Name="Surface" Background="Transparent">
         <c:MpvVideoView Player="{Binding Player}" />
 
+        <!-- A Channel's bug: faint in a corner of the picture, placed in code. -->
+        <Canvas x:Name="BugLayer" IsHitTestVisible="False">
+            <c:RemoteImage x:Name="Bug" Url="{Binding BugUrl}" Width="{Binding BugWidth}" Height="{Binding BugWidth}" Stretch="Uniform"
+                           Opacity="{Binding BugOpacity}">
+                <c:RemoteImage.Transitions>
+                    <Transitions>
+                        <DoubleTransition Property="Opacity" Duration="0:0:0.8" />
+                    </Transitions>
+                </c:RemoteImage.Transitions>
+            </c:RemoteImage>
+        </Canvas>
+
         <!-- Until the first frame: the title, and that it's on its way. -->
         <StackPanel IsVisible="{Binding !HasStarted}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
             <TextBlock Text="{Binding Title}" FontSize="32" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" />
@@ -95,9 +107,9 @@
                     </LinearGradientBrush>
                 </Border.Background>
                 <StackPanel Spacing="4">
-                    <!-- A channel has no timeline: LIVE in its place. -->
-                    <Border Background="#E53935" CornerRadius="4" Padding="8,2" HorizontalAlignment="Left" IsVisible="{Binding IsLive}">
-                        <TextBlock Text="LIVE" Foreground="White" FontWeight="Bold" FontSize="12" LetterSpacing="1" />
+                    <!-- Live TV and Channels have no timeline: LIVE, or the channel, in its place. -->
+                    <Border Background="#E53935" CornerRadius="4" Padding="8,2" HorizontalAlignment="Left" IsVisible="{Binding HasBadge}">
+                        <TextBlock Text="{Binding Badge}" Foreground="White" FontWeight="Bold" FontSize="12" LetterSpacing="1" />
                     </Border>
                     <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding HasTimeline}">
                         <TextBlock Grid.Column="0" Text="{Binding PositionText}" Foreground="White" VerticalAlignment="Center" MinWidth="56" />

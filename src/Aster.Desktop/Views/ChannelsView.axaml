@@ -1,0 +1,11 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             x:Class="Aster.Desktop.Views.ChannelsView"
+             x:DataType="vm:ChannelsViewModel">
+
+    <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Text="Channels (Beta)" FontSize="32" FontWeight="Bold" Margin="48,40,48,16" />
+        <ContentControl Content="{Binding Guide}" />
+    </DockPanel>
+</UserControl>

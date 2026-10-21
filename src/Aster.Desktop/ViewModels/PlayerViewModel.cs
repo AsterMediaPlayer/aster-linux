@@ -85,6 +85,7 @@ public partial class PlayerViewModel : ViewModelBase
         countdownTimer.Tick += (_, _) => CountdownTick();
         hideTimer.Tick += (_, _) => HideControlsIfIdle();
         toastTimer.Tick += (_, _) => { toastTimer.Stop(); Toast = null; };
+        bugTimer.Tick += (_, _) => { bugTimer.Stop(); BugOpacity = 0; };
         try
         {
 #if DEBUG
@@ -157,10 +158,37 @@ public partial class PlayerViewModel : ViewModelBase
 
     /// <summary>A Live TV channel: no timeline, no skipping, no speeds.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasTimeline))]
+    [NotifyPropertyChangedFor(nameof(HasTimeline), nameof(HasBadge), nameof(Badge))]
     public partial bool IsLive { get; set; }
 
-    public bool HasTimeline => !IsLive;
+    /// <summary>The Channel playing, "5  Late Night", while on one; null otherwise.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTimeline), nameof(HasBadge), nameof(Badge))]
+    public partial string? ChannelName { get; private set; }
+
+    /// <summary>Live TV and Channels play on a timeline the viewer can't move.</summary>
+    public bool HasTimeline => !IsLive && ChannelName is null;
+
+    public bool HasBadge => IsLive || ChannelName is not null;
+    public string Badge => ChannelName ?? "LIVE";
+
+    /// <summary>On a Channel: its schedule decides what plays, and nothing's reported (resume points and watched state stay as they were).</summary>
+    private bool OnChannel => entry.ChannelId is not null;
+
+    /// <summary>A break clip cut short reached its cut.</summary>
+    private bool reachedCut;
+
+    // ---- The channel's bug ----
+
+    [ObservableProperty] public partial Uri? BugUrl { get; private set; }
+    [ObservableProperty] public partial double BugWidth { get; private set; } = 128;
+    [ObservableProperty] public partial double BugOpacity { get; private set; }
+    [ObservableProperty] public partial Aster.Core.Channels.BugCorner BugCorner { get; private set; }
+
+    /// <summary>The picture's shape, width over height, so the bug sits on it rather than out in the bars.</summary>
+    [ObservableProperty] public partial double VideoAspect { get; private set; }
+
+    private readonly DispatcherTimer bugTimer = new();
 
     /// <summary>The server's live stream for a channel, closed when it's done.</summary>
     private string? liveStreamId;
@@ -264,9 +292,13 @@ public partial class PlayerViewModel : ViewModelBase
             }
             Title = item.SeriesName ?? item.DisplayTitle;
             Subtitle = item.SeriesName is null ? string.Join(" · ", item.MetadataLine) : $"{item.EpisodeCode} · {item.DisplayTitle}";
+            ShowChannel(item);
             await LoadTitleAsync(item);
             if (stopped) return;
             await BeginAsync();
+            // A channel gets no markers (skipping an intro would leave the
+            // schedule behind) and goes on to what it's showing, never Up Next.
+            if (OnChannel) return;
 
             // Markers and the next episode load once it plays, so they never hold up the start.
             var markers = client.MediaSegmentsAsync(item.Id);
@@ -284,6 +316,57 @@ public partial class PlayerViewModel : ViewModelBase
         {
             if (!stopped) FallBack(error.Message);
         }
+    }
+
+    /// <summary>
+    /// On a Channel: its name in place of the timeline, and its bug, which
+    /// steps aside for a break's clips (anything but a movie or episode) and,
+    /// with bug-hide=, fades a while after tuning in or a programme starting.
+    /// </summary>
+    private void ShowChannel(BaseItem item)
+    {
+        bugTimer.Stop();
+        if (entry.ChannelId is not { } channelId || Aster.Core.Channels.ChannelTuner.Channel(channelId) is not { } channel)
+        {
+            ChannelName = null;
+            BugUrl = null;
+            return;
+        }
+        ChannelName = $"{channel.Number}  {channel.Name}";
+        var programme = item.Kind is ItemKind.Movie or ItemKind.Episode;
+        BugCorner = channel.BugCorner;
+        BugWidth = 128 * channel.BugSize / 100.0;
+        BugUrl = channel.ShowsBug ? channel.LogoUrl(client, (int)(BugWidth * 2)) : null;
+        BugOpacity = programme ? channel.BugOpacity / 100.0 : 0;
+        if (programme && channel.BugHideAfter > 0)
+        {
+            bugTimer.Interval = TimeSpan.FromSeconds(channel.BugHideAfter);
+            bugTimer.Start();
+        }
+    }
+
+    /// <summary>
+    /// The next or previous Channel, by number, from what it's on now; false
+    /// when this isn't a channel or there's no other.
+    /// </summary>
+    public bool SwitchChannel(int step)
+    {
+        if (entry.ChannelId is not { } current || stopped) return false;
+        var channels = Aster.Core.Channels.ChannelTuner.OrderedChannels;
+        var index = channels.ToList().FindIndex(c => c.Id == current);
+        if (channels.Count < 2 || index < 0) return false;
+        var next = channels[(index + step + channels.Count) % channels.Count];
+        if (Aster.Core.Channels.ChannelTuner.Live(next.Id) is not var (item, nextEntry)) return false;
+        StopServerSession();
+        Play(item, nextEntry);
+        ShowToast($"{next.Number}  {next.Name}");
+        return true;
+    }
+
+    /// <summary>A converted stream's encode stops on the server once it's left behind.</summary>
+    private void StopServerSession()
+    {
+        if (isConverted && playSessionId is { } session) _ = client.StopTranscodingAsync(session);
     }
 
     private async Task<PlaybackPreferences> LoadPreferencesAsync()
@@ -493,6 +576,12 @@ public partial class PlayerViewModel : ViewModelBase
         stopReported = false;
         RefreshChoices();
         PokeControls();
+        VideoAspect = Player.GetDouble("video-params/aspect") ?? 0;
+        if (OnChannel)
+        {
+            timedTimer.Start();
+            return;
+        }
         await client.ReportStartAsync(Report(paused: false));
         reportTimer.Start();
         timedTimer.Start();
@@ -604,6 +693,7 @@ public partial class PlayerViewModel : ViewModelBase
         currentSubtitle = -1;
         Item = next;
         entry = nextEntry;
+        reachedCut = false;
         _ = StartAsync();
     }
 
@@ -842,6 +932,13 @@ public partial class PlayerViewModel : ViewModelBase
         if (!QualityOfferVisible && stallWatch.Note(IsBuffering, DateTimeOffset.UtcNow)) QualityOfferVisible = true;
 
         var ticks = (long)(seconds * 10_000_000);
+        // A break clip cut short to land on the half hour ends at its cut, as if it had played out.
+        if (entry.ChannelCutTicks is { } cut && ticks >= cut && !reachedCut)
+        {
+            reachedCut = true;
+            if (!PlaybackEnded()) Close();
+            return;
+        }
         var inside = segments.FirstOrDefault(s => s.Contains(ticks));
         if (inside?.Id != ActiveSegment?.Id)
         {
@@ -885,6 +982,14 @@ public partial class PlayerViewModel : ViewModelBase
         timedTimer.Stop();
         ActiveSegment = null;
         ShowsUpNextAction = false;
+        // A channel goes on to whatever it's showing now.
+        if (entry.ChannelId is { } channelId)
+        {
+            StopServerSession();
+            if (Aster.Core.Channels.ChannelTuner.Live(channelId, finishedItemId: entry.ItemId) is not var (item, next)) return false;
+            Play(item, next);
+            return true;
+        }
         if (HasStarted && !stopReported)
         {
             stopReported = true;
@@ -942,7 +1047,7 @@ public partial class PlayerViewModel : ViewModelBase
 
     private async Task ReportProgressAsync()
     {
-        if (!HasStarted || stopped || stopReported) return;
+        if (!HasStarted || stopped || stopReported || OnChannel) return;
         System.Diagnostics.Debug.WriteLine($"Playback: at {Position:0}s, decoder {Player?.GetString("hwdec-current")}, {Player?.GetString("estimated-vf-fps")} fps, dropped {Player?.GetString("frame-drop-count")} by the output and {Player?.GetString("decoder-frame-drop-count")} by the decoder");
         await client.ReportProgressAsync(Report(paused: IsPaused));
     }
@@ -967,7 +1072,7 @@ public partial class PlayerViewModel : ViewModelBase
     /// <summary>Sends where playback is and saves it as the resume point now, for when the app is closing.</summary>
     public void SaveProgressNow()
     {
-        if (!HasStarted || stopped || stopReported) return;
+        if (!HasStarted || stopped || stopReported || OnChannel) return;
         _ = client.ReportProgressAsync(Report(paused: IsPaused), ResumePoints.Saving.Now);
     }
 
@@ -994,14 +1099,15 @@ public partial class PlayerViewModel : ViewModelBase
         var final = Report(paused: true);
         try { Player.Command("stop"); }
         catch (MpvException) { }
-        if (HasStarted && !stopReported)
+        bugTimer.Stop();
+        if (HasStarted && !stopReported && !OnChannel)
         {
             stopReported = true;
             _ = client.ReportStoppedAsync(final);
         }
-        else if (isConverted && playSessionId is { } session)
+        else
         {
-            _ = client.StopTranscodingAsync(session);
+            StopServerSession();
         }
         if (liveStreamId is { } live) _ = client.CloseLiveStreamAsync(live);
         Player.Dispose();

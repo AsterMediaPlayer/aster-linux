@@ -75,6 +75,7 @@ public enum AppTab
     Audiobooks,
     Upcoming,
     LiveTV,
+    Channels,
     Library,
     Settings,
 }
@@ -116,6 +117,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
         Anime = AnimeCatalog.FindAsync(client);
         Libraries = LoadLibrariesAsync(client);
         HasUpcoming = CheckUpcomingAsync(client);
+        HasChannels = CheckChannelsAsync(client);
         Audio = new Aster.Desktop.Audio.AudioSession(client);
         NowPlaying = new NowPlayingViewModel(this);
         UserName = session.UserName;
@@ -128,6 +130,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
         _ = Anime.ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTabs));
         _ = Libraries.ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTabs));
         _ = HasUpcoming.ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTabs));
+        _ = HasChannels.ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTabs));
         // The settings that follow the user, as their other devices left them.
         _ = Aster.Core.SettingsSync.PullAsync(client);
     }
@@ -142,6 +145,15 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
 
     /// <summary>Whether shows in the library have episodes airing soon, which the Upcoming tab needs.</summary>
     private Task<bool> HasUpcoming { get; }
+
+    /// <summary>Whether any video playlist is tagged as a Channel, which the Channels tab needs.</summary>
+    private Task<bool> HasChannels { get; }
+
+    private static async Task<bool> CheckChannelsAsync(JellyfinClient client)
+    {
+        try { return Aster.Core.Channels.ChannelLoader.TaggedChannels(await client.PlaylistsAsync("Video")).Count > 0; }
+        catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException) { return false; }
+    }
 
     private static async Task<bool> CheckUpcomingAsync(JellyfinClient client)
     {
@@ -177,6 +189,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
             (AppTab.Audiobooks, "Audiobooks", ""),
             (AppTab.Upcoming, "Upcoming", ""),
             (AppTab.LiveTV, "Live TV", ""),
+            (AppTab.Channels, "Channels", ""),
             (AppTab.Library, "Library", ""),
         };
         Tabs = all
@@ -187,6 +200,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
                 AppTab.Audiobooks => hasBooks,
                 AppTab.Upcoming => HasUpcoming.IsCompletedSuccessfully && HasUpcoming.Result,
                 AppTab.LiveTV => libraries.Any(l => l.CollectionType == "livetv"),
+                AppTab.Channels => HasChannels.IsCompletedSuccessfully && HasChannels.Result,
                 _ => true,
             })
             .Select(t => new SidebarTab(t.Title, t.Glyph, t.Tab == tab, new RelayCommand(() => ShowTab(t.Tab))))
@@ -208,6 +222,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
                 AppTab.Audiobooks => new AudiobooksViewModel(this),
                 AppTab.Upcoming => new UpcomingViewModel(this),
                 AppTab.LiveTV => new LiveTVViewModel(this),
+                AppTab.Channels => new ChannelsViewModel(this),
                 AppTab.Library => new LibraryViewModel(this),
                 AppTab.Search => new SearchViewModel(this),
                 AppTab.Settings => new SettingsViewModel(this, UserName, ServerName, signOut),

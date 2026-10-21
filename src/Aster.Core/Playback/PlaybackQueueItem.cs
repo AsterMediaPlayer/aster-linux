@@ -3,8 +3,8 @@ namespace Aster.Core.Playback;
 /// <summary>
 /// One thing to play: an item, from an offset, optionally with chosen
 /// tracks. A subtitle index of -1 means none, even if the server would
-/// default one. The Apple app's entry also carries clip, channel and theme
-/// fields; those come with the features that use them.
+/// default one. The Apple app's entry also carries clip and theme fields;
+/// those come with the features that use them.
 /// </summary>
 public sealed record PlaybackQueueItem
 {
@@ -24,6 +24,16 @@ public sealed record PlaybackQueueItem
     /// original file was too much for the connection; null uses the setting.
     /// </summary>
     public int? MaxBitrate { get; init; }
+
+    /// <summary>
+    /// Played as part of this Channel's schedule: no markers or Up Next, its
+    /// resume point and watched state left alone, and what the channel shows
+    /// next playing when it ends.
+    /// </summary>
+    public string? ChannelId { get; init; }
+
+    /// <summary>A break clip cut short to land on the mark: it ends here, as if it had played out.</summary>
+    public long? ChannelCutTicks { get; init; }
 }
 
 /// <summary>

@@ -29,7 +29,7 @@ These leave the saved session alone:
 - `ASTER_SERVER`, `ASTER_TOKEN` (an API key or access token) and
   `ASTER_USER_ID` sign in for that run.
 - `--open <itemId>` opens a title's (or library's, or person's) page.
-- `--tab <search|movies|shows|anime|music|audiobooks|upcoming|livetv|library|settings>` starts on a tab; `--sort <Name|DateAdded|ReleaseDate|Rating>` sorts it.
+- `--tab <search|movies|shows|anime|music|audiobooks|upcoming|livetv|channels|library|settings>` starts on a tab; `--sort <Name|DateAdded|ReleaseDate|Rating>` sorts it.
 - Signing out of such a session only ends it; the saved sign-in is left alone.
 - `--play <itemId>` plays a title straight away, from its resume point;
   `--start <seconds>` and `--max-bitrate <bps>` change where it starts and
@@ -74,7 +74,7 @@ Search (or Ctrl+F) looks as typing pauses: movies and shows as a grid,
 then shelves of episodes, albums and playlists, artists and songs; a song
 plays the songs found, from it.
 
-Not yet: the sidebar's Channels tab, theme
+Not yet: theme
 music and videos, disc menus, and openings and endings. Chinese titles sort
 under # in the letter index; the Apple app files them by pinyin, which .NET
 has no table for.
@@ -110,6 +110,37 @@ subtitles are always on.
 
 Not yet: the Apple app's mini player, which keeps a channel playing in the
 Live TV header after leaving full screen.
+
+## Channels (Beta)
+
+Channels are Jellyfin video playlists tagged as channels
+([docs/channel-tags.md](../docs/channel-tags.md)), so the server is the one
+place they live and every device finds the same ones. The tab shows when
+there are any: the Live TV guide, a week of it with a day picker, each
+channel's schedule worked out from the clock rather than fetched. What's on
+now tunes in; anything later opens its page.
+
+`Aster.Core/Channels` is a port of the Apple app's channel code, kept to it
+exactly so a channel shows the same thing at the same moment on a Mac, an
+Apple TV and a PC: the tags (read and written as
+`AsterFINTests/Conformance/channel-tags.json` says, which the tests load),
+and the schedule (FNV-1a seeds, SplitMix64 shuffles, times as Swift's `Date`
+keeps them, the Gregorian calendar in the local zone), checked against
+lineups the Apple app worked out. Rotation, Blocks, Shuffle, In Order and
+Air Date; daily, weekly or monthly reshuffles; seeds, weights and lengths;
+genres, networks and collections as sources; and breaks of bumpers, promos,
+commercials, trailers and interstitials, lined up on the mark or not.
+
+On a channel the player follows the schedule: no timeline or seeking, the
+channel's name in place of it, no markers or Up Next, and nothing reported,
+so resume points and watched state stay as they were. When a title ends,
+what the channel shows now plays; PageUp and PageDown change channel. The
+channel's bug sits in its corner of the picture, steps aside for breaks,
+and fades after `bug-hide` seconds.
+
+Not yet: Edit Channels (an administrator's page for making channels and
+setting their tags; the Apple app or Jellyfin's own Edit Metadata ▸ Tags
+does it meanwhile).
 
 ## Settings
 
@@ -152,7 +183,7 @@ Keys: Space or K pause, ← → (J L) 10 seconds, ↑ ↓ volume, M mute, A next
 audio track, S or C next subtitle track, Enter takes the skip on offer, F or
 a double-click full screen, Esc leaves full screen and then the player.
 
-Not yet: Channels, OP/ED song cards, trickplay previews,
+Not yet: OP/ED song cards, trickplay previews,
 chapters, downloads, and HDR passthrough (HDR is tone-mapped to SDR, since
 the video is drawn through OpenGL so the controls can sit on top of it).
 
