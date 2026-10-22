@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Aster.Desktop.ViewModels"
              xmlns:c="using:Aster.Desktop.Controls"
+             xmlns:anime="using:Aster.Core.Anime"
              x:Class="Aster.Desktop.Views.PlayerView"
              x:DataType="vm:PlayerViewModel"
              Focusable="True"
@@ -145,21 +146,23 @@
                     </RadialGradientBrush>
                 </Border.Background>
             </Border>
-            <DockPanel MaxWidth="420" Margin="24,0,0,40" HorizontalAlignment="Left" VerticalAlignment="Bottom">
+            <!-- Bound to the card itself, which is null until the first one shows. -->
+            <DockPanel MaxWidth="420" Margin="24,0,0,40" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                       DataContext="{Binding ThemeCard}" x:DataType="anime:ThemeInfo">
                 <DockPanel.Effect>
                     <DropShadowEffect BlurRadius="12" OffsetX="0" OffsetY="2" Color="Black" Opacity="0.7" />
                 </DockPanel.Effect>
                 <Border DockPanel.Dock="Left" Width="3" CornerRadius="2" Background="White" Margin="0,0,12,0" />
                 <StackPanel Spacing="4">
-                    <TextBlock Text="{Binding ThemeCardKicker}" FontSize="12" FontWeight="SemiBold" LetterSpacing="2.5" Foreground="#BFFFFFFF" />
-                    <TextBlock Text="{Binding ThemeCard.Title}" FontSize="24" FontWeight="Bold" Foreground="White"
+                    <TextBlock Text="{Binding $parent[UserControl].((vm:PlayerViewModel)DataContext).ThemeCardKicker}" FontSize="12" FontWeight="SemiBold" LetterSpacing="2.5" Foreground="#BFFFFFFF" />
+                    <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="Bold" Foreground="White"
                                TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Text="{Binding ThemeCard.Artists}" FontSize="15" FontWeight="Medium" Foreground="White" TextTrimming="CharacterEllipsis"
-                               IsVisible="{Binding ThemeCard.Artists, Converter={x:Static ObjectConverters.IsNotNull}}" />
-                    <TextBlock Text="{Binding ThemeCard.Series}" FontSize="13" FontWeight="SemiBold" Foreground="#E6FFFFFF" TextTrimming="CharacterEllipsis"
-                               IsVisible="{Binding ThemeCard.Series, Converter={x:Static ObjectConverters.IsNotNull}}" />
-                    <TextBlock Text="{Binding ThemeCard.Detail}" FontSize="12" Foreground="#B3FFFFFF" TextTrimming="CharacterEllipsis"
-                               IsVisible="{Binding ThemeCard.Detail, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <TextBlock Text="{Binding Artists}" FontSize="15" FontWeight="Medium" Foreground="White" TextTrimming="CharacterEllipsis"
+                               IsVisible="{Binding Artists, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <TextBlock Text="{Binding Series}" FontSize="13" FontWeight="SemiBold" Foreground="#E6FFFFFF" TextTrimming="CharacterEllipsis"
+                               IsVisible="{Binding Series, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <TextBlock Text="{Binding Detail}" FontSize="12" Foreground="#B3FFFFFF" TextTrimming="CharacterEllipsis"
+                               IsVisible="{Binding Detail, Converter={x:Static ObjectConverters.IsNotNull}}" />
                 </StackPanel>
             </DockPanel>
         </Panel>
