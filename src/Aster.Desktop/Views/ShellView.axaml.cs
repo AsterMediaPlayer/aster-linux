@@ -164,16 +164,16 @@ public partial class ShellView : UserControl
                 break;
             case Key.Escape or Key.BrowserBack when shell.NowPlaying.IsShown:
                 break;
-            case Key.Escape when shell.IsSidebarOpen:
+            case Key.Escape or Key.BrowserBack when shell.IsSidebarOpen:
                 shell.IsSidebarOpen = false;
                 e.Handled = true;
                 break;
-            // The remote's Menu: back, or on a tab's own page, the sidebar.
-            case Key.Escape when shell.CanGoBack:
+            // The remote's Menu (or a controller's B): back, or on a tab's own page, the sidebar.
+            case Key.Escape or Key.BrowserBack when shell.CanGoBack:
                 shell.Back();
                 e.Handled = true;
                 break;
-            case Key.Escape:
+            case Key.Escape or Key.BrowserBack:
                 OpenWithKeyboard(focused as InputElement);
                 e.Handled = true;
                 break;

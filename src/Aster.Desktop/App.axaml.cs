@@ -37,7 +37,13 @@ public partial class App : Application
                 && System.Enum.TryParse<Aster.Core.Browsing.LibrarySort>(args[so + 1], ignoreCase: true, out var sorted) ? sorted : (Aster.Core.Browsing.LibrarySort?)null;
             var main = new MainViewModel(play, bitrate, start, open, tab, sort);
             desktop.MainWindow = new MainWindow { DataContext = main };
-            desktop.ShutdownRequested += (_, _) => main.Shutdown();
+            // Game controllers, as the keys.
+            var gamepads = Aster.Desktop.Input.Gamepads.Start(desktop.MainWindow);
+            desktop.ShutdownRequested += (_, _) =>
+            {
+                main.Shutdown();
+                gamepads.Dispose();
+            };
             System.Threading.Tasks.Task.Run(() => Aster.Core.Jellyfin.ImageCache.Trim());
         }
 

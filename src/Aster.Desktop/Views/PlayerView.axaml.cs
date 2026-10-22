@@ -155,6 +155,10 @@ public partial class PlayerView : UserControl
             case Key.Enter when model.ShowsSkip:
                 model.SkipCommand.Execute(null);
                 break;
+            // A remote's OK, or a controller's A: pause, as clicking the Apple TV remote does.
+            case Key.Enter:
+                model.TogglePauseCommand.Execute(null);
+                break;
             case Key.F:
                 ToggleFullScreen();
                 break;
@@ -182,6 +186,13 @@ public partial class PlayerView : UserControl
             case Key.PageUp when model.SwitchChannel(1):
                 break;
             case Key.PageDown when model.SwitchChannel(-1):
+                break;
+            // A remote's or controller's next and previous: the channel, on a Channel; else 30 seconds.
+            case Key.MediaNextTrack:
+                if (!model.SwitchChannel(1)) model.SeekBy(30);
+                break;
+            case Key.MediaPreviousTrack:
+                if (!model.SwitchChannel(-1)) model.SeekBy(-30);
                 break;
             case Key.Escape when Window is { WindowState: WindowState.FullScreen }:
                 ToggleFullScreen();

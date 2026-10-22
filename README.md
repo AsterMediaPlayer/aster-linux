@@ -43,6 +43,10 @@ OpenGL from a graphics driver for video. What differs from Windows:
   Icons (MIT), each at the Segoe code point the app already uses, made by
   `tools/make-icon-font.py`. A new icon needs a line there.
 - **Hardware decoding** is VA-API or NVDEC, which mpv picks itself.
+- **Game controllers** are read through the SDL3 library the build
+  brings along. The desktop gives the person at it the controllers on its
+  own; some (PlayStation and Switch ones, through hidraw) also need the
+  udev rules Steam installs (`steam-devices`).
 - **In a virtual machine**, turn on 3D acceleration: video is drawn with
   OpenGL, and VirtualBox's and VMware's (SVGA3D) works where Avalonia
   would otherwise turn it down. Without 3D, `ASTER_SOFTWARE_GL=1` allows
@@ -64,6 +68,10 @@ These leave the saved session alone:
 - `ASTER_LOG=<file>` writes the app's and mpv's messages to a file:
   which stream was chosen, the track mapping, the decoder, dropped frames.
 - `ASTER_MUTE=1` mutes mpv, for trying playback without the sound.
+- `ASTER_GAMEPAD_SCRIPT="10:down,12:a,14:b"` attaches a pretend game
+  controller and presses its buttons that many seconds after starting (a,
+  b, x, y, start, lb, rb, up, down, left, right; `hold-down` holds one a
+  second and a half), for trying the controller without one.
 
 Playing a title this way reports progress and saves resume points like
 any other playback.
@@ -114,6 +122,16 @@ through time past the edge. Left with nothing further left opens the
 sidebar on the tab showing, and Right goes back to the page. Enter chooses.
 Esc goes back, to the control the page was left on; on a tab's own page it
 opens the sidebar. Down (or Enter) from the search box goes to the results.
+In the player, Enter (a remote's OK) pauses.
+
+Game controllers work the same way, read through SDL3 (Xbox, PlayStation,
+Switch Pro, 8BitDo and most others, plugged in or out while it runs): the
+D-pad or left stick are the arrows, repeating while held; A chooses; B goes
+back, or opens the sidebar; X or Start plays and pauses; the shoulder
+buttons skip songs or a book's chapters, change channel, or jump 30 seconds
+in a video. A controller only works the app while its window is in front.
+With Steam running, Steam Input can take a controller over for itself;
+turn it off for Aster in Steam if the controller does nothing.
 
 Search (or Ctrl+F) looks as typing pauses: movies and shows as a grid,
 then shelves of episodes, albums and playlists, artists and songs; a song

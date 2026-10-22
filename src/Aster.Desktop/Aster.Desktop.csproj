@@ -3,6 +3,8 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <!-- SDL3's events, read for game controllers. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- The Apple app's version, which this port follows. -->
     <Version>0.7.0</Version>
@@ -22,12 +24,21 @@
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="ppy.SDL3-CS" Version="2026.1002.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Aster.Core\Aster.Core.csproj" />
     <ProjectReference Include="..\Aster.Mpv\Aster.Mpv.csproj" />
   </ItemGroup>
+  <!-- SDL3 comes with phones' and tablets' libraries too, which a build for
+       every platform at once would copy (into paths too long for Windows). -->
+  <Target Name="LeaveOutMobileSdl" AfterTargets="ResolvePackageAssets">
+    <ItemGroup>
+      <RuntimeTargetsCopyLocalItems Remove="@(RuntimeTargetsCopyLocalItems)"
+          Condition="'%(RuntimeTargetsCopyLocalItems.NuGetPackageId)' == 'ppy.SDL3-CS' And ('%(RuntimeTargetsCopyLocalItems.RuntimeIdentifier)' == 'ios' Or $([System.String]::Copy('%(RuntimeTargetsCopyLocalItems.RuntimeIdentifier)').StartsWith('android')))" />
+    </ItemGroup>
+  </Target>
   <!-- A Linux or Mac build uses the system's libmpv; the Windows DLL, which
        comes along from Aster.Mpv, is left out of it. -->
   <Target Name="LeaveOutWindowsMpv" AfterTargets="Publish" Condition="'$(RuntimeIdentifier)' != '' And !$(RuntimeIdentifier.StartsWith('win'))">

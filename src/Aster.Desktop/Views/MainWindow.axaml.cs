@@ -55,7 +55,7 @@ public partial class MainWindow : Window
                 e.Handled = true;
                 return;
             }
-            if (e.Key == Key.Escape && audio.IsNowPlayingShown)
+            if (e.Key is Key.Escape or Key.BrowserBack && audio.IsNowPlayingShown)
             {
                 audio.IsNowPlayingShown = false;
                 e.Handled = true;
