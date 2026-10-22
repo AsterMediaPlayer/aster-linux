@@ -26,7 +26,9 @@
     </StackPanel>
 
     <UserControl.Styles>
+        <!-- For the pointer: the keyboard and remote move card by card. -->
         <Style Selector="Button.shelfArrow">
+            <Setter Property="Focusable" Value="False" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Width" Value="40" />
             <Setter Property="Height" Value="80" />

@@ -18,6 +18,10 @@
 
     <Application.Styles>
         <FluentTheme />
+        <!-- Scroll areas follow the keyboard; they never take it themselves. -->
+        <Style Selector="ScrollViewer">
+            <Setter Property="Focusable" Value="False" />
+        </Style>
         <!-- A song or chapter row: a faint panel, a little brighter for the one playing. -->
         <Style Selector="Button.track">
             <Setter Property="Background" Value="#0FFFFFFF" />

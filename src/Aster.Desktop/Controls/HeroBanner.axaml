@@ -7,7 +7,9 @@
              IsVisible="{Binding HasPages}">
 
     <UserControl.Styles>
+        <!-- For the pointer: the keyboard and remote page with left and right on the banner's Play. -->
         <Style Selector="Button.heroArrow">
+            <Setter Property="Focusable" Value="False" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Width" Value="48" />
             <Setter Property="Height" Value="96" />
@@ -19,8 +21,9 @@
             <Setter Property="CornerRadius" Value="10" />
             <Setter Property="FontSize" Value="20" />
         </Style>
-        <!-- The whole banner opens the title; no button chrome. -->
+        <!-- The whole banner opens the title with the pointer (no button chrome); the keyboard stops on Play. -->
         <Style Selector="Button.heroPage">
+            <Setter Property="Focusable" Value="False" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
@@ -39,11 +42,11 @@
     </UserControl.Styles>
 
     <Panel>
-        <Carousel ItemsSource="{Binding Pages}" SelectedIndex="{Binding Index}">
-            <Carousel.PageTransition>
+        <c:HeroCarousel x:Name="Pages" ItemsSource="{Binding Pages}" SelectedIndex="{Binding Index}">
+            <c:HeroCarousel.PageTransition>
                 <PageSlide Duration="0:0:0.35" Orientation="Horizontal" />
-            </Carousel.PageTransition>
-            <Carousel.ItemTemplate>
+            </c:HeroCarousel.PageTransition>
+            <c:HeroCarousel.ItemTemplate>
                 <DataTemplate x:DataType="vm:HeroPage">
                     <Button Classes="heroPage" Command="{Binding OpenCommand}">
                         <Panel>
@@ -92,7 +95,7 @@
                                     <ContentControl Content="{Binding Metadata}" ContentTemplate="{StaticResource MetadataTemplate}" />
                                     <TextBlock Text="{Binding Overview}" Foreground="{StaticResource Secondary}" TextWrapping="Wrap" MaxLines="3"
                                                TextTrimming="CharacterEllipsis" MaxWidth="640" HorizontalAlignment="Left" />
-                                    <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding PlayCommand}"
+                                    <Button Theme="{StaticResource PillButton}" Classes="prominent" c:KeyFocus.IsPreferred="True" Command="{Binding PlayCommand}"
                                             HorizontalAlignment="Left" Padding="26,12">
                                         <StackPanel Orientation="Horizontal" Spacing="10">
                                             <TextBlock Text="{Binding PlayGlyph}" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
@@ -106,8 +109,8 @@
                         </Panel>
                     </Button>
                 </DataTemplate>
-            </Carousel.ItemTemplate>
-        </Carousel>
+            </c:HeroCarousel.ItemTemplate>
+        </c:HeroCarousel>
 
         <Button Classes="heroArrow" HorizontalAlignment="Left" Command="{Binding PreviousCommand}" ToolTip.Tip="Previous" IsVisible="{Binding HasPrevious}">
             <TextBlock Text="&#xE76B;" FontFamily="{StaticResource IconFont}" />

@@ -74,7 +74,7 @@
 
     <Panel>
         <!-- The page, the whole width of the window. -->
-        <ContentControl Content="{Binding CurrentPage}" />
+        <ContentControl x:Name="Page" Content="{Binding CurrentPage}" />
 
         <!-- Collapsed: the tab in a capsule (on a tab's own page; a page opened from one has its Back there), and the song or book playing. -->
         <StackPanel Orientation="Horizontal" Spacing="10" Margin="20,16,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
@@ -144,7 +144,7 @@
                                         Foreground="{StaticResource Secondary}" ToolTip.Tip="Stop" />
                             </Grid>
                         </Border>
-                        <Button Classes="nav" Classes.selected="{Binding SettingsTab.IsSelected}" Command="{Binding SettingsTab.Select}"
+                        <Button x:Name="SettingsButton" Classes="nav" Classes.selected="{Binding SettingsTab.IsSelected}" Command="{Binding SettingsTab.Select}"
                                 AutomationProperties.Name="Settings" Margin="0,0,0,12">
                             <StackPanel Orientation="Horizontal" Spacing="12">
                                 <TextBlock Text="{Binding SettingsTab.Glyph}" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
@@ -171,7 +171,7 @@
                     </StackPanel>
                     <!-- The tabs scroll when a short window has no room for them all. -->
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl ItemsSource="{Binding Tabs}">
+                        <ItemsControl x:Name="TabList" ItemsSource="{Binding Tabs}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <StackPanel Spacing="2" />

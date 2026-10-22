@@ -13,14 +13,14 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" MaxWidth="720" />
                 </Grid.ColumnDefinitions>
-                <TextBox x:Name="Box" Text="{Binding Query}" Watermark="Movies, shows, episodes, music"
+                <TextBox x:Name="Box" c:KeyFocus.IsPreferred="True" Text="{Binding Query}" Watermark="Movies, shows, episodes, music"
                          FontSize="16" Padding="44,11,12,11" CornerRadius="10" AutomationProperties.Name="Search your library" />
                 <TextBlock Text="&#xE721;" FontFamily="{StaticResource IconFont}" Foreground="{StaticResource Secondary}"
                            Margin="16,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" />
             </Grid>
         </StackPanel>
 
-        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer x:Name="Results" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="8" Margin="0,8,0,60">
                 <ProgressBar IsIndeterminate="True" Width="200" HorizontalAlignment="Left" Margin="48,0" IsVisible="{Binding IsSearching}" />
 

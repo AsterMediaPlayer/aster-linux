@@ -38,7 +38,7 @@
                                    TextTrimming="CharacterEllipsis" MaxWidth="900" HorizontalAlignment="Left"
                                    IsVisible="{Binding Overview, Converter={x:Static ObjectConverters.IsNotNull}}" />
                         <WrapPanel ItemSpacing="12" LineSpacing="12" Margin="0,6,0,0">
-                            <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding PlayCommand}" AutomationProperties.Name="Play">
+                            <Button Theme="{StaticResource PillButton}" Classes="prominent" c:KeyFocus.IsPreferred="True" Command="{Binding PlayCommand}" AutomationProperties.Name="Play">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <TextBlock Text="&#xE768;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding PlayLabel}" />

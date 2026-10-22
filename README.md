@@ -105,6 +105,16 @@ there instead.
 
 Back: the page's arrow, the mouse's back button, Alt+← or Backspace.
 
+The keyboard (or a remote, which sends the same keys) works as the Apple
+TV's remote does. The arrows move between controls in that direction, and
+each page starts on its main action: a banner's Play, a title's Play or
+Resume, the programme airing now in a guide, the search box. Left and Right
+page the banner; in a guide they go from programme to programme, moving
+through time past the edge. Left with nothing further left opens the
+sidebar on the tab showing, and Right goes back to the page. Enter chooses.
+Esc goes back, to the control the page was left on; on a tab's own page it
+opens the sidebar. Down (or Enter) from the search box goes to the results.
+
 Search (or Ctrl+F) looks as typing pauses: movies and shows as a grid,
 then shelves of episodes, albums and playlists, artists and songs; a song
 plays the songs found, from it.
@@ -253,7 +263,8 @@ seeking, shuffle, repeat, synced lyrics when the server has them, and Up
 Next; for a book, the chapter's progress and the time left in the book, back
 15 and ahead 30 seconds, chapters, and a speed kept per book (in
 `%LOCALAPPDATA%\Aster\audiobook-rates.json`). Space or the keyboard's
-play/pause key pauses either; Esc closes the full player. Progress goes to
+play/pause key pauses either, its next and previous keys skip songs (or a
+book's chapters) and its stop key stops; Esc closes the full player. Progress goes to
 the server every 10 seconds, so a book resumes where it was left on any
 device.
 

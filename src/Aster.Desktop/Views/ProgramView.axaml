@@ -50,7 +50,7 @@
 
                 <!-- This showing, then the series and the channel. -->
                 <WrapPanel ItemSpacing="12" LineSpacing="12" Margin="0,8,0,0" IsEnabled="{Binding !IsWorking}">
-                    <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding WatchCommand}" IsVisible="{Binding CanWatch}"
+                    <Button Theme="{StaticResource PillButton}" Classes="prominent" c:KeyFocus.IsPreferred="True" Command="{Binding WatchCommand}" IsVisible="{Binding CanWatch}"
                             AutomationProperties.Name="Watch">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <TextBlock Text="&#xE768;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />

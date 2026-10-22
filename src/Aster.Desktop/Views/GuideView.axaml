@@ -167,7 +167,7 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="vm:GuideCell">
-                                                <Button Classes="cell" Classes.airing="{Binding IsAiring}" Width="{Binding Width}" Margin="{Binding Margin}"
+                                                <Button Classes="cell" Classes.airing="{Binding IsAiring}" c:KeyFocus.IsPreferred="{Binding IsAiring}" Width="{Binding Width}" Margin="{Binding Margin}"
                                                         Command="{Binding Open}" AutomationProperties.Name="{Binding AccessibleName}" ToolTip.Tip="{Binding Title}">
                                                     <Panel>
                                                         <Border Background="#1FFFFFFF" Width="{Binding AiredWidth}" HorizontalAlignment="Left" />

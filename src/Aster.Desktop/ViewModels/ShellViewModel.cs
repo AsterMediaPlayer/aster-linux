@@ -307,8 +307,10 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
     {
         if (stack.Count == 0) return;
         Close(CurrentPage);
-        CurrentPage = stack[^1];
+        // Off the stack first: the capsule shows by how deep it is as the page changes.
+        var previous = stack[^1];
         stack.RemoveAt(stack.Count - 1);
+        CurrentPage = previous;
         Shown();
     }
 

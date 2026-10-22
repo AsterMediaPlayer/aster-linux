@@ -106,6 +106,14 @@ public sealed partial class GuideRowViewModel(GuideViewModel guide, IGuideSource
         source.SetFavorite(channel.Id, IsFavorite);
     }
 
+    /// <summary>The programme after (or, for a negative <paramref name="step"/>, before) <paramref name="program"/> on this channel: where the arrows go.</summary>
+    public BaseItem? Beside(BaseItem program, int step)
+    {
+        if (programs is null) return null;
+        var index = programs.ToList().FindIndex(p => p.Id == program.Id) + step;
+        return index >= 0 && index < programs.Count && step != 0 ? programs[index] : null;
+    }
+
     /// <summary>Starts loading the listings, once; a failed load is tried again the next time the row shows.</summary>
     public async void EnsureLoaded(bool reload = false)
     {
@@ -349,6 +357,22 @@ public sealed partial class GuideViewModel : ViewModelBase, IRefreshable
         if (moved == WindowStart) return;
         WindowStart = moved;
         Relayout();
+    }
+
+    /// <summary>
+    /// Moves the window, a half hour at a time, until enough of
+    /// <paramref name="program"/> is in view to read: the arrows walking off
+    /// the guide's edge, as the Apple TV's guide scrolls.
+    /// </summary>
+    public void Reveal(BaseItem program)
+    {
+        var (start, end) = LiveGuide.Slot(program, GuideStart);
+        var readable = Math.Min((end - start).TotalMinutes, MinimumVisibleCell / PixelsPerMinute);
+        var windowEnd = WindowStart.AddMinutes(VisibleMinutes);
+        var later = (start - windowEnd).TotalMinutes + readable;
+        var earlier = (WindowStart - end).TotalMinutes + readable;
+        if (later > 0) Move(Math.Ceiling(later / 30) * 30);
+        else if (earlier > 0) Move(-Math.Ceiling(earlier / 30) * 30);
     }
 
     [RelayCommand(CanExecute = nameof(CanGoEarlier))]

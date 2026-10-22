@@ -23,6 +23,7 @@
         <Setter Property="CornerRadius" Value="8" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+        <Setter Property="FocusAdorner" Value="{x:Null}" />
         <Setter Property="Transitions">
             <Transitions>
                 <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
@@ -65,6 +66,14 @@
         <Setter Property="CornerRadius" Value="22" />
         <Setter Property="MinHeight" Value="44" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
+        <!-- The keyboard's (or a remote's) pill: white and lifted, as the Apple TV's focus. -->
+        <Setter Property="FocusAdorner" Value="{x:Null}" />
+        <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" />
+            </Transitions>
+        </Setter>
         <Style Selector="^:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#73FFFFFF" />
             <Setter Property="Foreground" Value="White" />
@@ -84,6 +93,14 @@
         <Style Selector="^.selected:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="White" />
             <Setter Property="Foreground" Value="Black" />
+        </Style>
+        <Style Selector="^:focus-visible">
+            <Setter Property="RenderTransform" Value="scale(1.06)" />
+        </Style>
+        <Style Selector="^:focus-visible /template/ ContentPresenter">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="Black" />
+            <Setter Property="BoxShadow" Value="0 6 18 0 #80000000" />
         </Style>
     </ControlTheme>
 

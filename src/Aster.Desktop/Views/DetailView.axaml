@@ -61,7 +61,7 @@
                                    IsVisible="{Binding UpNextLine, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
                         <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,8,0,0">
-                            <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding PlayResumeCommand}" AutomationProperties.Name="Play" x:Name="PlayButton">
+                            <Button Theme="{StaticResource PillButton}" Classes="prominent" c:KeyFocus.IsPreferred="True" Command="{Binding PlayResumeCommand}" AutomationProperties.Name="Play" x:Name="PlayButton">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <TextBlock Text="&#xE768;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding PlayLabel}" />
