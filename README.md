@@ -250,13 +250,22 @@ Skip Intro / Skip Credits come from the server's media segments, Up Next
 counts down at the end of an episode, progress goes to the server every 10
 seconds, and resume points follow the Apple app's rules.
 
-Keys: Space or K pause, ← → (J L) 10 seconds, ↑ ↓ volume, M mute, A next
-audio track, S or C next subtitle track, Enter takes the skip on offer, F or
-a double-click full screen, Esc leaves full screen and then the player.
+Chapters, when a title has more than one, are marked under the timeline
+and listed in the Chapters menu with their start times, the one playing
+ticked; choosing one plays from it. Resting the pointer on the timeline, or
+dragging along it, shows the time there and its chapter, and the frame
+from the server's trickplay images when it has made them. Sheets of frames
+are fetched as they're needed, and only the last few kept in memory.
 
-Not yet: OP/ED song cards, trickplay previews,
-chapters, downloads, and HDR passthrough (HDR is tone-mapped to SDR, since
-the video is drawn through OpenGL so the controls can sit on top of it).
+Keys: Space or K pause, ← → (J L) 10 seconds, ↑ ↓ volume, M mute, A next
+audio track, S or C next subtitle track, Page Up and Page Down the next
+chapter and back (to the start of this one, or the one before within its
+first 3 seconds), Enter takes the skip on offer, F or a double-click full
+screen, Esc leaves full screen and then the player.
+
+Not yet: OP/ED song cards, downloads, and HDR passthrough (HDR is
+tone-mapped to SDR, since the video is drawn through OpenGL so the controls
+can sit on top of it).
 
 ## Music and audiobooks
 

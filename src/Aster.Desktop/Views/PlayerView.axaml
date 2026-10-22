@@ -41,6 +41,10 @@
             <Setter Property="Background" Value="#38FFFFFF" />
             <Setter Property="BorderBrush" Value="#E6FFFFFF" />
         </Style>
+        <!-- The chapter marks under the timeline. -->
+        <Style Selector="Slider#SeekBar /template/ TickBar">
+            <Setter Property="Fill" Value="#B3FFFFFF" />
+        </Style>
         <Style Selector="Button.goTo">
             <Setter Property="Background" Value="#26FFFFFF" />
             <Setter Property="Foreground" Value="White" />
@@ -81,6 +85,20 @@
             <Setter Property="Command" Value="{Binding Select}" />
             <Setter Property="ToggleType" Value="Radio" />
             <Setter Property="IsChecked" Value="{Binding IsSelected, Mode=OneWay}" />
+        </ControlTheme>
+        <ControlTheme x:Key="ChapterItem" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="vm:ChapterChoice">
+            <Setter Property="Header" Value="{Binding}" />
+            <Setter Property="HeaderTemplate">
+                <DataTemplate x:DataType="vm:ChapterChoice">
+                    <DockPanel MinWidth="240">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding Time}" Opacity="0.7" Margin="24,0,0,0" />
+                        <TextBlock Text="{Binding Title}" MaxWidth="320" TextTrimming="CharacterEllipsis" />
+                    </DockPanel>
+                </DataTemplate>
+            </Setter>
+            <Setter Property="Command" Value="{Binding Select}" />
+            <Setter Property="ToggleType" Value="Radio" />
+            <Setter Property="IsChecked" Value="{Binding IsCurrent, Mode=OneWay}" />
         </ControlTheme>
     </UserControl.Resources>
 
@@ -148,8 +166,27 @@
                     </Border>
                     <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding HasTimeline}">
                         <TextBlock Grid.Column="0" Text="{Binding PositionText}" Foreground="White" VerticalAlignment="Center" MinWidth="56" />
-                        <Slider Grid.Column="1" x:Name="SeekBar" Minimum="0" Maximum="{Binding Duration}"
-                                Value="{Binding SeekBarValue}" Margin="8,0" />
+                        <Panel Grid.Column="1" Margin="8,0">
+                            <Slider x:Name="SeekBar" Minimum="0" Maximum="{Binding Duration}" Value="{Binding SeekBarValue}" />
+                            <!-- The frame and time above the point on the bar under the pointer, or dragged to; placed in code. -->
+                            <Canvas x:Name="PreviewLayer" IsHitTestVisible="False">
+                                <StackPanel x:Name="PreviewBubble" Spacing="6"
+                                            IsVisible="{Binding PreviewSeconds, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                    <Border CornerRadius="8" ClipToBounds="True" HorizontalAlignment="Center"
+                                            IsVisible="{Binding PreviewFrame, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                        <Image Source="{Binding PreviewFrame}" Width="200" Stretch="Uniform" />
+                                    </Border>
+                                    <Border Background="#99000000" CornerRadius="12" Padding="10,4" HorizontalAlignment="Center">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding PreviewChapter}" FontSize="12" Foreground="#CCFFFFFF" MaxWidth="200"
+                                                       TextTrimming="CharacterEllipsis" HorizontalAlignment="Center"
+                                                       IsVisible="{Binding PreviewChapter, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                            <TextBlock Text="{Binding PreviewTime}" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Canvas>
+                        </Panel>
                         <TextBlock Grid.Column="2" Text="{Binding DurationText}" Foreground="White" VerticalAlignment="Center" MinWidth="56" TextAlignment="Right" />
                     </Grid>
                     <DockPanel>
@@ -167,6 +204,13 @@
                             <Button Classes="bar" Command="{Binding ShowChannelsCommand}" IsVisible="{Binding HasBadge}" ToolTip.Tip="Channels (↑)"
                                     AutomationProperties.Name="Channels">
                                 <TextBlock Classes="icon" Text="&#xE8FD;" />
+                            </Button>
+                            <Button Classes="bar" IsVisible="{Binding HasChapters}" ToolTip.Tip="Chapters (Page Up, Page Down)"
+                                    AutomationProperties.Name="Chapters">
+                                <TextBlock Classes="icon" Text="&#xE8FD;" />
+                                <Button.Flyout>
+                                    <MenuFlyout ItemsSource="{Binding ChapterChoices}" ItemContainerTheme="{StaticResource ChapterItem}" />
+                                </Button.Flyout>
                             </Button>
                             <Button Classes="bar" ToolTip.Tip="Audio">
                                 <TextBlock Classes="icon" Text="&#xE8D6;" />

@@ -1,7 +1,9 @@
 using System;
+using System.Linq;
 using Aster.Core.Channels;
 using Aster.Desktop.ViewModels;
 using Avalonia;
+using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
@@ -15,8 +17,8 @@ namespace Aster.Desktop.Views;
 /// The player's keys, mouse and full screen. Space or K pauses, ← and →
 /// (or J and L) skip 10 seconds, ↑ and ↓ change the volume and M mutes, A
 /// and S step through the audio and subtitle tracks, F or a double-click
-/// toggles full screen, Enter takes the skip on offer, Esc leaves full
-/// screen and then the player.
+/// toggles full screen, Enter takes the skip on offer, Page Up and Page Down
+/// change chapter (or channel), Esc leaves full screen and then the player.
 /// </summary>
 public partial class PlayerView : UserControl
 {
@@ -25,13 +27,27 @@ public partial class PlayerView : UserControl
     public PlayerView()
     {
         InitializeComponent();
-        SeekBar.AddHandler(Thumb.DragStartedEvent, (_, _) => { if (Model is { } m) m.IsScrubbing = true; }, RoutingStrategies.Bubble, handledEventsToo: true);
+        SeekBar.AddHandler(Thumb.DragStartedEvent, (_, _) =>
+        {
+            if (Model is not { } m) return;
+            m.IsScrubbing = true;
+            m.PreviewAt(SeekBar.Value);
+        }, RoutingStrategies.Bubble, handledEventsToo: true);
         SeekBar.AddHandler(Thumb.DragCompletedEvent, (_, _) =>
         {
             if (Model is not { } m) return;
             m.IsScrubbing = false;
+            m.PreviewAt(null);
             m.SeekTo(SeekBar.Value);
         }, RoutingStrategies.Bubble, handledEventsToo: true);
+        // Resting on the bar previews that point; a drag previews where the thumb is (in the model).
+        SeekBar.PointerMoved += (_, e) =>
+        {
+            if (Model is not { IsScrubbing: false, Duration: > 0 } m || TrackSpan() is not { } span) return;
+            m.PreviewAt(Math.Clamp((e.GetPosition(PreviewLayer).X - span.Start) / span.Length, 0, 1) * m.Duration);
+        };
+        SeekBar.PointerExited += (_, _) => { if (Model is { IsScrubbing: false } m) m.PreviewAt(null); };
+        PreviewBubble.SizeChanged += (_, _) => PlacePreview();
         FullScreenButton.Click += (_, _) => ToggleFullScreen();
         BugLayer.SizeChanged += (_, _) => PlaceBug();
         DataContextChanged += (_, _) =>
@@ -40,6 +56,8 @@ public partial class PlayerView : UserControl
             model.PropertyChanged += (_, change) =>
             {
                 if (change.PropertyName is nameof(PlayerViewModel.VideoAspect) or nameof(PlayerViewModel.BugCorner) or nameof(PlayerViewModel.BugWidth)) PlaceBug();
+                if (change.PropertyName is nameof(PlayerViewModel.Chapters) or nameof(PlayerViewModel.Duration)) MarkChapters();
+                if (change.PropertyName is nameof(PlayerViewModel.PreviewSeconds)) PlacePreview();
             };
         };
         Surface.PointerMoved += (_, _) => Model?.PokeControls();
@@ -97,6 +115,40 @@ public partial class PlayerView : UserControl
         var y = model.BugCorner.IsTop ? top + pictureHeight * 0.12 : top + pictureHeight * (1 - 0.12) - size;
         Canvas.SetLeft(Bug, x);
         Canvas.SetTop(Bug, y);
+    }
+
+    /// <summary>A mark under the timeline at each chapter after the first.</summary>
+    private void MarkChapters()
+    {
+        if (Model is not { } model) return;
+        var starts = model.Chapters
+            .Select(chapter => chapter.StartPositionTicks / 10_000_000.0)
+            .Where(seconds => seconds > 0 && seconds < model.Duration)
+            .ToList();
+        SeekBar.Ticks = starts.Count > 0 ? new AvaloniaList<double>(starts) : null;
+        SeekBar.TickPlacement = starts.Count > 0 ? TickPlacement.BottomRight : TickPlacement.None;
+    }
+
+    /// <summary>Where the thumb's centre travels along the bar, in the preview layer's terms, and the bar's middle.</summary>
+    private readonly record struct BarSpan(double Start, double Length, double Middle);
+
+    private BarSpan? TrackSpan()
+    {
+        if (SeekBar.GetVisualDescendants().OfType<Track>().FirstOrDefault() is not { } track) return null;
+        var thumb = track.Thumb?.Bounds.Width ?? 0;
+        var length = track.Bounds.Width - thumb;
+        if (length <= 0 || track.TranslatePoint(new Point(thumb / 2, track.Bounds.Height / 2), PreviewLayer) is not { } origin) return null;
+        return new BarSpan(origin.X, length, origin.Y);
+    }
+
+    /// <summary>The preview above its point on the bar, kept within the bar's ends.</summary>
+    private void PlacePreview()
+    {
+        if (Model is not { PreviewSeconds: { } seconds, Duration: > 0 } model || TrackSpan() is not { } span) return;
+        var x = span.Start + span.Length * Math.Clamp(seconds / model.Duration, 0, 1);
+        var (width, height) = (PreviewBubble.Bounds.Width, PreviewBubble.Bounds.Height);
+        Canvas.SetLeft(PreviewBubble, Math.Clamp(x - width / 2, 0, Math.Max(PreviewLayer.Bounds.Width - width, 0)));
+        Canvas.SetTop(PreviewBubble, span.Middle - 20 - height);
     }
 
     private Window? Window => TopLevel.GetTopLevel(this) as Window;
@@ -186,6 +238,11 @@ public partial class PlayerView : UserControl
             case Key.PageUp when model.SwitchChannel(1):
                 break;
             case Key.PageDown when model.SwitchChannel(-1):
+                break;
+            // Otherwise the next and previous chapter, as in mpv.
+            case Key.PageUp when model.StepChapter(1):
+                break;
+            case Key.PageDown when model.StepChapter(-1):
                 break;
             // A remote's or controller's next and previous: the channel, on a Channel; else 30 seconds.
             case Key.MediaNextTrack:

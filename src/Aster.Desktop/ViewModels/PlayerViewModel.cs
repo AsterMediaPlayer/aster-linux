@@ -6,9 +6,9 @@
 // instead: one audio track at a time, a text subtitle loaded beside it, a
 // picture one burned in. Progress goes to Jellyfin every ten seconds.
 //
-// Not yet ported: Live TV, Channels, OP/ED song cards, trickplay previews,
-// chapters, and the hand-over to a second player (there is only mpv here,
-// so a title that fails steps down through the server's encodes instead).
+// Not yet ported: OP/ED song cards, and the hand-over to a second player
+// (there is only mpv here, so a title that fails steps down through the
+// server's encodes instead).
 
 using System;
 using System.Collections.Generic;
@@ -19,7 +19,9 @@ using System.Threading.Tasks;
 using Aster.Core;
 using Aster.Core.Jellyfin;
 using Aster.Core.Playback;
+using Aster.Desktop.Images;
 using Aster.Mpv;
+using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -28,6 +30,9 @@ namespace Aster.Desktop.ViewModels;
 
 /// <summary>A track or setting to choose in a player menu.</summary>
 public sealed record TrackChoice(int Id, string Title, bool IsSelected, IRelayCommand Select);
+
+/// <summary>A chapter in the Chapters menu: its name and start, ticked while it plays.</summary>
+public sealed record ChapterChoice(string Title, string Time, bool IsCurrent, IRelayCommand Select);
 
 public partial class PlayerViewModel : ViewModelBase
 {
@@ -373,6 +378,7 @@ public partial class PlayerViewModel : ViewModelBase
 
     partial void OnSeekBarValueChanged(double value)
     {
+        if (IsScrubbing && !updatingSeekBar) PreviewAt(value);
         // A click on the bar moves it; the player's own updates and drags don't seek.
         if (updatingSeekBar || IsScrubbing || !HasStarted) return;
         if (Math.Abs(value - Position) > 1) SeekTo(value);
@@ -405,6 +411,11 @@ public partial class PlayerViewModel : ViewModelBase
             ShowChannel(item);
             await LoadTitleAsync(item);
             if (stopped) return;
+            if (HasTimeline)
+            {
+                Chapters = item.Chapters is { Count: > 1 } all ? all.OrderBy(c => c.StartPositionTicks).ToList() : [];
+                scrubPreview = ScrubPreviewSource.For(client, item, mediaSourceId);
+            }
             await BeginAsync();
             // A channel gets no markers (skipping an intro would leave the
             // schedule behind) and goes on to what it's showing, never Up Next.
@@ -804,6 +815,9 @@ public partial class PlayerViewModel : ViewModelBase
         autoSkipped.Clear();
         EndCardVisible = false;
         UpNext = null;
+        Chapters = [];
+        scrubPreview = null;
+        PreviewAt(null);
         HasStarted = false;
         ErrorMessage = null;
         currentAudio = null;
@@ -860,7 +874,8 @@ public partial class PlayerViewModel : ViewModelBase
     private void HideControlsIfIdle()
     {
         hideTimer.Stop();
-        if (HasStarted && !IsPaused && OpenMenus == 0 && ErrorMessage is null) ControlsVisible = false;
+        // Not while the pointer rests on the timeline, or drags along it.
+        if (HasStarted && !IsPaused && OpenMenus == 0 && ErrorMessage is null && PreviewSeconds is null) ControlsVisible = false;
     }
 
     private void ShowToast(string text)
@@ -1014,6 +1029,110 @@ public partial class PlayerViewModel : ViewModelBase
         stallWatch.Declined(DateTimeOffset.UtcNow);
     }
 
+    // ---- Chapters ----
+
+    /// <summary>The title's chapters in order, when there are enough to be worth choosing from; none on Live TV or a Channel.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasChapters))]
+    public partial IReadOnlyList<ChapterInfo> Chapters { get; private set; } = [];
+
+    public bool HasChapters => Chapters.Count > 0;
+
+    [ObservableProperty] public partial IReadOnlyList<ChapterChoice> ChapterChoices { get; private set; } = [];
+
+    /// <summary>The chapter the playhead is in; -1 before the first.</summary>
+    private int currentChapter = -1;
+
+    partial void OnChaptersChanged(IReadOnlyList<ChapterInfo> value)
+    {
+        currentChapter = -1;
+        RefreshChapterChoices();
+    }
+
+    private void RefreshChapterChoices() =>
+        ChapterChoices = Chapters
+            .Select((chapter, index) => new ChapterChoice(ChapterTitle(index), Clock(ChapterStart(index)), index == currentChapter, new RelayCommand(() => PlayChapter(index))))
+            .ToList();
+
+    private string ChapterTitle(int index) =>
+        string.IsNullOrWhiteSpace(Chapters[index].Name) ? $"Chapter {index + 1}" : Chapters[index].Name!;
+
+    private double ChapterStart(int index) => Chapters[index].StartPositionTicks / 10_000_000.0;
+
+    /// <summary>The chapter <paramref name="seconds"/> falls in; -1 before the first, or with none.</summary>
+    private int ChapterAt(double seconds)
+    {
+        for (var index = Chapters.Count - 1; index >= 0; index--)
+        {
+            if (ChapterStart(index) <= seconds) return index;
+        }
+        return -1;
+    }
+
+    /// <summary>Plays from the start of a chapter, as choosing one in the Apple app does.</summary>
+    private void PlayChapter(int index)
+    {
+        if (!HasStarted || Player is null || index < 0 || index >= Chapters.Count) return;
+        SeekTo(ChapterStart(index));
+        Player.SetProperty("pause", false);
+    }
+
+    /// <summary>
+    /// The next chapter, or back to the start of this one (or the one before,
+    /// within its first 3 seconds), as mpv's Page Up and Page Down do; false
+    /// when there are no chapters.
+    /// </summary>
+    public bool StepChapter(int step)
+    {
+        if (!HasStarted || Chapters.Count == 0) return false;
+        var position = Player?.GetDouble("time-pos") ?? Position;
+        var at = ChapterAt(position);
+        var target = step > 0 ? at + 1 : at >= 0 && position - ChapterStart(at) > 3 ? at : at - 1;
+        if (target >= Chapters.Count) return true;
+        target = Math.Max(target, 0);
+        PlayChapter(target);
+        ShowToast(ChapterTitle(target));
+        return true;
+    }
+
+    // ---- The scrub preview ----
+
+    /// <summary>The trickplay frames, when the server has made them for this file.</summary>
+    private ScrubPreviewSource? scrubPreview;
+    private int previewRequest;
+
+    /// <summary>The point on the timeline under the pointer, or being dragged to; null with no preview showing.</summary>
+    [ObservableProperty] public partial double? PreviewSeconds { get; private set; }
+    [ObservableProperty] public partial string PreviewTime { get; private set; } = "";
+
+    /// <summary>The chapter at that point, when there are chapters.</summary>
+    [ObservableProperty] public partial string? PreviewChapter { get; private set; }
+
+    /// <summary>Its trickplay frame; null until loaded, or without trickplay (the preview shows just the time).</summary>
+    [ObservableProperty] public partial IImage? PreviewFrame { get; private set; }
+
+    /// <summary>Shows the preview for a point on the timeline, or hides it with null.</summary>
+    public void PreviewAt(double? seconds)
+    {
+        PreviewSeconds = seconds;
+        if (seconds is not { } at)
+        {
+            PreviewFrame = null;
+            return;
+        }
+        PokeControls();
+        PreviewTime = Clock(at);
+        PreviewChapter = Chapters.Count > 0 && ChapterAt(at) is var chapter and >= 0 ? ChapterTitle(chapter) : null;
+        if (scrubPreview is { } source) _ = LoadPreviewFrameAsync(source, at, ++previewRequest);
+    }
+
+    private async Task LoadPreviewFrameAsync(ScrubPreviewSource source, double seconds, int request)
+    {
+        var frame = await source.FrameAtAsync(seconds);
+        // The last frame stays up while the next sheet loads, rather than blinking.
+        if (frame is not null && request == previewRequest && PreviewSeconds is not null && source == scrubPreview) PreviewFrame = frame;
+    }
+
     // ---- Skipping and Up Next ----
 
     /// <summary>The skip button: past the intro, credits or recap, or on to the next episode.</summary>
@@ -1046,6 +1165,11 @@ public partial class PlayerViewModel : ViewModelBase
             updatingSeekBar = true;
             SeekBarValue = seconds;
             updatingSeekBar = false;
+        }
+        if (Chapters.Count > 0 && ChapterAt(seconds) is var chapter && chapter != currentChapter)
+        {
+            currentChapter = chapter;
+            RefreshChapterChoices();
         }
         if (!QualityOfferVisible && stallWatch.Note(IsBuffering, DateTimeOffset.UtcNow)) QualityOfferVisible = true;
 
