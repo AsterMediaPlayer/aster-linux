@@ -11,7 +11,7 @@
         </DataTemplate>
 
         <DataTemplate DataType="vm:TitleRow">
-            <StackPanel Classes="title" Classes.pushed="{Binding Page.IsPushed}" Spacing="12">
+            <StackPanel Classes="title" Classes.pushed="{Binding Page.IsPushed}" Classes.first="{Binding IsFirst}" Spacing="12">
                 <DockPanel>
                     <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding Page.SortTitles}" SelectedIndex="{Binding Page.SortIndex}"
                               IsVisible="{Binding Page.ShowsSort}" MinWidth="170" VerticalAlignment="Center" ToolTip.Tip="Sort by" />
@@ -123,6 +123,9 @@
     <UserControl.Styles>
         <Style Selector="StackPanel.title">
             <Setter Property="Margin" Value="48,28,48,12" />
+        </Style>
+        <Style Selector="StackPanel.title.first">
+            <Setter Property="Margin" Value="48,76,48,12" />
         </Style>
         <Style Selector="StackPanel.title.pushed">
             <Setter Property="Margin" Value="48,80,48,12" />

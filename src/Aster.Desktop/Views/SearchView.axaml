@@ -6,7 +6,7 @@
              x:DataType="vm:SearchViewModel">
 
     <DockPanel>
-        <StackPanel DockPanel.Dock="Top" Spacing="16" Margin="48,40,48,8">
+        <StackPanel DockPanel.Dock="Top" Spacing="16" Margin="48,76,48,8">
             <TextBlock Text="Search" FontSize="32" FontWeight="Bold" />
             <!-- As wide as there's room for, up to 720, from the left. -->
             <Grid>

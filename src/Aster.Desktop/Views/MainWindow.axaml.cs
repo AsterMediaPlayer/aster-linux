@@ -41,6 +41,13 @@ public partial class MainWindow : Window
                 return;
             }
         }
+        // Esc puts the sidebar away, before anything else it does.
+        if (e.Key == Key.Escape && DataContext is MainViewModel { CurrentPage: ShellViewModel { IsSidebarOpen: true } open })
+        {
+            open.IsSidebarOpen = false;
+            e.Handled = true;
+            return;
+        }
         // Ctrl+F: the Search tab, its box ready for typing.
         if (e.Key == Key.F && e.KeyModifiers == KeyModifiers.Control && DataContext is MainViewModel { CurrentPage: ShellViewModel shell })
         {

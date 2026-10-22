@@ -52,7 +52,7 @@
     </UserControl.Styles>
 
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Margin="48,40,48,60" MaxWidth="760" HorizontalAlignment="Left">
+        <StackPanel Margin="48,76,48,60" MaxWidth="760" HorizontalAlignment="Left">
             <TextBlock Text="Settings" FontSize="32" FontWeight="Bold" Margin="0,0,0,4" />
 
             <TextBlock Classes="heading" Text="Playback" />

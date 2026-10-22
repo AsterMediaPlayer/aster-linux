@@ -172,6 +172,22 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
     /// <summary>Settings, at the foot of the sidebar.</summary>
     [ObservableProperty] public partial SidebarTab? SettingsTab { get; set; }
 
+    /// <summary>The tab showing, for the collapsed sidebar's capsule.</summary>
+    [ObservableProperty] public partial SidebarTab? CurrentTab { get; private set; }
+
+    /// <summary>
+    /// The sidebar slid out over the page. As on the Apple TV it's collapsed
+    /// to a capsule (the tab's icon and name) the rest of the time, so the
+    /// page has the whole window.
+    /// </summary>
+    [ObservableProperty] public partial bool IsSidebarOpen { get; set; }
+
+    [RelayCommand] private void OpenSidebar() => IsSidebarOpen = true;
+    [RelayCommand] private void CloseSidebar() => IsSidebarOpen = false;
+
+    /// <summary>The capsule shows on a tab's own page; a page opened from one has its Back there instead.</summary>
+    public bool ShowsCapsule => !CanGoBack;
+
     private void UpdateTabs()
     {
         var hasAnime = Anime.IsCompletedSuccessfully && Anime.Result.HasAnime;
@@ -206,6 +222,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
             .Select(t => new SidebarTab(t.Title, t.Glyph, t.Tab == tab, new RelayCommand(() => ShowTab(t.Tab))))
             .ToList();
         SettingsTab = new SidebarTab("Settings", "", tab == AppTab.Settings, new RelayCommand(() => ShowTab(AppTab.Settings)));
+        CurrentTab = Tabs.FirstOrDefault(t => t.IsSelected) ?? (SettingsTab.IsSelected ? SettingsTab : null);
     }
 
     /// <summary>A tab's page, from the top: made the first time, kept after.</summary>
@@ -231,6 +248,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
             tabs[chosen] = page;
         }
         tab = chosen;
+        IsSidebarOpen = false;
         foreach (var opened in stack.Skip(1).Append(CurrentPage)) if (!tabs.ContainsValue(opened)) Close(opened);
         stack.Clear();
         CurrentPage = page;
@@ -243,7 +261,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
     public string ServerName { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanGoBack))]
+    [NotifyPropertyChangedFor(nameof(CanGoBack), nameof(ShowsCapsule))]
     public partial ViewModelBase CurrentPage { get; set; }
 
     public bool CanGoBack => stack.Count > 0;

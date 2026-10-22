@@ -19,7 +19,11 @@ public abstract record BrowseRow;
 public sealed record HeroRow(HeroModel Hero, BrowsePageViewModel Page) : BrowseRow;
 
 /// <summary>The page's title, with its section picker and sort picker when it has them.</summary>
-public sealed record TitleRow(string Title, BrowsePageViewModel Page, string? Subtitle = null) : BrowseRow;
+public sealed record TitleRow(string Title, BrowsePageViewModel Page, string? Subtitle = null) : BrowseRow
+{
+    /// <summary>The page's first row, with no banner above it: it leaves room for the collapsed sidebar's capsule.</summary>
+    public bool IsFirst { get; init; }
+}
 
 /// <summary>A titled row of cards; <see cref="Style"/> says which kind.</summary>
 public sealed record ShelfRow(string Title, IReadOnlyList<object> Cards, CardStyle Style) : BrowseRow;
@@ -352,7 +356,9 @@ public abstract partial class BrowsePageViewModel : ViewModelBase, IRefreshable
     {
         var gridRows = gridRowsStart >= 0 ? Rows.Skip(gridRowsStart).ToList() : [];
         Rows.Clear();
-        foreach (var row in top) Rows.Add(row);
+        // A title with no banner above it steps down, clear of the collapsed sidebar's capsule.
+        for (var index = 0; index < top.Count; index++)
+            Rows.Add(index == 0 && top[index] is TitleRow { IsFirst: false } title && !IsPushed ? title with { IsFirst = true } : top[index]);
         gridRowsStart = Rows.Count;
         foreach (var row in gridRows) Rows.Add(row);
     }

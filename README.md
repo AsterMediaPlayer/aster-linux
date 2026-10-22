@@ -95,6 +95,14 @@ opens as a sortable grid, and a cast member as their filmography. A grid
 sorted by name loads whole; otherwise 100 at a time as it's scrolled. Each
 page is one virtualized list, so a library of thousands scrolls smoothly.
 
+The sidebar collapses as the Apple TV's does: a capsule at the top left
+with the tab's icon and name (and, while a song or book plays, its
+artwork and play/pause), leaving the page the whole window. Clicking or
+resting on the capsule, the pointer at the window's left edge, or Tab into
+it slides it out over the page; choosing a tab, moving away, clicking the
+page or Esc puts it away. A page opened from a tab has its Back arrow
+there instead.
+
 Back: the page's arrow, the mouse's back button, Alt+← or Backspace.
 
 Search (or Ctrl+F) looks as typing pauses: movies and shows as a grid,
