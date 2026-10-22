@@ -60,6 +60,13 @@ public sealed class MpvVideoView : OpenGlControlBase
         render.Render(fb, width, height, flipY: true);
     }
 
+    /// <summary>Which OpenGL the video draws with, in the log: "Mesa SVGA3D", or software llvmpipe.</summary>
+    protected override void OnOpenGlInit(GlInterface gl)
+    {
+        base.OnOpenGlInit(gl);
+        System.Diagnostics.Debug.WriteLine($"Video: OpenGL {gl.GetString(GlConsts.GL_VERSION)} on {gl.GetString(GlConsts.GL_RENDERER)} ({gl.GetString(GlConsts.GL_VENDOR)})");
+    }
+
     protected override void OnOpenGlDeinit(GlInterface gl) => ReleaseRender();
 
     private void ReleaseRender()

@@ -11,7 +11,8 @@
     <x:Double x:Key="PersonPhoto">120</x:Double>
     <x:Double x:Key="PersonWidth">136</x:Double>
     <Thickness x:Key="ScreenPadding">48,0</Thickness>
-    <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+    <!-- Segoe on Windows; elsewhere (Linux) the same icons from Fluent UI System Icons, at Segoe's code points (tools/make-icon-font.py). -->
+    <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets, avares://Aster.Desktop/Assets/Fonts#Aster Icons, avares://Aster.Desktop/Assets/Fonts#Aster Icons Filled</FontFamily>
     <SolidColorBrush x:Key="Secondary" Color="#B3FFFFFF" />
     <SolidColorBrush x:Key="CardBackground" Color="#262626" />
 

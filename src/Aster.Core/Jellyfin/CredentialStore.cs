@@ -1,7 +1,8 @@
 // The Windows counterpart of the Apple app's Keychain wrapper: the signed-in
 // session is kept in Windows Credential Manager (Control Panel ›
 // Credential Manager › Windows Credentials, under "Aster/…"), encrypted to
-// the Windows account.
+// the Windows account. Linux keeps it with the Secret Service instead
+// (SecretServiceStore); StoredSession picks.
 
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -106,21 +107,78 @@ public sealed record StoredSession
 
     private const string Account = "session";
 
+    /// <summary>
+    /// Where a desktop without Credential Manager or a Secret Service keeps it:
+    /// a file only this user can read, as many Linux apps keep their tokens.
+    /// </summary>
+    private static string FallbackFile => Path.Combine(AppPaths.Data, "session.json");
+
     public static StoredSession? Load()
     {
-        if (!OperatingSystem.IsWindows() || CredentialStore.Load(Account) is not { } data) return null;
-        try { return JsonSerializer.Deserialize<StoredSession>(data, JellyfinJson.Options); }
+        var json = Read();
+        if (json is null) return null;
+        try { return JsonSerializer.Deserialize<StoredSession>(json, JellyfinJson.Options); }
         catch (JsonException) { return null; }
+    }
+
+    /// <summary>The saved session as JSON: Credential Manager on Windows, the Secret Service on Linux, else the fallback file.</summary>
+    private static string? Read()
+    {
+        if (OperatingSystem.IsWindows()) return CredentialStore.Load(Account) is { } data ? System.Text.Encoding.UTF8.GetString(data) : null;
+        if (OperatingSystem.IsLinux() && SecretServiceStore.IsAvailable)
+        {
+            try
+            {
+                if (SecretServiceStore.Load(Account) is { } secret) return secret;
+            }
+            catch (InvalidOperationException) { }
+        }
+        try { return File.Exists(FallbackFile) ? File.ReadAllText(FallbackFile) : null; }
+        catch (IOException) { return null; }
     }
 
     public void Save()
     {
-        if (!OperatingSystem.IsWindows()) return;
-        CredentialStore.Save(JsonSerializer.SerializeToUtf8Bytes(this, JellyfinJson.Options), Account);
+        var json = JsonSerializer.Serialize(this, JellyfinJson.Options);
+        if (OperatingSystem.IsWindows())
+        {
+            CredentialStore.Save(System.Text.Encoding.UTF8.GetBytes(json), Account);
+            return;
+        }
+        if (OperatingSystem.IsLinux() && SecretServiceStore.IsAvailable)
+        {
+            try
+            {
+                SecretServiceStore.Save(json, Account);
+                DeleteFallback();
+                return;
+            }
+            catch (InvalidOperationException) { }
+        }
+        Directory.CreateDirectory(AppPaths.Data);
+        File.WriteAllText(FallbackFile, "");
+        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(FallbackFile, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        File.WriteAllText(FallbackFile, json);
     }
 
     public static void Clear()
     {
-        if (OperatingSystem.IsWindows()) CredentialStore.Delete(Account);
+        if (OperatingSystem.IsWindows())
+        {
+            CredentialStore.Delete(Account);
+            return;
+        }
+        if (OperatingSystem.IsLinux() && SecretServiceStore.IsAvailable)
+        {
+            try { SecretServiceStore.Delete(Account); }
+            catch (InvalidOperationException) { }
+        }
+        DeleteFallback();
+    }
+
+    private static void DeleteFallback()
+    {
+        try { File.Delete(FallbackFile); }
+        catch (IOException) { }
     }
 }

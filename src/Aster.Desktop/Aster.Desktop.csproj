@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -28,4 +28,10 @@
     <ProjectReference Include="..\Aster.Core\Aster.Core.csproj" />
     <ProjectReference Include="..\Aster.Mpv\Aster.Mpv.csproj" />
   </ItemGroup>
+  <!-- A Linux or Mac build uses the system's libmpv; the Windows DLL, which
+       comes along from Aster.Mpv, is left out of it. -->
+  <Target Name="LeaveOutWindowsMpv" AfterTargets="Publish" Condition="'$(RuntimeIdentifier)' != '' And !$(RuntimeIdentifier.StartsWith('win'))">
+    <Delete Files="$(PublishDir)libmpv-2.dll" />
+  </Target>
+
 </Project>

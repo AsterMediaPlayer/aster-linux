@@ -118,6 +118,27 @@ internal static unsafe partial class MpvNative
 {
     private const string Library = "libmpv-2";
 
+    /// <summary>
+    /// libmpv goes by another name on each system: libmpv-2.dll beside the
+    /// app on Windows, the distribution's libmpv.so.2 on Linux (from apt's
+    /// libmpv2), libmpv.2.dylib on a Mac.
+    /// </summary>
+    static MpvNative()
+    {
+        string[] names = OperatingSystem.IsWindows() ? ["libmpv-2.dll", "mpv-2.dll"]
+            : OperatingSystem.IsMacOS() ? ["libmpv.2.dylib", "libmpv.dylib"]
+            : ["libmpv.so.2", "libmpv.so"];
+        NativeLibrary.SetDllImportResolver(typeof(MpvNative).Assembly, (name, assembly, path) =>
+        {
+            if (name != Library) return IntPtr.Zero;
+            foreach (var candidate in names)
+            {
+                if (NativeLibrary.TryLoad(candidate, assembly, path, out var handle)) return handle;
+            }
+            return IntPtr.Zero;
+        });
+    }
+
     [LibraryImport(Library)]
     public static partial IntPtr mpv_create();
 

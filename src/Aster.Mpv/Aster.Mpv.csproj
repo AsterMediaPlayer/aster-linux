@@ -18,7 +18,9 @@
   </Target>
 
   <ItemGroup>
-    <None Include="$(LibMpvPath)" Link="libmpv-2.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <!-- Windows only: Linux uses the distribution's libmpv (apt install libmpv2). -->
+    <None Include="$(LibMpvPath)" Link="libmpv-2.dll" CopyToOutputDirectory="PreserveNewest" Visible="false"
+          Condition="'$(RuntimeIdentifier)' == '' Or $(RuntimeIdentifier.StartsWith('win'))" />
   </ItemGroup>
 
 </Project>

@@ -22,6 +22,33 @@ dotnet run --project src/Aster.Desktop
 dotnet test
 ```
 
+### Linux
+
+The same app runs on Linux (tried on Kubuntu 26.04, Plasma on Wayland,
+through XWayland). Build it on Windows or Linux, self-contained so the
+machine needs no .NET:
+
+```
+dotnet publish src/Aster.Desktop -c Release -r linux-x64 --self-contained -o publish/linux
+```
+
+It needs the distribution's mpv library (`sudo apt install libmpv2`), and
+OpenGL from a graphics driver for video. What differs from Windows:
+
+- **Signing in** is kept by the desktop's Secret Service (KWallet on KDE,
+  GNOME Keyring on GNOME) through libsecret, or, without one, in
+  `~/.local/share/Aster/session.json`, readable only by the user.
+- **Icons** come from the bundled Aster Icons fonts in place of Segoe
+  Fluent Icons, which can't be shipped: Microsoft's Fluent UI System
+  Icons (MIT), each at the Segoe code point the app already uses, made by
+  `tools/make-icon-font.py`. A new icon needs a line there.
+- **Hardware decoding** is VA-API or NVDEC, which mpv picks itself.
+- **In a virtual machine**, turn on 3D acceleration: video is drawn with
+  OpenGL, and VirtualBox's and VMware's (SVGA3D) works where Avalonia
+  would otherwise turn it down. Without 3D, `ASTER_SOFTWARE_GL=1` allows
+  Mesa's software renderer, slowly. `ASTER_LOG_AVALONIA=1` prints which
+  renderer Avalonia chose, and why.
+
 ### Trying it against a server (debug builds)
 
 These leave the saved session alone:

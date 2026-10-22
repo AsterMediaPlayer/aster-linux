@@ -422,7 +422,7 @@ public partial class PlayerViewModel : ViewModelBase
             UpNext = after;
             System.Diagnostics.Debug.WriteLine($"Playback: markers {string.Join(", ", loaded.Select(s => $"{s.Type} {s.StartTicks / 10_000_000}-{s.EndTicks / 10_000_000}s"))}; up next {after?.DisplayTitle ?? "none"}");
         }
-        catch (Exception error) when (IsServerError(error) || error is MpvException or ObjectDisposedException)
+        catch (Exception error) when (IsServerError(error) || error is MpvException or ObjectDisposedException or NoVideoOutputException)
         {
             if (!stopped) FallBack(error.Message);
         }
@@ -597,6 +597,10 @@ public partial class PlayerViewModel : ViewModelBase
     private async Task LoadAsync(Uri url, double start)
     {
         var player = Player!;
+        // The video view gives mpv its surface on its first frame; a file
+        // opened before then would have nowhere to draw.
+        if (await Task.WhenAny(player.RenderContextReady, Task.Delay(TimeSpan.FromSeconds(5))) != player.RenderContextReady)
+            throw new NoVideoOutputException();
         player.SetProperty("pause", true);
         var waiter = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         loading = waiter;
@@ -726,6 +730,13 @@ public partial class PlayerViewModel : ViewModelBase
     private void FallBack(string reason)
     {
         if (stopped) return;
+        // Another stream won't help a computer that can't show video.
+        if (reason == NoVideoOutputException.Explanation)
+        {
+            ErrorMessage = reason;
+            ControlsVisible = true;
+            return;
+        }
         // A channel has no other stream to step down to.
         if (IsLive)
         {
@@ -1220,4 +1231,10 @@ public partial class PlayerViewModel : ViewModelBase
         if (liveStreamId is { } live) _ = client.CloseLiveStreamAsync(live);
         Player.Dispose();
     }
+}
+
+/// <summary>The video view never gave mpv an OpenGL surface: no stream can be shown, so none is tried.</summary>
+public sealed class NoVideoOutputException() : Exception(Explanation)
+{
+    public const string Explanation = "Video can't be shown: OpenGL isn't available. On Linux, check the graphics driver; in a virtual machine, turn on 3D acceleration.";
 }

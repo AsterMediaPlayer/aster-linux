@@ -9,7 +9,7 @@
 
     <UserControl.Styles>
         <Style Selector="TextBlock.icon">
-            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
+            <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
             <Setter Property="FontSize" Value="20" />
         </Style>
         <Style Selector="Button.bar">

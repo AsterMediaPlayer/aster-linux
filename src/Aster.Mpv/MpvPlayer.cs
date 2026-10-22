@@ -232,9 +232,21 @@ public sealed unsafe class MpvPlayer : IDisposable
 
     // ---- Rendering and shutdown ----
 
+    private readonly TaskCompletionSource renderContextReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
+    /// Done once a video view has given mpv somewhere to draw. mpv's video
+    /// output (vo=libmpv) fails for good on a file opened before that, so a
+    /// file waits for it.
+    /// </summary>
+    public Task RenderContextReady => renderContextReady.Task;
+
     /// <summary>A render context is drawing this player's video; mpv must outlive it.</summary>
-    internal void RenderContextCreated() =>
+    internal void RenderContextCreated()
+    {
         renderContextReleased = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        renderContextReady.TrySetResult();
+    }
 
     internal void RenderContextFreed() => renderContextReleased?.TrySetResult();
 
