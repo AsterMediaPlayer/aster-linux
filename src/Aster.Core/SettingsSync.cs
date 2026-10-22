@@ -7,9 +7,9 @@ namespace Aster.Core;
 /// their server in the Apple app's own display preferences (see
 /// <see cref="JellyfinClient.AppSettingsAsync"/>), under the same keys, so
 /// they follow a user between the two apps. These are matters of taste: Up
-/// Next, skipping intros, styled subtitles. Settings tied to the computer
-/// stay on it: streaming quality and full screen. Audio and subtitle
-/// languages follow the user through their own Jellyfin settings.
+/// Next, skipping intros, styled subtitles, song cards. Settings tied to
+/// the computer stay on it: streaming quality and full screen. Audio and
+/// subtitle languages follow the user through their own Jellyfin settings.
 ///
 /// The server's values are fetched at sign-in and when Settings opens. A
 /// change to a synced setting is saved as it's made; the last change wins. A
@@ -26,6 +26,7 @@ public static class SettingsSync
         new("autoplayNext", s => s.AutoplayNext, (s, on) => s with { AutoplayNext = on }),
         new("autoSkipIntro", s => s.AutoSkipIntro, (s, on) => s with { AutoSkipIntro = on }),
         new("styledSubtitles", s => s.StyledSubtitles, (s, on) => s with { StyledSubtitles = on }),
+        new("themeCards", s => s.ThemeCards, (s, on) => s with { ThemeCards = on }),
     ];
 
     private static readonly Lock Gate = new();

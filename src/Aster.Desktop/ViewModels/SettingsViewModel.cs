@@ -60,6 +60,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     [ObservableProperty] public partial bool AutoplayNext { get; set; }
     [ObservableProperty] public partial bool AutoSkipIntro { get; set; }
     [ObservableProperty] public partial bool StyledSubtitles { get; set; }
+    [ObservableProperty] public partial bool ThemeCards { get; set; }
 
     partial void OnBitrateChanged(SettingOption<int>? value)
     {
@@ -70,6 +71,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     partial void OnAutoplayNextChanged(bool value) => Change(s => s with { AutoplayNext = value });
     partial void OnAutoSkipIntroChanged(bool value) => Change(s => s with { AutoSkipIntro = value });
     partial void OnStyledSubtitlesChanged(bool value) => Change(s => s with { StyledSubtitles = value });
+    partial void OnThemeCardsChanged(bool value) => Change(s => s with { ThemeCards = value });
 
     private void Change(Func<AppSettings, AppSettings> change)
     {
@@ -86,6 +88,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         AutoplayNext = settings.AutoplayNext;
         AutoSkipIntro = settings.AutoSkipIntro;
         StyledSubtitles = settings.StyledSubtitles;
+        ThemeCards = settings.ThemeCards;
         showing = false;
     }
 

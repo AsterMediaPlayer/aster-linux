@@ -6,9 +6,9 @@
 // instead: one audio track at a time, a text subtitle loaded beside it, a
 // picture one burned in. Progress goes to Jellyfin every ten seconds.
 //
-// Not yet ported: OP/ED song cards, and the hand-over to a second player
-// (there is only mpv here, so a title that fails steps down through the
-// server's encodes instead).
+// Not yet ported: the hand-over to a second player (there is only mpv
+// here, so a title that fails steps down through the server's encodes
+// instead).
 
 using System;
 using System.Collections.Generic;
@@ -17,6 +17,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Aster.Core;
+using Aster.Core.Anime;
 using Aster.Core.Jellyfin;
 using Aster.Core.Playback;
 using Aster.Desktop.Images;
@@ -419,7 +420,11 @@ public partial class PlayerViewModel : ViewModelBase
             await BeginAsync();
             // A channel gets no markers (skipping an intro would leave the
             // schedule behind) and goes on to what it's showing, never Up Next.
-            if (OnChannel) return;
+            if (OnChannel)
+            {
+                await LoadThemeMomentsAsync(item, []);
+                return;
+            }
 
             // Markers and the next episode load once it plays, so they never hold up the start.
             var markers = client.MediaSegmentsAsync(item.Id);
@@ -432,6 +437,7 @@ public partial class PlayerViewModel : ViewModelBase
             segments = loaded;
             UpNext = after;
             System.Diagnostics.Debug.WriteLine($"Playback: markers {string.Join(", ", loaded.Select(s => $"{s.Type} {s.StartTicks / 10_000_000}-{s.EndTicks / 10_000_000}s"))}; up next {after?.DisplayTitle ?? "none"}");
+            await LoadThemeMomentsAsync(item, loaded);
         }
         catch (Exception error) when (IsServerError(error) || error is MpvException or ObjectDisposedException or NoVideoOutputException)
         {
@@ -818,6 +824,8 @@ public partial class PlayerViewModel : ViewModelBase
         Chapters = [];
         scrubPreview = null;
         PreviewAt(null);
+        themeMoments = [];
+        ThemeCardOpacity = 0;
         HasStarted = false;
         ErrorMessage = null;
         currentAudio = null;
@@ -1133,6 +1141,47 @@ public partial class PlayerViewModel : ViewModelBase
         if (frame is not null && request == previewRequest && PreviewSeconds is not null && source == scrubPreview) PreviewFrame = frame;
     }
 
+    // ---- The song card ----
+
+    /// <summary>The openings and endings in what's playing (an anime episode's, or a whole music video), with what their card says.</summary>
+    private IReadOnlyList<ThemeMoment> themeMoments = [];
+
+    /// <summary>What the card says; kept as it fades out.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ThemeCardKicker))]
+    public partial ThemeInfo? ThemeCard { get; private set; }
+
+    public string? ThemeCardKicker => ThemeCard?.Kicker.ToUpperInvariant();
+
+    /// <summary>1 while the card shows, 0 while it doesn't; the view fades between them.</summary>
+    [ObservableProperty] public partial double ThemeCardOpacity { get; private set; }
+
+    /// <summary>
+    /// Finds the song cards once playing, as the Apple app does: from an
+    /// episode's chapters, or its skip markers when the OP/ED plugin says a
+    /// theme plays in it; a music video's for the whole video.
+    /// </summary>
+    private async Task LoadThemeMomentsAsync(BaseItem item, IReadOnlyList<MediaSegment> markers)
+    {
+        if (!settings.ThemeCards) return;
+        IReadOnlyList<ThemeMoment> moments = item.Kind switch
+        {
+            ItemKind.Episode => ThemeMoments.ForEpisode(item, markers, await client.OpEdThemesAsync(item.Id) ?? []),
+            ItemKind.MusicVideo => await ThemeMoments.ForMusicVideoAsync(item, client),
+            _ => [],
+        };
+        if (stopped || Item?.Id != item.Id) return;
+        themeMoments = moments;
+        System.Diagnostics.Debug.WriteLine($"Playback: song cards {string.Join(", ", moments.Select(m => $"{m.Info.Kicker} {m.Start:0}-{m.End:0}s"))}");
+    }
+
+    private void UpdateThemeCard(double seconds)
+    {
+        var showing = themeMoments.FirstOrDefault(m => m.ShowsCardAt(seconds));
+        if (showing is not null) ThemeCard = showing.Info;
+        ThemeCardOpacity = showing is null ? 0 : 1;
+    }
+
     // ---- Skipping and Up Next ----
 
     /// <summary>The skip button: past the intro, credits or recap, or on to the next episode.</summary>
@@ -1171,6 +1220,7 @@ public partial class PlayerViewModel : ViewModelBase
             currentChapter = chapter;
             RefreshChapterChoices();
         }
+        UpdateThemeCard(seconds);
         if (!QualityOfferVisible && stallWatch.Note(IsBuffering, DateTimeOffset.UtcNow)) QualityOfferVisible = true;
 
         var ticks = (long)(seconds * 10_000_000);
@@ -1224,6 +1274,8 @@ public partial class PlayerViewModel : ViewModelBase
         timedTimer.Stop();
         ActiveSegment = null;
         ShowsUpNextAction = false;
+        // The Up Next card has the screen to itself.
+        ThemeCardOpacity = 0;
         // A channel goes on to whatever it's showing now.
         if (entry.ChannelId is { } channelId)
         {

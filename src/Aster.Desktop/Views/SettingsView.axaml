@@ -115,6 +115,15 @@
             </Border>
             <TextBlock Classes="note" Text="Draws anime subtitles as the release intended: signs where they belong on screen, their drawings, and the fonts inside the file. Turn off for plain text at the bottom." />
 
+            <TextBlock Classes="heading" Text="Anime" />
+            <Border Classes="group">
+                <DockPanel Classes="row">
+                    <ToggleSwitch IsChecked="{Binding ThemeCards}" AutomationProperties.Name="Song card at openings and endings" />
+                    <TextBlock Text="Song card at openings and endings" />
+                </DockPanel>
+            </Border>
+            <TextBlock Classes="note" Text="As an episode's opening or ending starts, and again as it finishes, the song and artist show in the corner, like a music channel. Found from the episode's OP and ED chapters, with the song named by the OP/ED plugin when the server has it. Music videos get the card too, as they start and end." />
+
             <TextBlock Classes="heading" Text="Account" />
             <Border Classes="group">
                 <StackPanel>

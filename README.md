@@ -6,7 +6,7 @@ file by file, so keep the two in step when either changes.
 
 | Project | What it is |
 | --- | --- |
-| `src/Aster.Core` | Jellyfin client, models, device profile, resume points, session storage (Windows Credential Manager), subtitle and trickplay helpers, JellyDisc models, audiobooks (grouping, chapters, speeds) |
+| `src/Aster.Core` | Jellyfin client, models, device profile, resume points, session storage (Windows Credential Manager), subtitle and trickplay helpers, JellyDisc models, audiobooks (grouping, chapters, speeds), anime openings and endings (found from chapters, and their song cards) |
 | `src/Aster.Mpv` | Bindings for libmpv: the player, its events, and OpenGL rendering into the UI |
 | `src/Aster.Desktop` | The Avalonia app: sign-in, Home, Movies, TV Shows, Anime, Music, Audiobooks, Library, title, person, album, artist and book pages, the video player, and the music and audiobook players |
 | `tests/Aster.Core.Tests` | xUnit tests for the core (against a stub server) and for libmpv (with a clip made by ffmpeg, when it's installed) |
@@ -222,8 +222,9 @@ About pages on one page, as the Mac's Settings window has them:
   maximum streaming quality, and playing videos full screen (on, as on the
   Mac; the window comes back as the player closes).
 - **Following the user** between devices and the Apple app: autoplaying
-  the next episode, skipping intros, and drawing ASS/SSA subtitles styled
-  (off, mpv strips them to plain text). They're fetched at sign-in and
+  the next episode, skipping intros, drawing ASS/SSA subtitles styled
+  (off, mpv strips them to plain text), and the song card at anime
+  openings and endings. They're fetched at sign-in and
   when Settings opens, a change is saved as it's made, and a setting never
   chosen on this computer keeps the default rather than overwriting
   another device's choice.
@@ -233,8 +234,8 @@ About pages on one page, as the Mac's Settings window has them:
   with Switch User and Change Server (both sign out, after asking; Switch
   User keeps the server's address filled in).
 
-Not yet: the Disc Menus, Title Pages and Channels pages, and the anime song
-cards, which wait on those features.
+Not yet: the Disc Menus, Title Pages and Channels pages, and the Anime
+page's Now Playing panel and full versions, which wait on those features.
 
 ## The player
 
@@ -257,13 +258,23 @@ dragging along it, shows the time there and its chapter, and the frame
 from the server's trickplay images when it has made them. Sheets of frames
 are fetched as they're needed, and only the last few kept in memory.
 
+An anime episode's opening and ending get the Apple app's song card in the
+lower left, for their first 16 seconds and, when they're long enough, their
+last: the theme, the song and who sings it, and the show. They're found
+from the episode's OP and ED chapters; with none, from its skip markers,
+but only when the OP/ED plugin says one of its themes plays in the episode
+(so an ordinary show's intro gets no card). The plugin names the song when
+it knows it. A music video gets the card as it starts and ends, and so
+does anything a Channel shows. `Aster.Core/Anime` is the port of how they're
+found and what the card says.
+
 Keys: Space or K pause, ← → (J L) 10 seconds, ↑ ↓ volume, M mute, A next
 audio track, S or C next subtitle track, Page Up and Page Down the next
 chapter and back (to the start of this one, or the one before within its
 first 3 seconds), Enter takes the skip on offer, F or a double-click full
 screen, Esc leaves full screen and then the player.
 
-Not yet: OP/ED song cards, downloads, and HDR passthrough (HDR is
+Not yet: downloads, and HDR passthrough (HDR is
 tone-mapped to SDR, since the video is drawn through OpenGL so the controls
 can sit on top of it).
 

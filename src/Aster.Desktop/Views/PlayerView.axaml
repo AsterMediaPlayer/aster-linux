@@ -128,6 +128,42 @@
             </StackPanel>
         </Border>
 
+        <!-- An opening's or ending's song card, in the lower left like a music channel's credit; under the controls. -->
+        <Panel IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Bottom" Opacity="{Binding ThemeCardOpacity}">
+            <Panel.Transitions>
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.6" Easing="SineEaseInOut" />
+                </Transitions>
+            </Panel.Transitions>
+            <!-- A soft shade from the corner, so the text reads over bright frames. -->
+            <Border Width="520" Height="240" HorizontalAlignment="Left" VerticalAlignment="Bottom">
+                <Border.Background>
+                    <RadialGradientBrush Center="0%,100%" GradientOrigin="0%,100%" RadiusX="100%" RadiusY="100%">
+                        <GradientStop Offset="0" Color="#8C000000" />
+                        <GradientStop Offset="0.55" Color="#4D000000" />
+                        <GradientStop Offset="1" Color="#00000000" />
+                    </RadialGradientBrush>
+                </Border.Background>
+            </Border>
+            <DockPanel MaxWidth="420" Margin="24,0,0,40" HorizontalAlignment="Left" VerticalAlignment="Bottom">
+                <DockPanel.Effect>
+                    <DropShadowEffect BlurRadius="12" OffsetX="0" OffsetY="2" Color="Black" Opacity="0.7" />
+                </DockPanel.Effect>
+                <Border DockPanel.Dock="Left" Width="3" CornerRadius="2" Background="White" Margin="0,0,12,0" />
+                <StackPanel Spacing="4">
+                    <TextBlock Text="{Binding ThemeCardKicker}" FontSize="12" FontWeight="SemiBold" LetterSpacing="2.5" Foreground="#BFFFFFFF" />
+                    <TextBlock Text="{Binding ThemeCard.Title}" FontSize="24" FontWeight="Bold" Foreground="White"
+                               TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding ThemeCard.Artists}" FontSize="15" FontWeight="Medium" Foreground="White" TextTrimming="CharacterEllipsis"
+                               IsVisible="{Binding ThemeCard.Artists, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <TextBlock Text="{Binding ThemeCard.Series}" FontSize="13" FontWeight="SemiBold" Foreground="#E6FFFFFF" TextTrimming="CharacterEllipsis"
+                               IsVisible="{Binding ThemeCard.Series, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <TextBlock Text="{Binding ThemeCard.Detail}" FontSize="12" Foreground="#B3FFFFFF" TextTrimming="CharacterEllipsis"
+                               IsVisible="{Binding ThemeCard.Detail, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                </StackPanel>
+            </DockPanel>
+        </Panel>
+
         <!-- The controls, shown on mouse movement and while paused. -->
         <Grid RowDefinitions="Auto,*,Auto" IsVisible="{Binding ControlsVisible}">
             <Border Grid.Row="0" Padding="16,12,24,40">

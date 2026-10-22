@@ -21,6 +21,9 @@ public sealed record AppSettings
     /// <summary>ASS and SSA subtitles drawn as styled; off, as plain text at the bottom.</summary>
     public bool StyledSubtitles { get; init; } = true;
 
+    /// <summary>The song card as an anime episode's opening or ending plays, and on music videos.</summary>
+    public bool ThemeCards { get; init; } = true;
+
     /// <summary>A video takes the whole screen as it starts (the Mac's setting).</summary>
     public bool FullScreenPlayback { get; init; } = true;
 
