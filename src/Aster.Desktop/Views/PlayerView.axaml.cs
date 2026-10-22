@@ -3,12 +3,12 @@ using System.Linq;
 using Aster.Core.Channels;
 using Aster.Desktop.ViewModels;
 using Avalonia;
-using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
+using Avalonia.Media;
 using Avalonia.VisualTree;
 
 namespace Aster.Desktop.Views;
@@ -40,14 +40,17 @@ public partial class PlayerView : UserControl
             m.PreviewAt(null);
             m.SeekTo(SeekBar.Value);
         }, RoutingStrategies.Bubble, handledEventsToo: true);
-        // Resting on the bar previews that point; a drag previews where the thumb is (in the model).
-        SeekBar.PointerMoved += (_, e) =>
+        // Resting on the bar, or dragging along it from a press on the bar,
+        // previews that point (the slider has handled the move by then); a
+        // drag of the thumb previews where the thumb is (in the model).
+        SeekBar.AddHandler(PointerMovedEvent, (_, e) =>
         {
             if (Model is not { IsScrubbing: false, Duration: > 0 } m || TrackSpan() is not { } span) return;
             m.PreviewAt(Math.Clamp((e.GetPosition(PreviewLayer).X - span.Start) / span.Length, 0, 1) * m.Duration);
-        };
+        }, RoutingStrategies.Bubble, handledEventsToo: true);
         SeekBar.PointerExited += (_, _) => { if (Model is { IsScrubbing: false } m) m.PreviewAt(null); };
         PreviewBubble.SizeChanged += (_, _) => PlacePreview();
+        SeekBar.SizeChanged += (_, _) => MarkChapters();
         FullScreenButton.Click += (_, _) => ToggleFullScreen();
         BugLayer.SizeChanged += (_, _) => PlaceBug();
         DataContextChanged += (_, _) =>
@@ -117,19 +120,32 @@ public partial class PlayerView : UserControl
         Canvas.SetTop(Bug, y);
     }
 
-    /// <summary>A mark under the timeline at each chapter after the first.</summary>
+    private static readonly IBrush MarkBrush = new SolidColorBrush(Color.FromArgb(0xB3, 0xFF, 0xFF, 0xFF));
+
+    /// <summary>
+    /// A mark under the timeline at each chapter after the first. Drawn here
+    /// rather than as the slider's ticks, which add one at each end.
+    /// </summary>
     private void MarkChapters()
     {
-        if (Model is not { } model) return;
-        var starts = model.Chapters
-            .Select(chapter => chapter.StartPositionTicks / 10_000_000.0)
-            .Where(seconds => seconds > 0 && seconds < model.Duration)
-            .ToList();
-        SeekBar.Ticks = starts.Count > 0 ? new AvaloniaList<double>(starts) : null;
-        SeekBar.TickPlacement = starts.Count > 0 ? TickPlacement.BottomRight : TickPlacement.None;
+        ChapterMarks.Children.Clear();
+        if (Model is not { Duration: > 0 } model || TrackSpan() is not { } span) return;
+        foreach (var chapter in model.Chapters)
+        {
+            var seconds = chapter.StartPositionTicks / 10_000_000.0;
+            if (seconds <= 0 || seconds >= model.Duration) continue;
+            var mark = new Border { Width = 2, Height = 5, CornerRadius = new CornerRadius(1), Background = MarkBrush };
+            Canvas.SetLeft(mark, span.Start + span.Length * seconds / model.Duration - 1);
+            // Below the thumb, which would otherwise cover the mark it's on.
+            Canvas.SetTop(mark, span.Middle + 12);
+            ChapterMarks.Children.Add(mark);
+        }
     }
 
-    /// <summary>Where the thumb's centre travels along the bar, in the preview layer's terms, and the bar's middle.</summary>
+    /// <summary>
+    /// Where the thumb's centre travels along the bar, and the bar's middle,
+    /// in the terms of the layers over it (which fill the same space).
+    /// </summary>
     private readonly record struct BarSpan(double Start, double Length, double Middle);
 
     private BarSpan? TrackSpan()

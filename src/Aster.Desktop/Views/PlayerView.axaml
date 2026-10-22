@@ -41,10 +41,6 @@
             <Setter Property="Background" Value="#38FFFFFF" />
             <Setter Property="BorderBrush" Value="#E6FFFFFF" />
         </Style>
-        <!-- The chapter marks under the timeline. -->
-        <Style Selector="Slider#SeekBar /template/ TickBar">
-            <Setter Property="Fill" Value="#B3FFFFFF" />
-        </Style>
         <Style Selector="Button.goTo">
             <Setter Property="Background" Value="#26FFFFFF" />
             <Setter Property="Foreground" Value="White" />
@@ -168,6 +164,8 @@
                         <TextBlock Grid.Column="0" Text="{Binding PositionText}" Foreground="White" VerticalAlignment="Center" MinWidth="56" />
                         <Panel Grid.Column="1" Margin="8,0">
                             <Slider x:Name="SeekBar" Minimum="0" Maximum="{Binding Duration}" Value="{Binding SeekBarValue}" />
+                            <!-- A mark under the bar at each chapter, placed in code. -->
+                            <Canvas x:Name="ChapterMarks" IsHitTestVisible="False" />
                             <!-- The frame and time above the point on the bar under the pointer, or dragged to; placed in code. -->
                             <Canvas x:Name="PreviewLayer" IsHitTestVisible="False">
                                 <StackPanel x:Name="PreviewBubble" Spacing="6"
