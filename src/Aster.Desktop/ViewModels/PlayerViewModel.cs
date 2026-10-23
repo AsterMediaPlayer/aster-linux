@@ -165,12 +165,12 @@ public partial class PlayerViewModel : ViewModelBase
 
     /// <summary>A Live TV channel: no timeline, no skipping, no speeds.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasTimeline), nameof(HasBadge), nameof(Badge))]
+    [NotifyPropertyChangedFor(nameof(HasTimeline), nameof(HasBadge), nameof(Badge), nameof(OffersQuality))]
     public partial bool IsLive { get; set; }
 
     /// <summary>The Channel playing, "5  Late Night", while on one; null otherwise.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasTimeline), nameof(HasBadge), nameof(Badge))]
+    [NotifyPropertyChangedFor(nameof(HasTimeline), nameof(HasBadge), nameof(Badge), nameof(OffersQuality))]
     public partial string? ChannelName { get; private set; }
 
     /// <summary>Live TV and Channels play on a timeline the viewer can't move.</summary>
@@ -181,6 +181,19 @@ public partial class PlayerViewModel : ViewModelBase
 
     /// <summary>On a Channel: its schedule decides what plays, and nothing's reported (resume points and watched state stay as they were).</summary>
     private bool OnChannel => entry.ChannelId is not null;
+
+    /// <summary>An opening or ending played on its own: a clip of its episode, or the OP/ED plugin's file.</summary>
+    private bool IsThemePlayback => entry.ClipEndTicks is not null || entry.MediaUrl is not null;
+
+    /// <summary>Whether the server hears about this playback: not on a Channel, nor for an opening played on its own.</summary>
+    private bool Reports => !OnChannel && !IsThemePlayback;
+
+    /// <summary>A file with no item behind it (an OP/ED plugin theme): no other quality to ask the server for.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(OffersQuality))]
+    public partial bool PlaysFile { get; private set; }
+
+    public bool OffersQuality => HasTimeline && !PlaysFile;
 
     /// <summary>A break clip cut short reached its cut.</summary>
     private bool reachedCut;
@@ -296,7 +309,7 @@ public partial class PlayerViewModel : ViewModelBase
     private void LeaveCurrent()
     {
         reportTimer.Stop();
-        if (HasStarted && !stopReported && !OnChannel)
+        if (HasStarted && !stopReported && Reports)
         {
             stopReported = true;
             _ = client.ReportStoppedAsync(Report(paused: true));
@@ -395,6 +408,12 @@ public partial class PlayerViewModel : ViewModelBase
         try
         {
             preferences ??= await LoadPreferencesAsync();
+            PlaysFile = entry.MediaUrl is not null;
+            if (entry.MediaUrl is { } file)
+            {
+                await StartFileAsync(file);
+                return;
+            }
             var item = await client.ItemAsync(entry.ItemId);
             if (stopped) return;
             Item = item;
@@ -418,6 +437,12 @@ public partial class PlayerViewModel : ViewModelBase
                 scrubPreview = ScrubPreviewSource.For(client, item, mediaSourceId);
             }
             await BeginAsync();
+            // An opening played on its own: its song card, and no markers or Up Next.
+            if (entry.ClipEndTicks is { } clipEnd)
+            {
+                if (settings.ThemeCards && entry.ThemeCard is { } card) themeMoments = [new ThemeMoment(entry.StartTicks / 10_000_000.0, clipEnd / 10_000_000.0, card)];
+                return;
+            }
             // A channel gets no markers (skipping an intro would leave the
             // schedule behind) and goes on to what it's showing, never Up Next.
             if (OnChannel)
@@ -442,6 +467,26 @@ public partial class PlayerViewModel : ViewModelBase
         catch (Exception error) when (IsServerError(error) || error is MpvException or ObjectDisposedException or NoVideoOutputException)
         {
             if (!stopped) FallBack(error.Message);
+        }
+    }
+
+    /// <summary>An OP/ED plugin theme: its file played as it is from the start, with its song card.</summary>
+    private async Task StartFileAsync(Uri file)
+    {
+        Item = null;
+        Title = entry.MediaTitle ?? "";
+        Subtitle = entry.MediaSubtitle;
+        ChannelName = null;
+        BugUrl = null;
+        playMethod = "DirectPlay";
+        await LoadAsync(file, 0);
+        if (stopped) return;
+        await BeginAsync();
+        if (settings.ThemeCards && entry.ThemeCard is { } card)
+        {
+            // Without a length yet, just the card at the start.
+            var length = Player?.GetDouble("duration") is > 0 and var seconds ? seconds : double.PositiveInfinity;
+            themeMoments = [new ThemeMoment(0, length, card)];
         }
     }
 
@@ -704,7 +749,7 @@ public partial class PlayerViewModel : ViewModelBase
         RefreshChoices();
         PokeControls();
         VideoAspect = Player.GetDouble("video-params/aspect") ?? 0;
-        if (OnChannel)
+        if (!Reports)
         {
             timedTimer.Start();
             return;
@@ -798,7 +843,7 @@ public partial class PlayerViewModel : ViewModelBase
     private void EndServerSession()
     {
         reportTimer.Stop();
-        if (HasStarted && !stopReported)
+        if (HasStarted && !stopReported && Reports)
         {
             stopReported = true;
             _ = client.ReportStoppedAsync(Report(paused: true));
@@ -1231,6 +1276,12 @@ public partial class PlayerViewModel : ViewModelBase
             if (!PlaybackEnded()) Close();
             return;
         }
+        // An opening played on its own ends with it.
+        if (entry.ClipEndTicks is { } clipEnd && ticks >= clipEnd)
+        {
+            Close();
+            return;
+        }
         var inside = segments.FirstOrDefault(s => s.Contains(ticks));
         if (inside?.Id != ActiveSegment?.Id)
         {
@@ -1284,6 +1335,8 @@ public partial class PlayerViewModel : ViewModelBase
             Play(item, next);
             return true;
         }
+        // An opening played on its own closes the player, unreported.
+        if (IsThemePlayback) return false;
         if (HasStarted && !stopReported)
         {
             stopReported = true;
@@ -1341,7 +1394,7 @@ public partial class PlayerViewModel : ViewModelBase
 
     private async Task ReportProgressAsync()
     {
-        if (!HasStarted || stopped || stopReported || OnChannel) return;
+        if (!HasStarted || stopped || stopReported || !Reports) return;
         System.Diagnostics.Debug.WriteLine($"Playback: at {Position:0}s, decoder {Player?.GetString("hwdec-current")}, {Player?.GetString("estimated-vf-fps")} fps, dropped {Player?.GetString("frame-drop-count")} by the output and {Player?.GetString("decoder-frame-drop-count")} by the decoder");
         await client.ReportProgressAsync(Report(paused: IsPaused));
     }
@@ -1366,7 +1419,7 @@ public partial class PlayerViewModel : ViewModelBase
     /// <summary>Sends where playback is and saves it as the resume point now, for when the app is closing.</summary>
     public void SaveProgressNow()
     {
-        if (!HasStarted || stopped || stopReported || OnChannel) return;
+        if (!HasStarted || stopped || stopReported || !Reports) return;
         _ = client.ReportProgressAsync(Report(paused: IsPaused), ResumePoints.Saving.Now);
     }
 
@@ -1395,7 +1448,7 @@ public partial class PlayerViewModel : ViewModelBase
         catch (MpvException) { }
         bugTimer.Stop();
         flickTimer.Stop();
-        if (HasStarted && !stopReported && !OnChannel)
+        if (HasStarted && !stopReported && Reports)
         {
             stopReported = true;
             _ = client.ReportStoppedAsync(final);

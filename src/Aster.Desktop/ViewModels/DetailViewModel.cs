@@ -2,14 +2,16 @@
 // TV app: full-bleed artwork, title and actions, then shelves; a show's
 // page in tabs. A port of the Apple app's ItemDetailView and DetailModel.
 //
-// Not yet ported: theme music and videos, disc menus, openings and
-// endings, playlists, recordings and downloads.
+// Not yet ported: theme music and videos, disc menus, the Now Playing
+// panel for openings and endings (they play full screen, one at a time),
+// Watch OP and Watch ED, playlists, recordings and downloads.
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Aster.Core.Anime;
 using Aster.Core.Jellyfin;
 using Aster.Core.Playback;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -20,6 +22,7 @@ namespace Aster.Desktop.ViewModels;
 public enum DetailSection
 {
     Episodes,
+    Music,
     Extras,
     Related,
     Details,
@@ -104,7 +107,7 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
     public bool UsesSections => Item.Kind is ItemKind.Series or ItemKind.Season;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowsEpisodes), nameof(ShowsExtras), nameof(ShowsRelated), nameof(ShowsDetails))]
+    [NotifyPropertyChangedFor(nameof(ShowsEpisodes), nameof(ShowsMusic), nameof(ShowsExtras), nameof(ShowsRelated), nameof(ShowsDetails))]
     public partial DetailSection Section { get; set; } = DetailSection.Episodes;
 
     [ObservableProperty] public partial IReadOnlyList<Choice> Sections { get; set; } = [];
@@ -128,7 +131,12 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
 
     [ObservableProperty] public partial IReadOnlyList<ItemCard> Cast { get; set; } = [];
 
+    /// <summary>An anime show's openings and endings, each in its own row of the Music tab.</summary>
+    [ObservableProperty] public partial IReadOnlyList<OpeningEndingCard> Openings { get; set; } = [];
+    [ObservableProperty] public partial IReadOnlyList<OpeningEndingCard> Endings { get; set; } = [];
+
     public bool ShowsEpisodes => UsesSections && Section == DetailSection.Episodes;
+    public bool ShowsMusic => UsesSections && Section == DetailSection.Music;
     public bool ShowsExtras => (!UsesSections || Section == DetailSection.Extras) && Extras.Count > 0;
     public bool ShowsRelated => (!UsesSections || Section == DetailSection.Related) && Similar.Count > 0;
     public bool ShowsDetails => !UsesSections || Section == DetailSection.Details;
@@ -164,6 +172,7 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
             IsLoading = false;
 
             var similar = Client.SimilarAsync(full.Id, 20);
+            var themes = full.Kind == ItemKind.Series && full.IsAnime ? OpeningsEndingsAsync(full) : Task.FromResult<IReadOnlyList<OpeningEndingCard>>([]);
             switch (full.Kind)
             {
                 case ItemKind.Series:
@@ -185,6 +194,9 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
                 Extras = (await OrEmpty(Client.SpecialFeaturesAsync(full.Id))).Select(e => ItemCard.Extra(navigator, e)).ToList();
             }
             Similar = (await OrEmpty(similar)).Select(i => ItemCard.Landscape(navigator, i)).ToList();
+            var found = await themes;
+            Openings = found.Where(c => c.IsOpening).ToList();
+            Endings = found.Where(c => !c.IsOpening).ToList();
             UpdateSections();
 
             // Opened from a banner's Play: play now, with this page behind.
@@ -255,6 +267,39 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
         StripTarget = cards.FirstOrDefault(c => c.Item.Id == targetId);
     }
 
+    /// <summary>
+    /// The OP/ED plugin's themes when it has any that play (or soon will)
+    /// for the show, so chapters needn't be read; otherwise clips found in
+    /// the episodes' chapters. Openings (or endings) come season by season,
+    /// themes for the whole show first.
+    /// </summary>
+    private async Task<IReadOnlyList<OpeningEndingCard>> OpeningsEndingsAsync(BaseItem show)
+    {
+        var themes = (await Client.OpEdThemesAsync(show.Id) ?? []).Where(t => t.PlayablePath is not null || t.IsPreparing).ToList();
+        if (themes.Count > 0)
+        {
+            var allSeasons = await OrEmpty(Client.SeasonsAsync(show.Id));
+            // A season's name only when there's more than one, since OP 1 comes round again each season.
+            var named = allSeasons.Count(s => (s.IndexNumber ?? 0) > 0) > 1;
+            return themes
+                .Select(theme =>
+                {
+                    var at = theme.SeasonId is { } id ? allSeasons.Select((s, i) => (s, i)).FirstOrDefault(p => p.s.Id == id, (null!, -1)).Item2 : -1;
+                    var seasonName = named && at >= 0 ? allSeasons[at].DisplayTitle : null;
+                    return OpeningEndingCard.Theme(Client, theme, show, seasonName, at, PlayTheme);
+                })
+                .OrderBy(c => c.Order)
+                .ToList();
+        }
+        IReadOnlyList<BaseItem> withChapters;
+        try { withChapters = await Client.EpisodesWithChaptersAsync(show.Id); }
+        catch (Exception error) when (IsServerError(error)) { return []; }
+        return OpeningsEndings.Find(withChapters).Select(clip => OpeningEndingCard.Clip(Client, clip, show.DisplayTitle, PlayTheme)).ToList();
+    }
+
+    /// <summary>An opening or ending, full screen; the page needn't follow, since nothing it shows changes.</summary>
+    private void PlayTheme(PlaybackQueueItem entry) => navigator.Play(entry);
+
     private void UpdateSeasonChoices() =>
         Seasons = seasons.Count > 1
             ? seasons.Select(s => new Choice(s.DisplayTitle, s.Id == SelectedSeasonId, new AsyncRelayCommand(() => SelectSeasonAsync(s.Id)))).ToList()
@@ -265,6 +310,7 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
     {
         if (!UsesSections) return;
         var found = new List<DetailSection> { DetailSection.Episodes };
+        if (Openings.Count + Endings.Count > 0) found.Add(DetailSection.Music);
         if (Extras.Count > 0) found.Add(DetailSection.Extras);
         if (Similar.Count > 0) found.Add(DetailSection.Related);
         found.Add(DetailSection.Details);

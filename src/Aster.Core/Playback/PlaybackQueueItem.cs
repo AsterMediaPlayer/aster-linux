@@ -1,10 +1,12 @@
+using Aster.Core.Anime;
+
 namespace Aster.Core.Playback;
 
 /// <summary>
 /// One thing to play: an item, from an offset, optionally with chosen
 /// tracks. A subtitle index of -1 means none, even if the server would
-/// default one. The Apple app's entry also carries clip and theme fields;
-/// those come with the features that use them.
+/// default one. An opening or ending plays as a clip of its episode, or as
+/// the OP/ED plugin's own file.
 /// </summary>
 public sealed record PlaybackQueueItem
 {
@@ -34,6 +36,29 @@ public sealed record PlaybackQueueItem
 
     /// <summary>A break clip cut short to land on the mark: it ends here, as if it had played out.</summary>
     public long? ChannelCutTicks { get; init; }
+
+    /// <summary>
+    /// A stretch of the item played on its own (an opening found in its
+    /// episode's chapters), from <see cref="StartTicks"/> to here: the player
+    /// closes at its end, and the episode's resume point and watched state
+    /// are left alone.
+    /// </summary>
+    public long? ClipEndTicks { get; init; }
+
+    /// <summary>
+    /// A file played in place of the item (an OP/ED plugin theme's MP4 or
+    /// song), as it is; nothing is reported. <see cref="ItemId"/> is then the
+    /// theme's id.
+    /// </summary>
+    public Uri? MediaUrl { get; init; }
+
+    /// <summary>What the player calls a <see cref="MediaUrl"/> file, which has no item to name it.</summary>
+    public string? MediaTitle { get; init; }
+
+    public string? MediaSubtitle { get; init; }
+
+    /// <summary>The song card for a clip or theme, as it starts and ends.</summary>
+    public ThemeInfo? ThemeCard { get; init; }
 }
 
 /// <summary>

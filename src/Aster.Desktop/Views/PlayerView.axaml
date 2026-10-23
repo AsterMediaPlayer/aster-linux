@@ -266,7 +266,7 @@
                                     <MenuFlyout ItemsSource="{Binding SpeedChoices}" ItemContainerTheme="{StaticResource ChoiceItem}" />
                                 </Button.Flyout>
                             </Button>
-                            <Button Classes="bar" Content="Quality" IsVisible="{Binding HasTimeline}">
+                            <Button Classes="bar" Content="Quality" IsVisible="{Binding OffersQuality}">
                                 <Button.Flyout>
                                     <MenuFlyout ItemsSource="{Binding QualityChoices}" ItemContainerTheme="{StaticResource ChoiceItem}" />
                                 </Button.Flyout>

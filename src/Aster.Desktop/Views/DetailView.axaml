@@ -10,7 +10,71 @@
             <Button Theme="{StaticResource PillButton}" Classes.selected="{Binding IsSelected}" Command="{Binding Select}"
                     Content="{Binding Title}" MinHeight="36" Padding="16,6" />
         </DataTemplate>
+
+        <!-- An opening or ending: "OP 1" (or the clip's length) on its picture, then the song, artist and where it's from. -->
+        <DataTemplate x:Key="OpeningEndingTemplate" x:DataType="vm:OpeningEndingCard">
+            <StackPanel Width="{StaticResource LandscapeWidth}" Spacing="8">
+                <Button Theme="{StaticResource CardButton}" Command="{Binding PlayCommand}" IsEnabled="{Binding CanPlay}"
+                        Width="{StaticResource LandscapeWidth}" Height="{StaticResource LandscapeHeight}"
+                        AutomationProperties.Name="{Binding Title}">
+                    <Panel>
+                        <TextBlock Text="{x:Static vm:OpeningEndingCard.Placeholder}" FontFamily="{StaticResource IconFont}" FontSize="36" Opacity="0.35"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <c:RemoteImage Url="{Binding Image}" IsVisible="{Binding !IsFlagged}" />
+                        <!-- A spoiler or NSFW theme stays hidden behind a blur. -->
+                        <c:RemoteImage Url="{Binding Image}" IsVisible="{Binding IsFlagged}">
+                            <c:RemoteImage.Effect>
+                                <BlurEffect Radius="28" />
+                            </c:RemoteImage.Effect>
+                        </c:RemoteImage>
+                        <Border Classes="pill" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                IsVisible="{Binding Badge, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <TextBlock Text="{Binding Badge}" />
+                        </Border>
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                            <Border Classes="pill" IsVisible="{Binding IsAudioOnly}">
+                                <TextBlock Text="Audio only" />
+                            </Border>
+                            <Border Classes="pill" IsVisible="{Binding Length, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <TextBlock Text="{Binding Length}" />
+                            </Border>
+                        </StackPanel>
+                        <Border Classes="pill notice" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                IsVisible="{Binding Notice, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <TextBlock Text="{Binding Notice}" />
+                        </Border>
+                    </Panel>
+                </Button>
+                <StackPanel Spacing="2">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Artists}" FontSize="12" TextTrimming="CharacterEllipsis"
+                               IsVisible="{Binding Artists, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <TextBlock Text="{Binding Detail}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
+                               IsVisible="{Binding Detail, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                </StackPanel>
+            </StackPanel>
+        </DataTemplate>
     </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="Border.pill">
+            <Setter Property="Background" Value="#99000000" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="Margin" Value="10" />
+        </Style>
+        <Style Selector="Border.pill TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Border.pill.notice TextBlock">
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+        <Style Selector="StackPanel > Border.pill">
+            <Setter Property="Margin" Value="0,0,10,10" />
+        </Style>
+    </UserControl.Styles>
 
     <Panel>
         <!-- The backdrop stays put behind the page as it scrolls. -->
@@ -121,6 +185,12 @@
                         </ItemsControl>
                     </ScrollViewer>
                     <c:ShelfView Title="Episodes" Items="{Binding Episodes}" ItemTemplate="{StaticResource LandscapeCard}" />
+                </StackPanel>
+
+                <!-- An anime show's Music tab: its openings, then its endings. -->
+                <StackPanel Spacing="28" IsVisible="{Binding ShowsMusic}">
+                    <c:ShelfView Title="Openings" Items="{Binding Openings}" ItemTemplate="{StaticResource OpeningEndingTemplate}" />
+                    <c:ShelfView Title="Endings" Items="{Binding Endings}" ItemTemplate="{StaticResource OpeningEndingTemplate}" />
                 </StackPanel>
 
                 <!-- An episode's page: the rest of its season, the next one in view. -->

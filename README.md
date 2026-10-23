@@ -137,10 +137,21 @@ Search (or Ctrl+F) looks as typing pauses: movies and shows as a grid,
 then shelves of episodes, albums and playlists, artists and songs; a song
 plays the songs found, from it.
 
-Not yet: theme
-music and videos, disc menus, and openings and endings. Chinese titles sort
-under # in the letter index; the Apple app files them by pinyin, which .NET
-has no table for.
+An anime show's page has a Music tab: its openings, then its endings. They
+come from the OP/ED plugin when it has any for the show (the song, who sings
+it, which episodes; "Audio only" when there's no video, blurred until a
+second click when it's marked as a spoiler or NSFW), else from the episodes'
+OP and ED chapters (each new length kept as a new song, with its frame and
+the episode it's from). One plays full screen with its song card: a plugin
+theme from its own file, a chapter clip as just that stretch of its episode,
+the player closing at its end. Neither is reported, so resume points and
+watched state stay as they were.
+
+Not yet: theme music and videos, disc menus, the Apple app's Now Playing
+panel (Play All and Shuffle through the openings and endings, a theme
+playing beside the page while browsing), full versions, and Watch OP and
+Watch ED. Chinese titles sort under # in the letter index; the Apple app
+files them by pinyin, which .NET has no table for.
 
 ## Upcoming and Live TV
 
