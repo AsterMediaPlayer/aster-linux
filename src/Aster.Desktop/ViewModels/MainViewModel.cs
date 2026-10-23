@@ -96,12 +96,27 @@ public partial class MainViewModel : ViewModelBase
         catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException) { }
     }
 
-    /// <summary>Plays a title from where it was left (or <paramref name="startSeconds"/>), for <c>--play</c>.</summary>
+    /// <summary>
+    /// Plays a title from where it was left (or <paramref name="startSeconds"/>),
+    /// for <c>--play</c>: a song or album in the music player, a book in the
+    /// book player, anything else in the video player.
+    /// </summary>
     private async Task PlayByIdAsync(JellyfinClient client, string itemId, int? maxBitrate, double? startSeconds)
     {
         try
         {
             var item = await client.ItemAsync(itemId);
+            if (shell is { } open && item.Kind is ItemKind.Audio or ItemKind.MusicAlbum)
+            {
+                var tracks = item.Kind == ItemKind.Audio ? [item] : await client.AlbumTracksAsync(item.Id);
+                open.Audio.Music.Play(tracks, 0, shuffled: false, client);
+                return;
+            }
+            if (shell is { } books && item.Kind == ItemKind.AudioBook)
+            {
+                books.Audio.Books.Play(Aster.Core.Audio.Audiobook.FromItem(item), null, client);
+                return;
+            }
             var start = startSeconds is { } seconds ? (long)(seconds * 10_000_000) : item.UserData?.PlaybackPositionTicks ?? 0;
             shell?.Play(new PlaybackQueueItem { ItemId = item.Id, StartTicks = start, MaxBitrate = maxBitrate });
         }

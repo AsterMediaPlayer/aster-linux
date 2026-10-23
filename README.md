@@ -17,6 +17,9 @@ step when either changes.
 Needs the .NET 10 SDK (`winget install Microsoft.DotNet.SDK.10`). The first
 build downloads libmpv (about 120 MB) into `native/` with
 `tools/fetch-libmpv.ps1`, pinned to one build and checked against its hash.
+Built for Windows, `Aster.Desktop` targets the Windows SDK
+(`net10.0-windows10.0.19041.0`, running on Windows 10 1809 and later) for the
+system's media controls; built for Linux it targets plain `net10.0`.
 
 ```
 dotnet run --project src/Aster.Desktop
@@ -65,10 +68,11 @@ These leave the saved session alone:
 - Signing out of such a session only ends it; the saved sign-in is left alone.
 - `--play <itemId>` plays a title straight away, from its resume point;
   `--start <seconds>` and `--max-bitrate <bps>` change where it starts and
-  cap its quality (which makes the server convert it).
+  cap its quality (which makes the server convert it). A song or album plays
+  in the music player, a book in the book player.
 - `ASTER_LOG=<file>` writes the app's and mpv's messages to a file:
   which stream was chosen, the track mapping, the decoder, dropped frames.
-- `ASTER_MUTE=1` mutes mpv, for trying playback without the sound.
+- `ASTER_MUTE=1` mutes mpv (video, music and books), for trying playback without the sound.
 - `ASTER_GAMEPAD_SCRIPT="10:down,12:a,14:b"` attaches a pretend game
   controller and presses its buttons that many seconds after starting (a,
   b, x, y, start, lb, rb, up, down, left, right; `hold-down` holds one a
@@ -319,8 +323,17 @@ book's chapters) and its stop key stops; Esc closes the full player. Progress go
 the server every 10 seconds, so a book resumes where it was left on any
 device.
 
-Not yet: the Windows media overlay and media keys beyond play/pause, Add to
-Playlist, downloads, and the sleep timer.
+The system's media controls show the song or book too, and work when the
+app isn't in front: on Windows, the media overlay (by the volume flyout, on
+the lock screen, and a Bluetooth headset's buttons); on Linux, MPRIS (KDE's
+and GNOME's media applets, `playerctl`). They show the song, artist, album
+and cover, or the book, author, chapter and cover, with a timeline that can
+be dragged (across the whole book). Play, pause, next, previous and stop do
+what the keyboard's keys do (next and previous are a book's chapters);
+fast-forward and rewind skip a book 30 seconds ahead and 15 back. A video
+isn't shown there; the player has its own keys.
+
+Not yet: Add to Playlist, downloads, and the sleep timer.
 
 ## Differences from the Apple app
 

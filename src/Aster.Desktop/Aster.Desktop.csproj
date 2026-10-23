@@ -1,7 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- Built for Windows, the app reaches the system's media controls
+         through WinRT, so it targets the Windows SDK; built for Linux (on
+         Linux, or with a Linux runtime from Windows) it needn't. -->
+    <TargetFramework Condition="'$(RuntimeIdentifier)' != '' And !$(RuntimeIdentifier.StartsWith('win'))">net10.0</TargetFramework>
+    <TargetFramework Condition="'$(RuntimeIdentifier)' == '' And !$([MSBuild]::IsOSPlatform('Windows'))">net10.0</TargetFramework>
+    <TargetFramework Condition="'$(TargetFramework)' == ''">net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion Condition="$(TargetFramework.Contains('-windows'))">10.0.17763.0</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
     <!-- SDL3's events, read for game controllers. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

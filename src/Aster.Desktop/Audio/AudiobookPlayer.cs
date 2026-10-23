@@ -168,6 +168,17 @@ public sealed partial class AudiobookPlayer : ObservableObject, IDisposable
         Report(paused: !IsPlaying);
     }
 
+    /// <summary>Moves to a point in the whole book, in whichever part it falls (the system's media controls give one).</summary>
+    public void SeekInBook(double seconds)
+    {
+        if (Book is not { } book) return;
+        var part = book.Parts.Count - 1;
+        while (part > 0 && book.OffsetOfPart(part) > seconds) part--;
+        var within = Math.Max(0, seconds - book.OffsetOfPart(part));
+        if (part == PartIndex) Seek(within);
+        else Load(part, within, IsPlaying);
+    }
+
     public void JumpTo(AudiobookChapter chapter)
     {
         if (chapter.Part == PartIndex) Seek(chapter.Start);
