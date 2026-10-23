@@ -9,6 +9,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Media;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 
 namespace Aster.Desktop.Views;
@@ -22,7 +23,15 @@ namespace Aster.Desktop.Views;
 /// </summary>
 public partial class PlayerView : UserControl
 {
-    private WindowState stateBeforeFullScreen = WindowState.Normal;
+    /// <summary>
+    /// How the window was before the player took it full screen. Shared, as
+    /// the app swaps a new view in for the first as the player opens, and
+    /// the new one finds the window already full screen.
+    /// </summary>
+    private static WindowState stateBeforeFullScreen = WindowState.Normal;
+
+    /// <summary>Player views in the window: the old one of a swap leaves after the new one arrives.</summary>
+    private static int showing;
 
     public PlayerView()
     {
@@ -167,11 +176,17 @@ public partial class PlayerView : UserControl
         Canvas.SetTop(PreviewBubble, span.Middle - 20 - height);
     }
 
-    private Window? Window => TopLevel.GetTopLevel(this) as Window;
+    /// <summary>
+    /// The window the player is in, kept from when it opens: as it closes
+    /// it's already out of the window, which can no longer be found from it.
+    /// </summary>
+    private Window? Window { get; set; }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        showing++;
+        Window = TopLevel.GetTopLevel(this) as Window;
         Window?.AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
         Focus();
         // Settings' "Play videos full screen"; the window comes back as the player closes.
@@ -180,10 +195,17 @@ public partial class PlayerView : UserControl
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        showing--;
         Window?.RemoveHandler(KeyDownEvent, OnWindowKeyDown);
-        if (Window is { WindowState: WindowState.FullScreen } window) window.WindowState = stateBeforeFullScreen;
+        // Once the page behind is back in the window, not partway through
+        // swapping it in; and not when another player view has taken over.
+        if (Window is { WindowState: WindowState.FullScreen } window)
+            Dispatcher.UIThread.Post(() => { if (showing == 0) LeaveFullScreen(window); });
+        Window = null;
         base.OnDetachedFromVisualTree(e);
     }
+
+    private static void LeaveFullScreen(Window window) => window.WindowState = stateBeforeFullScreen;
 
     /// <summary>
     /// The player's keys, heard at the window before anything else, so they
@@ -286,7 +308,7 @@ public partial class PlayerView : UserControl
         if (Window is not { } window) return;
         if (window.WindowState == WindowState.FullScreen)
         {
-            window.WindowState = stateBeforeFullScreen;
+            LeaveFullScreen(window);
         }
         else
         {
