@@ -5,9 +5,11 @@ using Aster.Core.Channels;
 namespace Aster.Core.Tests;
 
 /// <summary>
-/// Channel tags against AsterFINTests/Conformance/channel-tags.json, the
-/// vectors the Apple app and the Jellyfin dashboard plugin run too, so the
-/// three can't drift apart; then a few cases of the Apple app's own tests.
+/// Channel tags against Conformance/channel-tags.json, the vectors the
+/// Apple app and the Jellyfin dashboard plugin run too, so the three can't
+/// drift apart; then a few cases of the Apple app's own tests. The file is
+/// a copy of the Apple app's AsterFINTests/Conformance/channel-tags.json:
+/// a change there is copied here.
 /// </summary>
 public class ChannelTagsTests
 {
@@ -16,8 +18,7 @@ public class ChannelTagsTests
 
     private static Vectors Load([CallerFilePath] string here = "")
     {
-        // Windows/tests/Aster.Core.Tests → the repository's AsterFINTests.
-        var path = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(here)!, "..", "..", "..", "AsterFINTests", "Conformance", "channel-tags.json"));
+        var path = Path.Combine(Path.GetDirectoryName(here)!, "Conformance", "channel-tags.json");
         return JsonSerializer.Deserialize<Vectors>(File.ReadAllText(path), new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
 

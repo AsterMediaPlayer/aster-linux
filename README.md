@@ -1,8 +1,9 @@
 # Aster for Windows
 
-An Avalonia port of Aster Media Player, in progress. The Apple app in the
-folders above is the reference: `Aster.Core` ports its `Jellyfin/` layer
-file by file, so keep the two in step when either changes.
+An Avalonia port of Aster Media Player, for Windows and Linux, in progress.
+The Apple app ([Aster-Media-Player](https://github.com/AsterMediaPlayer/Aster-Media-Player)) is the reference:
+`Aster.Core` ports its `Jellyfin/` layer file by file, so keep the two in
+step when either changes.
 
 | Project | What it is |
 | --- | --- |
@@ -188,7 +189,7 @@ Live TV header after leaving full screen.
 ## Channels (Beta)
 
 Channels are Jellyfin video playlists tagged as channels
-([docs/channel-tags.md](../docs/channel-tags.md)), so the server is the one
+([docs/channel-tags.md](https://github.com/AsterMediaPlayer/Aster-Media-Player/blob/main/docs/channel-tags.md)), so the server is the one
 place they live and every device finds the same ones. The tab shows when
 there are any: the Live TV guide, a week of it with a day picker, each
 channel's schedule worked out from the clock rather than fetched. What's on
@@ -197,7 +198,8 @@ now tunes in; anything later opens its page.
 `Aster.Core/Channels` is a port of the Apple app's channel code, kept to it
 exactly so a channel shows the same thing at the same moment on a Mac, an
 Apple TV and a PC: the tags (read and written as
-`AsterFINTests/Conformance/channel-tags.json` says, which the tests load),
+the Apple app's `AsterFINTests/Conformance/channel-tags.json` says; the
+tests load a copy of it from `tests/Aster.Core.Tests/Conformance`),
 and the schedule (FNV-1a seeds, SplitMix64 shuffles, times as Swift's `Date`
 keeps them, the Gregorian calendar in the local zone), checked against
 lineups the Apple app worked out. Rotation, Blocks, Shuffle, In Order and

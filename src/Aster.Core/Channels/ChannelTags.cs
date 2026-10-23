@@ -68,9 +68,9 @@ public static class ChannelTagNames
 /// A Channel is set up with tags on its Jellyfin playlist, so the server is
 /// the one place it lives: edited in Jellyfin's web interface (the
 /// playlist's Edit Metadata ▸ Tags) or in Aster's Edit Channels, and every
-/// device finds the same channels. docs/channel-tags.md lists them; this
-/// reads and writes them exactly as the Apple app's ChannelTags does, held
-/// to the same vectors (AsterFINTests/Conformance/channel-tags.json).
+/// device finds the same channels. The Apple app's docs/channel-tags.md
+/// lists them; this reads and writes them exactly as its ChannelTags does,
+/// held to the same vectors (a copy in the tests' Conformance folder).
 ///
 /// "aster:" and the keys and values are read whatever their case (and so is
 /// "asterfin:", the app's earlier name). A tag that isn't understood is left
