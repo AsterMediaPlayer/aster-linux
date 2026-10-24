@@ -44,6 +44,18 @@ public class JellyfinClientTests
     }
 
     [Fact]
+    public void OnlyTheServersOwnAddressesAreOnTheServer()
+    {
+        Assert.True(Client.IsOnServer(new Uri("https://jellyfin.example/base/Items/1/Images/Primary")));
+        Assert.True(Client.IsOnServer(Client.DiscAssetUrl(["menu", "a.png"])));
+        Assert.False(Client.IsOnServer(new Uri("https://jellyfin.example/basement/a.png")));
+        Assert.False(Client.IsOnServer(new Uri("https://jellyfin.example/other/a.png")));
+        Assert.False(Client.IsOnServer(new Uri("http://jellyfin.example/base/a.png")));
+        Assert.False(Client.IsOnServer(new Uri("https://jellyfin.example.evil.com/base/a.png")));
+        Assert.False(Client.IsOnServer(new Uri("https://image.tmdb.org/t/p/w1280/a.jpg")));
+    }
+
+    [Fact]
     public void AuthorizationHeaderNamesTheAppAndToken()
     {
         var header = Client.AuthorizationHeader;

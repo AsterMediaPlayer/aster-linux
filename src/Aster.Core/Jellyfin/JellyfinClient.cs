@@ -101,6 +101,9 @@ public sealed class JellyfinClient
         return Url(path, merged);
     }
 
+    /// <summary>Whether <paramref name="url"/> is the server's own (same scheme, host, port and base path).</summary>
+    public bool IsOnServer(Uri url) => url.GetLeftPart(UriPartial.Path).StartsWith(Root + "/", StringComparison.OrdinalIgnoreCase);
+
     public HttpRequestMessage AuthorizedRequest(Uri url, HttpMethod? method = null)
     {
         var request = new HttpRequestMessage(method ?? HttpMethod.Get, url);
@@ -190,7 +193,10 @@ public sealed class JellyfinClient
     {
         if (fresh) ImageCache.Remove(url);
         else if (await ImageCache.ReadAsync(url, ct).ConfigureAwait(false) is { } cached) return cached;
-        var data = await SendRequiredAsync(AuthorizedRequest(url), ct).ConfigureAwait(false);
+        // Only the server hears who's asking: a disc menu can name pictures
+        // anywhere on the web, which mustn't be handed the user's token.
+        var request = IsOnServer(url) ? AuthorizedRequest(url) : new HttpRequestMessage(HttpMethod.Get, url);
+        var data = await SendRequiredAsync(request, ct).ConfigureAwait(false);
         await ImageCache.WriteAsync(url, data, ct).ConfigureAwait(false);
         return data;
     }
