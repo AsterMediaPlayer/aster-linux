@@ -32,9 +32,13 @@ public static class LiveTVFormat
     public static string Airing(DateTimeOffset? start, DateTimeOffset? end, DateTimeOffset now, TimeZoneInfo? zone = null, CultureInfo? culture = null) =>
         start is { } from ? $"{DayLabel(from, now, zone, culture)}, {TimeRange(start, end, zone, culture)}" : "";
 
-    /// <summary>"7:30 PM", in the culture's short time.</summary>
+    /// <summary>
+    /// "7:30 PM", in the culture's short time. Linux's ICU puts a narrow
+    /// no-break space before "PM" where Windows puts a plain one; it's a
+    /// plain one on both.
+    /// </summary>
     public static string Time(DateTimeOffset date, TimeZoneInfo? zone = null, CultureInfo? culture = null) =>
-        Local(date, zone).ToString("t", culture ?? CultureInfo.CurrentCulture);
+        Local(date, zone).ToString("t", culture ?? CultureInfo.CurrentCulture).Replace(' ', ' ').Replace(' ', ' ');
 
     private static DateTime Local(DateTimeOffset date, TimeZoneInfo? zone) =>
         TimeZoneInfo.ConvertTime(date, zone ?? TimeZoneInfo.Local).DateTime;
