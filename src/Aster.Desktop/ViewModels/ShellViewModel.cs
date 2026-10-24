@@ -185,9 +185,6 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
 
     [ObservableProperty] public partial IReadOnlyList<SidebarTab> Tabs { get; set; } = [];
 
-    /// <summary>Settings, at the foot of the sidebar.</summary>
-    [ObservableProperty] public partial SidebarTab? SettingsTab { get; set; }
-
     /// <summary>The tab showing, for the collapsed sidebar's capsule.</summary>
     [ObservableProperty] public partial SidebarTab? CurrentTab { get; private set; }
 
@@ -212,7 +209,6 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
         var hasBooks = libraries.Any(l => l.CollectionType == "books");
         var all = new (AppTab Tab, string Title, string Glyph)[]
         {
-            (AppTab.Search, "Search", ""),
             (AppTab.Home, "Home", ""),
             (AppTab.Movies, "Movies", ""),
             (AppTab.Shows, "TV Shows", ""),
@@ -221,8 +217,11 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
             (AppTab.Audiobooks, "Audiobooks", ""),
             (AppTab.Upcoming, "Upcoming", ""),
             (AppTab.LiveTV, "Live TV", ""),
-            (AppTab.Channels, "Channels", ""),
+            (AppTab.Channels, "Channels (Beta)", ""),
             (AppTab.Library, "Library", ""),
+            // At the foot, as on the Apple TV.
+            (AppTab.Settings, "Settings", ""),
+            (AppTab.Search, "Search", ""),
         };
         Tabs = all
             .Where(t => t.Tab switch
@@ -237,8 +236,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
             })
             .Select(t => new SidebarTab(t.Title, t.Glyph, t.Tab == tab, new RelayCommand(() => ShowTab(t.Tab))))
             .ToList();
-        SettingsTab = new SidebarTab("Settings", "", tab == AppTab.Settings, new RelayCommand(() => ShowTab(AppTab.Settings)));
-        CurrentTab = Tabs.FirstOrDefault(t => t.IsSelected) ?? (SettingsTab.IsSelected ? SettingsTab : null);
+        CurrentTab = Tabs.FirstOrDefault(t => t.IsSelected);
     }
 
     /// <summary>A tab's page, from the top: made the first time, kept after.</summary>
@@ -387,9 +385,6 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
         if (CurrentPage == Home) Home.Shown();
         else if (CurrentPage is IRefreshable page && tabs.ContainsValue(CurrentPage) && refreshTabs.Remove(CurrentPage)) page.Refresh();
     }
-
-    [RelayCommand]
-    private Task SignOutAsync() => signOut(SignOutKind.SwitchUser);
 
     public Task SessionExpiredAsync() => signOut(SignOutKind.Expired);
 

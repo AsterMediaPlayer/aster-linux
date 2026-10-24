@@ -42,7 +42,6 @@ public partial class ShellView : UserControl
     /// <summary>The keyboard (or remote) was used last, rather than the pointer: a page then shows where it starts.</summary>
     private bool keyboardLast;
 
-    private bool popupOpen;
     private ShellViewModel? watched;
 
     public ShellView()
@@ -65,17 +64,6 @@ public partial class ShellView : UserControl
             Close();
             e.Handled = true;
         };
-
-        // Sign Out asks in a popup, which takes the keyboard: the sidebar stays while it's open.
-        if (SignOut.Flyout is { } question)
-        {
-            question.Opened += (_, _) => popupOpen = true;
-            question.Closed += (_, _) =>
-            {
-                popupOpen = false;
-                leaveClose.Start();
-            };
-        }
 
         // The keyboard: tabbing into the sidebar slides it out; tabbing on out of it puts it away.
         Sidebar.GotFocus += (_, _) => Open();
@@ -192,11 +180,10 @@ public partial class ShellView : UserControl
         }, DispatcherPriority.Loaded);
     }
 
-    /// <summary>The sidebar's button for the tab showing: one of the tabs, or Settings.</summary>
+    /// <summary>The sidebar's button for the tab showing.</summary>
     private Button? CurrentTabButton()
     {
         if (Model?.CurrentTab is not { } tab) return null;
-        if (ReferenceEquals(tab, Model.SettingsTab)) return SettingsButton;
         return TabList.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => ReferenceEquals(b.DataContext, tab));
     }
 
@@ -275,10 +262,7 @@ public partial class ShellView : UserControl
         if ((Restored() ?? KeyFocus.FirstIn(Page)) is { } target) Place(target);
     }
 
-    /// <summary>The keyboard is on something in <paramref name="container"/>, or in a popup it opened (Sign Out's question).</summary>
-    private bool HasFocusWithin(Control container)
-    {
-        if (popupOpen) return true;
-        return KeyFocus.Current(this) is Visual focused && KeyFocus.IsWithin(focused, container);
-    }
+    /// <summary>The keyboard is on something in <paramref name="container"/>.</summary>
+    private bool HasFocusWithin(Control container) =>
+        KeyFocus.Current(this) is Visual focused && KeyFocus.IsWithin(focused, container);
 }

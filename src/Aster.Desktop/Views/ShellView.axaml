@@ -8,20 +8,40 @@
              x:DataType="vm:ShellViewModel">
 
     <UserControl.Styles>
+        <!-- A tab, as on the Apple TV: an icon and its name; the tab showing on a soft
+             capsule, the one under the keyboard or pointer a white one, dark text on it. -->
         <Style Selector="Button.nav">
             <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="White" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="HorizontalContentAlignment" Value="Left" />
-            <Setter Property="Padding" Value="14,10" />
-            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="18,11" />
+            <Setter Property="CornerRadius" Value="24" />
+            <Setter Property="FontSize" Value="17" />
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+        </Style>
+        <Style Selector="Button.nav TextBlock.icon">
+            <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+            <Setter Property="FontSize" Value="19" />
+            <Setter Property="Width" Value="24" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style Selector="Button.nav.selected">
-            <Setter Property="Background" Value="#26FFFFFF" />
-            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Background" Value="#2EFFFFFF" />
+        </Style>
+        <Style Selector="Button.nav:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#F2FFFFFF" />
+            <Setter Property="Foreground" Value="Black" />
+        </Style>
+        <Style Selector="Button.nav:focus-visible /template/ ContentPresenter">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="Black" />
+            <Setter Property="BoxShadow" Value="0 6 18 0 #66000000" />
         </Style>
         <!-- The sidebar: off to the left until it's open, then floating over the page. -->
         <Style Selector="Border.sidebar">
-            <Setter Property="RenderTransform" Value="translateX(-280px)" />
+            <Setter Property="RenderTransform" Value="translateX(-340px)" />
             <Setter Property="Opacity" Value="0" />
             <Setter Property="IsHitTestVisible" Value="False" />
             <Setter Property="Transitions">
@@ -37,7 +57,7 @@
             <Setter Property="IsHitTestVisible" Value="True" />
         </Style>
         <Style Selector="Border.scrim">
-            <Setter Property="Background" Value="#66000000" />
+            <Setter Property="Background" Value="#8C000000" />
             <Setter Property="Opacity" Value="0" />
             <Setter Property="IsHitTestVisible" Value="False" />
             <Setter Property="Transitions">
@@ -49,6 +69,17 @@
         <Style Selector="Border.scrim.open">
             <Setter Property="Opacity" Value="1" />
             <Setter Property="IsHitTestVisible" Value="True" />
+        </Style>
+        <!-- The capsule makes way for the sidebar it opens into, rather than showing through its glass. -->
+        <Style Selector="StackPanel.collapsed">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="StackPanel.collapsed.hidden">
+            <Setter Property="Opacity" Value="0" />
         </Style>
         <!-- The collapsed sidebar: the tab's icon and name in a capsule, as on the Apple TV. -->
         <Style Selector="Button.capsule">
@@ -89,8 +120,8 @@
         <ContentControl x:Name="Page" Content="{Binding CurrentPage}" />
 
         <!-- Collapsed: the tab in a capsule (on a tab's own page; a page opened from one has its Back there), and the song or book playing. -->
-        <StackPanel Orientation="Horizontal" Spacing="10" Margin="20,16,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
-                    IsVisible="{Binding ShowsCapsule}">
+        <StackPanel Classes="collapsed" Classes.hidden="{Binding IsSidebarOpen}" Orientation="Horizontal" Spacing="10" Margin="20,16,0,0"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" IsVisible="{Binding ShowsCapsule}">
             <Button x:Name="Capsule" Classes="capsule" Command="{Binding OpenSidebarCommand}" AutomationProperties.Name="Show the sidebar"
                     ToolTip.Tip="Tabs">
                 <StackPanel Orientation="Horizontal" Spacing="10">
@@ -124,84 +155,63 @@
         <!-- Open: the page dims, and a click on it puts the sidebar away. -->
         <Border x:Name="Scrim" Classes="scrim" Classes.open="{Binding IsSidebarOpen}" />
 
-        <!-- The sidebar, floating over the page while it's open. -->
-        <Border x:Name="Sidebar" Classes="sidebar" Classes.open="{Binding IsSidebarOpen}" Width="240" HorizontalAlignment="Left" Margin="12"
-                Background="#F2181818" CornerRadius="18" BorderThickness="1" BorderBrush="#1AFFFFFF" Padding="12,20"
-                BoxShadow="0 12 40 0 #99000000">
-                <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="Aster" FontSize="24" FontWeight="Bold" Margin="14,0,0,24" />
-                    <StackPanel DockPanel.Dock="Bottom" Spacing="4">
-                        <!-- The song or book playing, whichever page is showing: the rest opens the full player. -->
-                        <Border Background="#1FFFFFFF" CornerRadius="10" Padding="6" Margin="0,0,0,16" IsVisible="{Binding Audio.IsLoaded}">
-                            <Grid ColumnDefinitions="*,Auto,Auto">
-                                <Button Command="{Binding Audio.ShowPlayerCommand}" Background="Transparent" Padding="0" AutomationProperties.Name="Now Playing"
-                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" ToolTip.Tip="Open the player">
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <Border Width="36" Height="36" CornerRadius="6" ClipToBounds="True" Background="{StaticResource CardBackground}">
-                                            <c:RemoteImage Url="{Binding Audio.Artwork}" />
-                                        </Border>
-                                        <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Audio.Title}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Text="{Binding Audio.Detail}" FontSize="11" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
-                                        </StackPanel>
-                                    </Grid>
-                                </Button>
-                                <Button Grid.Column="1" Classes="bar" Command="{Binding Audio.ToggleCommand}" AutomationProperties.Name="Play or Pause" ToolTip.Tip="Play/Pause (Space)">
-                                    <Panel>
-                                        <TextBlock Text="&#xE769;" IsVisible="{Binding Audio.IsPlaying}" />
-                                        <TextBlock Text="&#xE768;" IsVisible="{Binding !Audio.IsPlaying}" />
-                                    </Panel>
-                                </Button>
-                                <Button Grid.Column="2" Classes="bar" Command="{Binding Audio.StopCommand}" AutomationProperties.Name="Stop" Content="&#xE711;" FontSize="11"
-                                        Foreground="{StaticResource Secondary}" ToolTip.Tip="Stop" />
+        <!-- The sidebar, floating over the page while it's open: a pane of dark glass, as the Apple TV's. -->
+        <Border x:Name="Sidebar" Classes="sidebar" Classes.open="{Binding IsSidebarOpen}" Width="300" HorizontalAlignment="Left" Margin="20"
+                CornerRadius="32" BorderThickness="1" BorderBrush="#2EFFFFFF" Padding="10,12"
+                BoxShadow="0 16 48 0 #A6000000">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Offset="0" Color="#E6232A2E" />
+                    <GradientStop Offset="1" Color="#F0111416" />
+                </LinearGradientBrush>
+            </Border.Background>
+            <DockPanel>
+                <!-- The song or book playing, whichever page is showing: the rest opens the full player. -->
+                <Border DockPanel.Dock="Bottom" Background="#1FFFFFFF" CornerRadius="20" Padding="8" Margin="0,12,0,0" IsVisible="{Binding Audio.IsLoaded}">
+                    <Grid ColumnDefinitions="*,Auto,Auto">
+                        <Button Command="{Binding Audio.ShowPlayerCommand}" Background="Transparent" Padding="0" AutomationProperties.Name="Now Playing"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" ToolTip.Tip="Open the player">
+                            <Grid ColumnDefinitions="Auto,*">
+                                <Border Width="40" Height="40" CornerRadius="8" ClipToBounds="True" Background="{StaticResource CardBackground}">
+                                    <c:RemoteImage Url="{Binding Audio.Artwork}" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Audio.Title}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Audio.Detail}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
                             </Grid>
-                        </Border>
-                        <Button x:Name="SettingsButton" Classes="nav" Classes.selected="{Binding SettingsTab.IsSelected}" Command="{Binding SettingsTab.Select}"
-                                AutomationProperties.Name="Settings" Margin="0,0,0,12">
-                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                <TextBlock Text="{Binding SettingsTab.Glyph}" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
-                                <TextBlock Text="Settings" />
-                            </StackPanel>
                         </Button>
-                        <TextBlock Text="{Binding UserName}" FontWeight="SemiBold" Margin="14,0" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Text="{Binding ServerName}" FontSize="12" Foreground="{StaticResource Secondary}" Margin="14,0,14,8" TextTrimming="CharacterEllipsis" />
-                        <!-- Asks first: a stray click or Enter shouldn't sign anyone out. -->
-                        <Button x:Name="SignOut" Classes="nav">
-                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                <TextBlock Text="&#xF3B1;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
-                                <TextBlock Text="Sign Out" />
-                            </StackPanel>
-                            <Button.Flyout>
-                                <Flyout Placement="RightEdgeAlignedBottom">
-                                    <StackPanel Spacing="12" MaxWidth="260">
-                                        <TextBlock Text="{Binding ServerName, StringFormat='Sign out of {0}?'}" TextWrapping="Wrap" FontWeight="SemiBold" />
-                                        <Button Content="Sign Out" Command="{Binding SignOutCommand}" HorizontalAlignment="Right" />
+                        <Button Grid.Column="1" Classes="bar" Command="{Binding Audio.ToggleCommand}" AutomationProperties.Name="Play or Pause" ToolTip.Tip="Play/Pause (Space)">
+                            <Panel>
+                                <TextBlock Text="&#xE769;" IsVisible="{Binding Audio.IsPlaying}" />
+                                <TextBlock Text="&#xE768;" IsVisible="{Binding !Audio.IsPlaying}" />
+                            </Panel>
+                        </Button>
+                        <Button Grid.Column="2" Classes="bar" Command="{Binding Audio.StopCommand}" AutomationProperties.Name="Stop" Content="&#xE711;" FontSize="11"
+                                Foreground="{StaticResource Secondary}" ToolTip.Tip="Stop" />
+                    </Grid>
+                </Border>
+                <!-- Every tab, Settings and Search at the foot; they scroll when a short window has no room for them all. -->
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="TabList" ItemsSource="{Binding Tabs}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="4" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:SidebarTab">
+                                <Button Classes="nav" Classes.selected="{Binding IsSelected}" Command="{Binding Select}" AutomationProperties.Name="{Binding Title}">
+                                    <StackPanel Orientation="Horizontal" Spacing="16">
+                                        <TextBlock Classes="icon" Text="{Binding Glyph}" />
+                                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
                                     </StackPanel>
-                                </Flyout>
-                            </Button.Flyout>
-                        </Button>
-                    </StackPanel>
-                    <!-- The tabs scroll when a short window has no room for them all. -->
-                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl x:Name="TabList" ItemsSource="{Binding Tabs}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Spacing="2" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:SidebarTab">
-                                    <Button Classes="nav" Classes.selected="{Binding IsSelected}" Command="{Binding Select}" AutomationProperties.Name="{Binding Title}">
-                                        <StackPanel Orientation="Horizontal" Spacing="12">
-                                            <TextBlock Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
-                                            <TextBlock Text="{Binding Title}" />
-                                        </StackPanel>
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                </DockPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
         </Border>
 
         <!-- The full player, over everything, while it's open. -->
