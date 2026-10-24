@@ -13,7 +13,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" MaxWidth="720" />
                 </Grid.ColumnDefinitions>
-                <TextBox x:Name="Box" c:KeyFocus.IsPreferred="True" Text="{Binding Query}" Watermark="Movies, shows, episodes, music"
+                <TextBox x:Name="Box" c:KeyFocus.IsPreferred="True" Text="{Binding Query}" PlaceholderText="Movies, shows, episodes, music"
                          FontSize="16" Padding="44,11,12,11" CornerRadius="10" AutomationProperties.Name="Search your library" />
                 <TextBlock Text="&#xE721;" FontFamily="{StaticResource IconFont}" Foreground="{StaticResource Secondary}"
                            Margin="16,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" />
