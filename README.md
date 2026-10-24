@@ -64,7 +64,7 @@ These leave the saved session alone:
 - `ASTER_SERVER`, `ASTER_TOKEN` (an API key or access token) and
   `ASTER_USER_ID` sign in for that run.
 - `--open <itemId>` opens a title's (or library's, or person's) page.
-- `--tab <search|movies|shows|anime|music|audiobooks|upcoming|livetv|channels|library|settings>` starts on a tab; `--sort <Name|DateAdded|ReleaseDate|Rating>` sorts it.
+- `--tab <search|movies|shows|anime|music|audiobooks|upcoming|livetv|channels|library|settings>` starts on a tab; `--sort <Name|DateAdded|ReleaseDate|Rating>` sorts it, and on Live TV `--section <on-now|guide|channels|recordings>` picks its section.
 - Signing out of such a session only ends it; the saved sign-in is left alone.
 - `--play <itemId>` plays a title straight away, from its resume point;
   `--start <seconds>` and `--max-bitrate <bps>` change where it starts and
@@ -112,11 +112,16 @@ The sidebar collapses as the Apple TV's does: a capsule at the top left
 with the tab's icon and name (and, while a song or book plays, its
 artwork and play/pause), leaving the page the whole window. Clicking or
 resting on the capsule, the pointer at the window's left edge, or Tab into
-it slides it out over the page; choosing a tab, moving away, clicking the
-page or Esc puts it away. A page opened from a tab has its Back arrow
-there instead.
+it slides it out over the page, as a pane of dark glass with the page
+dimmed behind: the tabs, Settings and Search at the foot, the one showing
+on a soft capsule and the one under the keyboard or pointer on a white
+one. Choosing a tab, moving away, clicking the page or Esc puts it away.
+A page opened from a tab has its Back arrow there instead.
 
 Back: the page's arrow, the mouse's back button, Alt+← or Backspace.
+
+On a browse page, Up and Down go a row at a time (past headings), onto the
+card nearest across from where the keyboard was.
 
 The keyboard (or a remote, which sends the same keys) works as the Apple
 TV's remote does. The arrows move between controls in that direction, and
@@ -211,9 +216,14 @@ Live TV shows when the server has it, in four sections:
   programmes laid out along a timeline from the current half hour to a day
   ahead. Earlier and Later (or Shift and the wheel, or a sideways swipe)
   move through time; Now comes back. Rows load their listings as they
-  scroll into view.
+  scroll into view. With the Aster Channels plugin keeping groups, the
+  channels go favourites first, then group by group (each in order of its
+  lowest number, the ungrouped under Other), with a filter along the top
+  (All, Favorites, then each group; Up from the first row reaches it) and
+  each group's name on its first channel.
 - **Channels:** every channel as a logo; a right-click makes it a
-  favourite.
+  favourite, or for an administrator, puts it in a group (Group…: none,
+  one in use, or a new one), which every device's guide then has.
 - **Recordings:** what's been recorded, what's scheduled, and the series
   rules, each rule with its own options page (new episodes only, any
   channel or time, how many to keep and for how long, padding).
@@ -262,6 +272,11 @@ itself after 8 seconds left alone, and everything in it can be clicked.
 PageUp and PageDown change channel straight away. The
 channel's bug sits in its corner of the picture, steps aside for breaks,
 and fades after `bug-hide` seconds.
+
+Channels in groups (`aster:group=Kids`) go group by group, each in order
+of its lowest number, the rest under Other, and the guide has the same
+filter and group names as Live TV's; flicking runs on from one group into
+the next, the row showing the picked channel's group.
 
 Not yet: Edit Channels (an administrator's page for making channels and
 setting their tags; the Apple app or Jellyfin's own Edit Metadata ▸ Tags
