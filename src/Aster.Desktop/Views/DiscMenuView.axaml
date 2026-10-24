@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             xmlns:c="using:Aster.Desktop.Controls"
+             x:Class="Aster.Desktop.Views.DiscMenuView"
+             x:DataType="vm:DiscMenuViewModel"
+             Background="Black" Focusable="True">
+
+    <Panel>
+        <!-- The menu's 16:9 screen, letterboxed: the ground, the trailer, then
+             the canvas everything else is drawn on, scaled to fit. -->
+        <c:SixteenByNinePanel ClipToBounds="True">
+            <Border Background="#101010" />
+            <!-- Drawn whenever there's a trailer (mpv only gets somewhere to draw from a view on screen); the
+                 poster fades from over it as it plays. -->
+            <c:MpvVideoView Player="{Binding Trailer}" IsVisible="{Binding Trailer, Converter={x:Static ObjectConverters.IsNotNull}}"
+                            IsHitTestVisible="False" />
+            <Viewbox Stretch="Fill">
+                <Panel x:Name="Canvas" Width="1920" Height="1080" Background="Transparent" ClipToBounds="True">
+                    <Panel x:Name="StillHost" IsHitTestVisible="False" />
+                    <Panel x:Name="LayersHost" IsHitTestVisible="False" />
+                    <Panel x:Name="ScreenHost" />
+                </Panel>
+            </Viewbox>
+        </c:SixteenByNinePanel>
+
+        <!-- A remote has its own Back; this is the mouse's: a step back, or closing the menu. -->
+        <Button Theme="{StaticResource PillButton}" Command="{Binding BackCommand}" Focusable="False"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="16" Width="44" Height="44" Padding="0"
+                ToolTip.Tip="{Binding CanGoBack, Converter={x:Static c:Converters.BackTip}}">
+            <Panel>
+                <TextBlock Text="&#xE72B;" FontFamily="{StaticResource IconFont}" IsVisible="{Binding CanGoBack}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <TextBlock Text="&#xE711;" FontFamily="{StaticResource IconFont}" IsVisible="{Binding !CanGoBack}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Panel>
+        </Button>
+
+        <!-- What a button couldn't do. -->
+        <Border Background="#99000000" IsVisible="{Binding AlertMessage, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <Border Background="#262626" CornerRadius="16" Padding="28,24" MaxWidth="520" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="Disc Menu" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding AlertMessage}" TextWrapping="Wrap" Opacity="0.85" />
+                    <Button Theme="{StaticResource PillButton}" Classes="prominent" Content="OK" Command="{Binding DismissAlertCommand}"
+                            HorizontalAlignment="Right" Focusable="False" />
+                </StackPanel>
+            </Border>
+        </Border>
+    </Panel>
+</UserControl>

@@ -55,6 +55,14 @@ public static class ImageLoader
     {
         try
         {
+            // A picture written out in its address (a disc menu's data:image/png;base64,…).
+            if (url.Scheme == "data")
+            {
+                var text = url.OriginalString;
+                var inline = await Task.Run(() => Decode(Convert.FromBase64String(text[(text.IndexOf(',') + 1)..])));
+                if (inline is not null) Remember(url, inline);
+                return inline;
+            }
             var client = Client;
             if (client is null) return null;
             var bitmap = await Task.Run(async () =>
@@ -68,7 +76,7 @@ public static class ImageLoader
             if (bitmap is not null) Remember(url, bitmap);
             return bitmap;
         }
-        catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException or IOException)
+        catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException or IOException or FormatException)
         {
             return null;
         }

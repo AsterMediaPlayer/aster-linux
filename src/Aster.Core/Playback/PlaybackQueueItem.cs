@@ -59,6 +59,9 @@ public sealed record PlaybackQueueItem
 
     /// <summary>The song card for a clip or theme, as it starts and ends.</summary>
     public ThemeInfo? ThemeCard { get; init; }
+
+    /// <summary>Items to play one after another once this one ends (a disc menu's Play All), in place of Up Next.</summary>
+    public IReadOnlyList<string> Following { get; init; } = [];
 }
 
 /// <summary>

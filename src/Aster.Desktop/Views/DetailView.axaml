@@ -150,6 +150,12 @@
                                     <TextBlock Text="From Beginning" />
                                 </StackPanel>
                             </Button>
+                            <Button Theme="{StaticResource PillButton}" Command="{Binding OpenDiscMenuCommand}" IsVisible="{Binding HasDiscMenu}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="&#xE8B2;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
+                                    <TextBlock Text="Disc Menu" />
+                                </StackPanel>
+                            </Button>
                             <Button Theme="{StaticResource PillButton}" Command="{Binding ToggleFavoriteCommand}" ToolTip.Tip="Favorite" Width="44" Padding="0">
                                 <Panel>
                                     <TextBlock Text="&#xEB51;" FontFamily="{StaticResource IconFont}" IsVisible="{Binding IsFavorite}" HorizontalAlignment="Center" />

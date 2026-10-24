@@ -30,6 +30,12 @@ public sealed record AppSettings
     /// <summary>A title's theme video, looped silently behind its page.</summary>
     public bool ThemeVideos { get; init; }
 
+    /// <summary>Play on a title with a JellyDisc menu opens its menu, like putting in the disc.</summary>
+    public bool PreferDiscMenu { get; init; }
+
+    /// <summary>A disc menu's music and button sounds.</summary>
+    public bool DiscMenuSounds { get; init; } = true;
+
     /// <summary>A video takes the whole screen as it starts (the Mac's setting).</summary>
     public bool FullScreenPlayback { get; init; } = true;
 

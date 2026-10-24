@@ -21,6 +21,9 @@ public static class Converters
     public static readonly IValueConverter Bold =
         new FuncValueConverter<bool, Avalonia.Media.FontWeight>(current => current ? Avalonia.Media.FontWeight.SemiBold : Avalonia.Media.FontWeight.Normal);
 
+    /// <summary>A disc menu's Back button: a step back, or closing the menu from its first screen.</summary>
+    public static readonly IValueConverter BackTip = new FuncValueConverter<bool, string>(canGoBack => canGoBack ? "Back" : "Close");
+
     /// <summary>The template for a kind of card: <c>PosterCard</c>, <c>SquareCard</c> and so on, from Templates.axaml.</summary>
     public static readonly IValueConverter CardTemplate =
         new FuncValueConverter<CardStyle, IDataTemplate?>(style =>

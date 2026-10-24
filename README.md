@@ -160,11 +160,40 @@ the same theme; any other page fades it out. It stays off while a song or
 book plays, and quiet while a title plays.
 
 Not yet: an anime opening looping behind a show with no theme video of its
-own, disc menus, the Apple app's Now Playing
+own, the Apple app's Now Playing
 panel (Play All and Shuffle through the openings and endings, a theme
 playing beside the page while browsing), full versions, and Watch OP and
 Watch ED. Chinese titles sort under # in the letter index; the Apple app
 files them by pinyin, which .NET has no table for.
+
+## Disc menus
+
+A movie, show or season with a JellyDisc menu on the server has a Disc
+Menu button on its page; with Settings' "Open disc menu when pressing Play"
+on, Play opens it too, like putting in the disc (From Beginning still
+plays). It fills the window, full screen as a video would be, on a 16:9
+screen letterboxed to fit: the menu's background (a picture, a colour, or a
+looping local trailer with its poster until it plays), its panels and
+pictures, title and buttons in the frame, text, glow or arrow styles, or
+the menu's own artwork. Screens change with their fade, slide, rise, zoom
+or wipe; music loops and fades between screens, and the click, chime and
+beep sounds are made as the reference renderer makes them (through SDL, so
+they're heard at once), or a menu's own sound files. "Menu music and
+sounds" in Settings turns them off.
+
+The arrows (a remote's, a controller's) move between buttons by where they
+are on screen, Enter chooses, Space or the play key plays what the focused
+button plays, and Esc or Back steps back a page, then a screen, then
+closes; the mouse points and clicks, with a Back button at the top left.
+Scene Selection lists the title's chapters as thumbnails, paged; Play All
+plays its extras one after another. A title played from the menu comes
+back to the same screen as the player closes.
+
+`Aster.Core/DiscMenu` is a port of the Apple app's rules and navigation,
+checked against the JellyDisc conformance vectors (paging, grid cells,
+layouts, focus, chapter times, and what to accept from a menu: the tests
+load copies from `tests/Aster.Core.Tests/Conformance`). Pictures a menu
+names on other sites are fetched without the user's token.
 
 ## Upcoming and Live TV
 
@@ -249,7 +278,8 @@ About pages on one page, as the Mac's Settings window has them:
 - **Following the user** between devices and the Apple app: autoplaying
   the next episode, skipping intros, drawing ASS/SSA subtitles styled
   (off, mpv strips them to plain text), theme music and theme videos on
-  title pages, and the song card at anime openings and endings. They're fetched at sign-in and
+  title pages, the song card at anime openings and endings, and disc
+  menus (opening on Play, their music and sounds). They're fetched at sign-in and
   when Settings opens, a change is saved as it's made, and a setting never
   chosen on this computer keeps the default rather than overwriting
   another device's choice.
@@ -259,7 +289,7 @@ About pages on one page, as the Mac's Settings window has them:
   with Switch User and Change Server (both sign out, after asking; Switch
   User keeps the server's address filled in).
 
-Not yet: the Disc Menus and Channels pages, Title Pages' anime opening
+Not yet: the Channels page, Title Pages' anime opening
 with sound, and the Anime
 page's Now Playing panel and full versions, which wait on those features.
 

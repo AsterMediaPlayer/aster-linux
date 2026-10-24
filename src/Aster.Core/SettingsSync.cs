@@ -8,7 +8,7 @@ namespace Aster.Core;
 /// <see cref="JellyfinClient.AppSettingsAsync"/>), under the same keys, so
 /// they follow a user between the two apps. These are matters of taste: Up
 /// Next, skipping intros, styled subtitles, song cards, theme music and
-/// videos. Settings tied to
+/// videos, disc menus. Settings tied to
 /// the computer stay on it: streaming quality and full screen. Audio and
 /// subtitle languages follow the user through their own Jellyfin settings.
 ///
@@ -30,6 +30,8 @@ public static class SettingsSync
         new("themeCards", s => s.ThemeCards, (s, on) => s with { ThemeCards = on }),
         new("themeMusic", s => s.ThemeMusic, (s, on) => s with { ThemeMusic = on }),
         new("themeVideos", s => s.ThemeVideos, (s, on) => s with { ThemeVideos = on }),
+        new("preferDiscMenu", s => s.PreferDiscMenu, (s, on) => s with { PreferDiscMenu = on }),
+        new("discMenuSounds", s => s.DiscMenuSounds, (s, on) => s with { DiscMenuSounds = on }),
     ];
 
     private static readonly Lock Gate = new();

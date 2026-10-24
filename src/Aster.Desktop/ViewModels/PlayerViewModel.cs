@@ -1345,6 +1345,13 @@ public partial class PlayerViewModel : ViewModelBase
             if (Duration > 0) final = final with { PositionTicks = (long)(Duration * 10_000_000) };
             _ = client.ReportStoppedAsync(final);
         }
+        // A disc menu's Play All goes straight on to the next of its extras.
+        if (entry.Following.Count > 0)
+        {
+            var following = entry.Following[0];
+            Play(new BaseItem { Id = following }, new PlaybackQueueItem { ItemId = following, Following = entry.Following.Skip(1).ToList() });
+            return true;
+        }
         if (UpNext is null) return false;
         EndCardVisible = true;
         ControlsVisible = false;

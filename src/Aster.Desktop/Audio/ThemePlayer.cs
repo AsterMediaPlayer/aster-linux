@@ -41,8 +41,8 @@ public sealed partial class ThemePlayer : ObservableObject, IDisposable
     private CancellationTokenSource? loading;
     private MpvPlayer? music;
 
-    /// <summary>The volume fades under way, by player: the music, and any still fading out.</summary>
-    private readonly Dictionary<MpvPlayer, DispatcherTimer> fades = [];
+    /// <summary>The volume fades under way: the music, and any still fading out.</summary>
+    private readonly VolumeFades fades = new();
 
     /// <summary>The theme video, kept to start again after a title has played.</summary>
     private Uri? videoUrl;
@@ -138,7 +138,7 @@ public sealed partial class ThemePlayer : ObservableObject, IDisposable
     public void Suspend()
     {
         suspended = true;
-        if (music is { } playing) Fade(playing, to: 0, seconds: 0.4, then: () => Try(() => playing.SetProperty("pause", true)));
+        if (music is { } playing) fades.Fade(playing, to: 0, seconds: 0.4, then: () => Try(() => playing.SetProperty("pause", true)));
         DropVideo();
     }
 
@@ -150,7 +150,7 @@ public sealed partial class ThemePlayer : ObservableObject, IDisposable
         if (music is { } paused)
         {
             Try(() => paused.SetProperty("pause", false));
-            Fade(paused, to: Volume, seconds: 0.8);
+            fades.Fade(paused, to: Volume, seconds: 0.8);
         }
         if (videoUrl is { } url && Video is null) StartVideo(url);
     }
@@ -165,7 +165,7 @@ public sealed partial class ThemePlayer : ObservableObject, IDisposable
         if (music is { } ending)
         {
             music = null;
-            Fade(ending, to: 0, seconds: 0.6, then: ending.Dispose);
+            fades.Fade(ending, to: 0, seconds: 0.6, then: ending.Dispose);
         }
         DropVideo();
         videoUrl = null;
@@ -183,7 +183,7 @@ public sealed partial class ThemePlayer : ObservableObject, IDisposable
     {
         try
         {
-            music = MpvPlayer.Create(Options(new()
+            music = MpvPlayer.Create(LoopingOptions(new()
             {
                 ["video"] = "no",
                 ["vo"] = "null",
@@ -192,38 +192,12 @@ public sealed partial class ThemePlayer : ObservableObject, IDisposable
                 ["pause"] = suspended ? "yes" : "no",
             }));
             _ = music.CommandAsync("loadfile", url.AbsoluteUri).ContinueWith(_ => { });
-            if (!suspended) Fade(music, to: Volume, seconds: 0.8);
+            if (!suspended) fades.Fade(music, to: Volume, seconds: 0.8);
         }
         catch (Exception error) when (error is MpvException or DllNotFoundException)
         {
             music = null;
         }
-    }
-
-    /// <summary>
-    /// Moves <paramref name="player"/>'s volume to <paramref name="to"/>, then
-    /// calls <paramref name="then"/>. A new fade of the same player takes over
-    /// from the last, whose <paramref name="then"/> never comes.
-    /// </summary>
-    private void Fade(MpvPlayer player, double to, double seconds, Action? then = null)
-    {
-        if (fades.Remove(player, out var previous)) previous.Stop();
-        double from = 0;
-        Try(() => from = player.GetDouble("volume") ?? 0);
-        var steps = Math.Max(1, (int)(seconds * 30));
-        var step = 0;
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(seconds / steps) };
-        timer.Tick += (_, _) =>
-        {
-            step++;
-            Try(() => player.SetProperty("volume", from + (to - from) * step / steps));
-            if (step < steps) return;
-            timer.Stop();
-            fades.Remove(player);
-            then?.Invoke();
-        };
-        fades[player] = timer;
-        timer.Start();
     }
 
     // ---- Video ----
@@ -233,7 +207,7 @@ public sealed partial class ThemePlayer : ObservableObject, IDisposable
         MpvPlayer player;
         try
         {
-            player = MpvPlayer.Create(Options(new()
+            player = MpvPlayer.Create(LoopingOptions(new()
             {
                 // Frames go to the shell's MpvVideoView through the render API.
                 ["vo"] = "libmpv",
@@ -293,8 +267,8 @@ public sealed partial class ThemePlayer : ObservableObject, IDisposable
 
     // ---- ----
 
-    /// <summary>What both players share: looping, quiet about themselves, and unable to take the keys.</summary>
-    private static Dictionary<string, string> Options(Dictionary<string, string> own)
+    /// <summary>What looping background players share (these two, and a disc menu's music and trailer): quiet about themselves, and unable to take the keys.</summary>
+    internal static Dictionary<string, string> LoopingOptions(Dictionary<string, string> own)
     {
         var options = new Dictionary<string, string>
         {
@@ -324,12 +298,7 @@ public sealed partial class ThemePlayer : ObservableObject, IDisposable
     {
         audio.PropertyChanged -= AudioChanged;
         // Songs still fading out end now, with the one playing.
-        foreach (var (player, timer) in fades)
-        {
-            timer.Stop();
-            player.Dispose();
-        }
-        fades.Clear();
+        fades.StopAll();
         music?.Dispose();
         music = null;
         Release();

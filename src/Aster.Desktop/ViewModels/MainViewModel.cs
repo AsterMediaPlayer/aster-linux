@@ -15,6 +15,9 @@ public partial class MainViewModel : ViewModelBase
 
     private ShellViewModel? shell;
 
+    /// <summary>The disc menu open, if one is, even while a title it played is showing.</summary>
+    private DiscMenuViewModel? openMenu;
+
     /// <summary>Signed in from the ASTER_* variables: signing out leaves the saved session alone.</summary>
     private bool developmentSession;
 
@@ -75,7 +78,8 @@ public partial class MainViewModel : ViewModelBase
     private void ShowShell(JellyfinClient client, StoredSession session)
     {
         ImageLoader.Client = client;
-        shell = new ShellViewModel(client, session, (entry, closed) => Play(client, entry, closed), kind => SignOutAsync(client, kind));
+        shell = new ShellViewModel(client, session, (entry, closed) => Play(client, entry, closed),
+            (document, itemId, closed) => ShowDiscMenu(client, document, itemId, closed), kind => SignOutAsync(client, kind));
         CurrentPage = shell;
     }
 
@@ -87,6 +91,30 @@ public partial class MainViewModel : ViewModelBase
             CurrentPage = shell;
             closed?.Invoke(last);
         });
+    }
+
+    /// <summary>
+    /// A disc menu over everything. What it plays plays over it, and closing
+    /// the player comes back to the menu; closing the menu comes back to the
+    /// page it was opened from.
+    /// </summary>
+    private void ShowDiscMenu(JellyfinClient client, Aster.Core.DiscMenu.DiscMenuDocument document, string itemId, Action closed)
+    {
+        DiscMenuViewModel? menu = null;
+        openMenu = menu = new DiscMenuViewModel(client, document, itemId,
+            play: entry => CurrentPage = new PlayerViewModel(client, entry, played =>
+            {
+                CurrentPage = menu;
+                _ = menu!.ResumeAfterPlayback();
+            }),
+            close: () =>
+            {
+                CurrentPage = shell;
+                openMenu = null;
+                menu!.Dispose();
+                closed();
+            });
+        CurrentPage = menu;
     }
 
     /// <summary>Opens a page for <c>--open</c>: looked up first, so a library or person opens as one would from a card.</summary>
@@ -147,6 +175,8 @@ public partial class MainViewModel : ViewModelBase
             player.SaveProgressNow();
             player.Stop();
         }
+        // A disc menu, whether showing or waiting behind a title it's playing.
+        openMenu?.Dispose();
         shell?.Dispose();
     }
 }

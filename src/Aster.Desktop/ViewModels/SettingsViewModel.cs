@@ -64,6 +64,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
     [ObservableProperty] public partial bool ThemeCards { get; set; }
     [ObservableProperty] public partial bool ThemeMusic { get; set; }
     [ObservableProperty] public partial bool ThemeVideos { get; set; }
+    [ObservableProperty] public partial bool PreferDiscMenu { get; set; }
+    [ObservableProperty] public partial bool DiscMenuSounds { get; set; }
 
     partial void OnBitrateChanged(SettingOption<int>? value)
     {
@@ -77,6 +79,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
     partial void OnThemeCardsChanged(bool value) => Change(s => s with { ThemeCards = value });
     partial void OnThemeMusicChanged(bool value) => Change(s => s with { ThemeMusic = value });
     partial void OnThemeVideosChanged(bool value) => Change(s => s with { ThemeVideos = value });
+    partial void OnPreferDiscMenuChanged(bool value) => Change(s => s with { PreferDiscMenu = value });
+    partial void OnDiscMenuSoundsChanged(bool value) => Change(s => s with { DiscMenuSounds = value });
 
     private void Change(Func<AppSettings, AppSettings> change)
     {
@@ -96,6 +100,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
         ThemeCards = settings.ThemeCards;
         ThemeMusic = settings.ThemeMusic;
         ThemeVideos = settings.ThemeVideos;
+        PreferDiscMenu = settings.PreferDiscMenu;
+        DiscMenuSounds = settings.DiscMenuSounds;
         showing = false;
     }
 

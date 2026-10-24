@@ -3,7 +3,7 @@
 // page in tabs. A port of the Apple app's ItemDetailView and DetailModel.
 //
 // Not yet ported: an anime opening looping behind a series with no theme
-// video of its own, disc menus, the Now Playing
+// video of its own, the Now Playing
 // panel for openings and endings (they play full screen, one at a time),
 // Watch OP and Watch ED, playlists, recordings and downloads.
 
@@ -62,6 +62,16 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(UpNextLine), nameof(PlayLabel), nameof(Resumable))]
     public partial BaseItem? NextEpisode { get; set; }
+
+    /// <summary>The title's JellyDisc menu, when the server has one: a Disc Menu button, and maybe where Play goes.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDiscMenu))]
+    public partial Aster.Core.DiscMenu.DiscMenuDocument? DiscMenu { get; set; }
+
+    public bool HasDiscMenu => DiscMenu is not null;
+
+    /// <summary>The item the disc menu belongs to: the page's own, or for a show without one, the season it's showing.</summary>
+    private string? discMenuItemId;
 
     [ObservableProperty] public partial bool IsLoading { get; set; } = true;
     [ObservableProperty] public partial string? ErrorMessage { get; set; }
@@ -204,6 +214,7 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
                 Extras = (await OrEmpty(Client.SpecialFeaturesAsync(full.Id))).Select(e => ItemCard.Extra(navigator, e)).ToList();
             }
             Similar = (await OrEmpty(similar)).Select(i => ItemCard.Landscape(navigator, i)).ToList();
+            await LoadDiscMenuAsync();
             var found = await themes;
             Openings = found.Where(c => c.IsOpening).ToList();
             Endings = found.Where(c => !c.IsOpening).ToList();
@@ -225,6 +236,12 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
     }
 
     private static bool IsServerError(Exception error) => error is JellyfinException or HttpRequestException or TimeoutException;
+
+    private async Task<Aster.Core.DiscMenu.DiscMenuDocument?> DiscMenuOrNullAsync(string itemId)
+    {
+        try { return await Client.DiscMenuAsync(itemId); }
+        catch (Exception error) when (IsServerError(error) || error is System.Text.Json.JsonException) { return null; }
+    }
 
     private static async Task<IReadOnlyList<BaseItem>> OrEmpty<T>(Task<T> request) where T : IReadOnlyList<BaseItem>
     {
@@ -249,6 +266,7 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
             {
                 ShowSeasonEpisodes(await Client.EpisodesAsync(series, season));
             }
+            await LoadDiscMenuAsync();
         }
         catch (Exception error) when (IsServerError(error)) { }
     }
@@ -259,6 +277,33 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
         SelectedSeasonId = seasonId;
         UpdateSeasonChoices();
         ShowEpisodes(await OrEmpty(Client.EpisodesAsync(seriesId, seasonId)));
+        // A show's menu can be its season's: follow the season picked.
+        if (Item.Kind == ItemKind.Series && discMenuItemId != Item.Id) await LoadDiscMenuAsync();
+    }
+
+    /// <summary>
+    /// The page's disc menu: its own (a movie's, show's or season's), or for
+    /// a show without one, the menu of the season it's showing, which is
+    /// where a one-season show's menu is often bound.
+    /// </summary>
+    private async Task LoadDiscMenuAsync()
+    {
+        if (Item.Kind is not (ItemKind.Movie or ItemKind.Series or ItemKind.Season)) return;
+        if (await DiscMenuOrNullAsync(Item.Id) is { } own)
+        {
+            discMenuItemId = Item.Id;
+            DiscMenu = own;
+        }
+        else if (Item.Kind == ItemKind.Series && SelectedSeasonId is { } seasonId && await DiscMenuOrNullAsync(seasonId) is { } seasons)
+        {
+            discMenuItemId = seasonId;
+            DiscMenu = seasons;
+        }
+        else
+        {
+            discMenuItemId = null;
+            DiscMenu = null;
+        }
     }
 
     private void ShowEpisodes(IReadOnlyList<BaseItem> found)
@@ -340,9 +385,26 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
 
     [RelayCommand] private void PlayFromBeginning() => Play(fromBeginning: true);
 
-    /// <summary>What Play starts: the item itself, or for a show the next episode, for a season its first unwatched one.</summary>
+    /// <summary>The title's disc menu, like putting in the disc.</summary>
+    [RelayCommand]
+    private void OpenDiscMenu()
+    {
+        if (DiscMenu is { } document) navigator.ShowDiscMenu(document, discMenuItemId ?? Item.Id, Refresh);
+    }
+
+    /// <summary>
+    /// What Play starts: the item itself, or for a show the next episode, for
+    /// a season its first unwatched one. With Settings' "Open disc menu when
+    /// pressing Play", a title with a menu opens it instead (From Beginning
+    /// still plays).
+    /// </summary>
     private void Play(bool fromBeginning)
     {
+        if (!fromBeginning && Aster.Core.AppSettings.Current.PreferDiscMenu && DiscMenu is not null)
+        {
+            OpenDiscMenu();
+            return;
+        }
         PlaybackQueueItem? entry = Item.Kind switch
         {
             ItemKind.Series when NextEpisode is { } next => Entry(next, fromBeginning),

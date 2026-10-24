@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Aster.Core.Channels;
+using Aster.Desktop.Controls;
 using Aster.Desktop.ViewModels;
 using Avalonia;
 using Avalonia.Controls;
@@ -23,16 +24,6 @@ namespace Aster.Desktop.Views;
 /// </summary>
 public partial class PlayerView : UserControl
 {
-    /// <summary>
-    /// How the window was before the player took it full screen. Shared, as
-    /// the app swaps a new view in for the first as the player opens, and
-    /// the new one finds the window already full screen.
-    /// </summary>
-    private static WindowState stateBeforeFullScreen = WindowState.Normal;
-
-    /// <summary>Player views in the window: the old one of a swap leaves after the new one arrives.</summary>
-    private static int showing;
-
     public PlayerView()
     {
         InitializeComponent();
@@ -185,27 +176,20 @@ public partial class PlayerView : UserControl
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        showing++;
         Window = TopLevel.GetTopLevel(this) as Window;
         Window?.AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
-        Focus();
         // Settings' "Play videos full screen"; the window comes back as the player closes.
-        if (Aster.Core.AppSettings.Current.FullScreenPlayback && Window is { WindowState: not WindowState.FullScreen }) ToggleFullScreen();
+        FullScreen.Hold(Window, enter: Aster.Core.AppSettings.Current.FullScreenPlayback);
+        Focus();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        showing--;
         Window?.RemoveHandler(KeyDownEvent, OnWindowKeyDown);
-        // Once the page behind is back in the window, not partway through
-        // swapping it in; and not when another player view has taken over.
-        if (Window is { WindowState: WindowState.FullScreen } window)
-            Dispatcher.UIThread.Post(() => { if (showing == 0) LeaveFullScreen(window); });
+        FullScreen.Release(Window);
         Window = null;
         base.OnDetachedFromVisualTree(e);
     }
-
-    private static void LeaveFullScreen(Window window) => window.WindowState = stateBeforeFullScreen;
 
     /// <summary>
     /// The player's keys, heard at the window before anything else, so they
@@ -306,15 +290,7 @@ public partial class PlayerView : UserControl
     private void ToggleFullScreen()
     {
         if (Window is not { } window) return;
-        if (window.WindowState == WindowState.FullScreen)
-        {
-            LeaveFullScreen(window);
-        }
-        else
-        {
-            stateBeforeFullScreen = window.WindowState;
-            window.WindowState = WindowState.FullScreen;
-        }
+        FullScreen.Toggle(window);
         Focus();
     }
 }

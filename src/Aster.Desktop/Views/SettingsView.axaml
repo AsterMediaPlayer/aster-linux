@@ -103,6 +103,22 @@
             </Border>
             <TextBlock Classes="note" Text="Plays a title's theme song quietly, or loops its theme video behind the page, when your library has them. Theme music stays off while you are listening to music." />
 
+            <TextBlock Classes="heading" Text="Disc Menus" />
+            <Border Classes="group">
+                <StackPanel>
+                    <DockPanel Classes="row">
+                        <ToggleSwitch IsChecked="{Binding PreferDiscMenu}" AutomationProperties.Name="Open disc menu when pressing Play" />
+                        <TextBlock Text="Open disc menu when pressing Play" />
+                    </DockPanel>
+                    <Rectangle Classes="divider" />
+                    <DockPanel Classes="row">
+                        <ToggleSwitch IsChecked="{Binding DiscMenuSounds}" AutomationProperties.Name="Menu music and sounds" />
+                        <TextBlock Text="Menu music and sounds" />
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+            <TextBlock Classes="note" Text="Titles with a JellyDisc menu on the server show a Disc Menu button on their page. Turn on the first option to start those titles at their menu, like putting in the disc." />
+
             <TextBlock Classes="heading" Text="Audio &amp; Subtitles" />
             <Border Classes="group">
                 <StackPanel IsEnabled="{Binding HasConfiguration}">

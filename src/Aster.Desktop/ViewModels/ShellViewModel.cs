@@ -51,6 +51,12 @@ public interface INavigator
     /// </summary>
     void Play(PlaybackQueueItem entry, Action<BaseItem?>? closed = null);
 
+    /// <summary>
+    /// Opens a title's JellyDisc menu over the whole window, from which its
+    /// buttons play; <paramref name="closed"/> hears when it closes.
+    /// </summary>
+    void ShowDiscMenu(Aster.Core.DiscMenu.DiscMenuDocument document, string itemId, Action closed);
+
     /// <summary>Something's watched or favourite state changed; pages refresh when shown again.</summary>
     void UserDataChanged();
 
@@ -104,6 +110,7 @@ public enum SignOutKind
 public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
 {
     private readonly Action<PlaybackQueueItem, Action<BaseItem?>?> play;
+    private readonly Action<Aster.Core.DiscMenu.DiscMenuDocument, string, Action> showDiscMenu;
     private readonly Func<SignOutKind, Task> signOut;
     private readonly List<ViewModelBase> stack = [];
     private readonly Dictionary<AppTab, ViewModelBase> tabs = [];
@@ -112,10 +119,13 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
     private readonly HashSet<ViewModelBase> refreshTabs = [];
 
     /// <param name="signOut">Signs out, saying why.</param>
-    public ShellViewModel(JellyfinClient client, StoredSession session, Action<PlaybackQueueItem, Action<BaseItem?>?> play, Func<SignOutKind, Task> signOut)
+    /// <param name="showDiscMenu">Shows a disc menu over the window, calling back as it closes.</param>
+    public ShellViewModel(JellyfinClient client, StoredSession session, Action<PlaybackQueueItem, Action<BaseItem?>?> play,
+        Action<Aster.Core.DiscMenu.DiscMenuDocument, string, Action> showDiscMenu, Func<SignOutKind, Task> signOut)
     {
         Client = client;
         this.play = play;
+        this.showDiscMenu = showDiscMenu;
         this.signOut = signOut;
         Anime = AnimeCatalog.FindAsync(client);
         Libraries = LoadLibrariesAsync(client);
@@ -344,6 +354,20 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
             userDataChanged = true;
             closed?.Invoke(last);
             Shown(alreadyRefreshed: closed is not null);
+        });
+    }
+
+    public void ShowDiscMenu(Aster.Core.DiscMenu.DiscMenuDocument document, string itemId, Action closed)
+    {
+        // As for a title: the song or book and the theme wait while the menu's up.
+        Audio.Pause();
+        Theme.Suspend();
+        showDiscMenu(document, itemId, () =>
+        {
+            Theme.Resume();
+            userDataChanged = true;
+            closed();
+            Shown(alreadyRefreshed: true);
         });
     }
 
