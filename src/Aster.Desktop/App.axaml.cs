@@ -35,7 +35,8 @@ public partial class App : Application
                 && System.Enum.TryParse<Aster.Desktop.ViewModels.AppTab>(args[t + 1], ignoreCase: true, out var chosen) ? chosen : (Aster.Desktop.ViewModels.AppTab?)null;
             var sort = System.Array.IndexOf(args, "--sort") is var so and >= 0 && so + 1 < args.Length
                 && System.Enum.TryParse<Aster.Core.Browsing.LibrarySort>(args[so + 1], ignoreCase: true, out var sorted) ? sorted : (Aster.Core.Browsing.LibrarySort?)null;
-            var main = new MainViewModel(play, bitrate, start, open, tab, sort);
+            var section = System.Array.IndexOf(args, "--section") is var se and >= 0 && se + 1 < args.Length ? args[se + 1] : null;
+            var main = new MainViewModel(play, bitrate, start, open, tab, sort, section);
             desktop.MainWindow = new MainWindow { DataContext = main };
             // Game controllers, as the keys.
             var gamepads = Aster.Desktop.Input.Gamepads.Start(desktop.MainWindow);

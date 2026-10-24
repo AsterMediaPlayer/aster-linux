@@ -55,6 +55,22 @@
             <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
             <Setter Property="FontSize" Value="12" />
         </Style>
+        <!-- The group picked is tinted with the accent, as the Apple TV's filter is, so the
+             keyboard's white pill (focus) always stands apart from it. -->
+        <Style Selector="Button.group.selected">
+            <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.group.selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Opacity" Value="0.9" />
+        </Style>
+        <Style Selector="Button.group:focus-visible /template/ ContentPresenter">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="Black" />
+            <Setter Property="Opacity" Value="1" />
+        </Style>
     </UserControl.Styles>
 
     <Panel>
@@ -122,6 +138,21 @@
                 </Panel>
             </Grid>
 
+            <!-- When channels have groups: All, then each group, as a cable guide's. -->
+            <ItemsControl x:Name="GroupList" DockPanel.Dock="Top" ItemsSource="{Binding Groups}" IsVisible="{Binding HasGroups}" Margin="0,0,0,10">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:Choice">
+                        <Button Theme="{StaticResource PillButton}" Classes="group" Classes.selected="{Binding IsSelected}" Command="{Binding Select}"
+                                Content="{Binding Title}" MinHeight="30" Padding="14,3" FontSize="13" Margin="0,0,8,6" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
             <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled">
                 <ItemsControl x:Name="RowList" ItemsSource="{Binding Rows}" Margin="0,4,0,60">
                     <ItemsControl.ItemsPanel>
@@ -139,17 +170,25 @@
                                         <ContextMenu>
                                             <MenuItem Header="Watch" Command="{Binding PlayCommand}" />
                                             <MenuItem Header="{Binding FavoriteLabel}" Command="{Binding ToggleFavoriteCommand}" IsVisible="{Binding CanFavorite}" />
+                                            <MenuItem Header="Group…" Command="{Binding ChooseGroupCommand}" IsVisible="{Binding CanGroup}" />
                                         </ContextMenu>
                                     </Button.ContextMenu>
-                                    <Grid ColumnDefinitions="44,*" Margin="14,10">
-                                        <TextBlock Text="{Binding Number}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Secondary}"
-                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                        <Panel Grid.Column="1">
-                                            <TextBlock Classes="cellTitle" Text="{Binding Name}" VerticalAlignment="Center" TextWrapping="Wrap" MaxLines="2"
-                                                       IsVisible="{Binding !#RowLogo.HasImage}" />
-                                            <c:RemoteImage x:Name="RowLogo" Url="{Binding Logo}" Stretch="Uniform" HorizontalAlignment="Left" />
-                                        </Panel>
-                                    </Grid>
+                                    <DockPanel Margin="14,10">
+                                        <!-- A group's name on its first channel, in the All view: inside the cell, so the rows keep their even spacing. -->
+                                        <TextBlock DockPanel.Dock="Top" Text="{Binding GroupCaption, Converter={x:Static c:Converters.Upper}}"
+                                                   IsVisible="{Binding GroupCaption, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                                   FontSize="10" FontWeight="Bold" Foreground="{DynamicResource SystemAccentColor}" TextTrimming="CharacterEllipsis"
+                                                   Margin="0,-4,0,2" />
+                                        <Grid ColumnDefinitions="44,*">
+                                            <TextBlock Text="{Binding Number}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Secondary}"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                            <Panel Grid.Column="1">
+                                                <TextBlock Classes="cellTitle" Text="{Binding Name}" VerticalAlignment="Center" TextWrapping="Wrap" MaxLines="2"
+                                                           IsVisible="{Binding !#RowLogo.HasImage}" />
+                                                <c:RemoteImage x:Name="RowLogo" Url="{Binding Logo}" Stretch="Uniform" HorizontalAlignment="Left" />
+                                            </Panel>
+                                        </Grid>
+                                    </DockPanel>
                                 </Button>
                                 <Panel Grid.Column="1" Margin="12,0,0,0" ClipToBounds="True">
                                     <Border Background="#1F1F1F" CornerRadius="8" IsVisible="{Binding IsLoading}">

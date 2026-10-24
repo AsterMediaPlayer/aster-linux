@@ -28,6 +28,9 @@ public sealed record PlaylistChannel
     /// <summary>From channel-name=; null for the playlist's own name.</summary>
     public string? CustomName { get; init; }
 
+    /// <summary>From group=; null for none.</summary>
+    public string? Group { get; init; }
+
     public ChannelBreakClips BreakClips { get; init; } = ChannelBreakClips.None;
 
     /// <summary>The series' clear logo, when the playlist is all one series' episodes.</summary>
@@ -78,22 +81,33 @@ public static class ChannelTuner
     private static readonly Lock Gate = new();
     private static Dictionary<string, PlaylistChannel> channels = [];
     private static List<string> order = [];
+    private static ChannelGrouping? grouping;
 
     /// <summary>Seconds before a programme's end that tuning in starts the next one.</summary>
     public const double TooLateToJoin = 60;
 
-    /// <summary>Takes the full list the Channels tab loaded, in order.</summary>
-    public static void Register(IReadOnlyList<PlaylistChannel> loaded)
+    /// <summary>Takes the full list the Channels tab loaded, in order, and their groups when they have any.</summary>
+    public static void Register(IReadOnlyList<PlaylistChannel> loaded, ChannelGrouping? groups = null)
     {
         lock (Gate)
         {
             channels = new Dictionary<string, PlaylistChannel>(channels);
             foreach (var channel in loaded) channels[channel.Id] = channel;
             order = loaded.Select(c => c.Id).ToList();
+            grouping = groups;
         }
     }
 
-    /// <summary>The channels in number order, for flicking through them.</summary>
+    /// <summary>The channels' groups, when they have any.</summary>
+    public static ChannelGrouping? Grouping
+    {
+        get
+        {
+            lock (Gate) return grouping;
+        }
+    }
+
+    /// <summary>The channels in number order (group by group, once they have groups), for flicking through them: on from one group into the next.</summary>
     public static IReadOnlyList<PlaylistChannel> OrderedChannels
     {
         get
@@ -148,7 +162,12 @@ public sealed class ChannelLoader
     private readonly Dictionary<string, (string Query, IReadOnlyList<string> TitleIds, IReadOnlyList<BaseItem> Items)> sourceCache = [];
     private Dictionary<string, IReadOnlyList<BaseItem>> episodeCache = [];
 
-    /// <summary>The channels <paramref name="userName"/> gets (aster:user=), in channel-number order; a tagged playlist with nothing to play is left out.</summary>
+    /// <summary>
+    /// The channels <paramref name="userName"/> gets (aster:user=), in
+    /// channel-number order (group by group, once they have groups: see
+    /// <see cref="ChannelTuner.Grouping"/>); a tagged playlist with nothing
+    /// to play is left out.
+    /// </summary>
     public async Task<IReadOnlyList<PlaylistChannel>> LoadAsync(JellyfinClient client, string? userName = null, bool force = false)
     {
         var playlists = await client.PlaylistsAsync("Video").ConfigureAwait(false);
@@ -187,11 +206,15 @@ public sealed class ChannelLoader
             {
                 Playlist = playlist, Number = number, Items = items, Lineup = tags.Lineup, ShowsLogo = tags.ShowsLogo,
                 ShowsBug = tags.ShowsBug, BugCorner = tags.BugCorner, BugSize = tags.BugSize, BugHideAfter = tags.BugHideAfter,
-                BugOpacity = tags.BugOpacity, CustomName = tags.Name, BreakClips = clips, SeriesLogo = PlaylistChannel.SeriesLogoOf(items),
+                BugOpacity = tags.BugOpacity, CustomName = tags.Name, Group = tags.Group, BreakClips = clips,
+                SeriesLogo = PlaylistChannel.SeriesLogoOf(items),
             });
         }
-        var ordered = built.OrderBy(c => c.Number).ThenBy(c => c.Name, StringComparer.Ordinal).ToList();
-        ChannelTuner.Register(ordered);
+        var byNumber = built.OrderBy(c => c.Number).ThenBy(c => c.Name, StringComparer.Ordinal).ToList();
+        // By group once channels have them: each in order of its lowest number.
+        var grouped = ChannelGrouping.Make(byNumber, c => c.Id, c => c.Group);
+        var ordered = grouped?.Ordered ?? byNumber;
+        ChannelTuner.Register(ordered, grouped?.Grouping);
         return ordered;
     }
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Aster.Core.Channels;
 using Aster.Core.Jellyfin;
 using Aster.Core.LiveTV;
 using Aster.Core.Playback;
@@ -26,7 +27,7 @@ public sealed partial class ProgramCard(LiveTVViewModel live, BaseItem program) 
     [RelayCommand] private void Open() => live.OpenProgram(program);
 }
 
-/// <summary>A channel: its logo (or number), what's on, and Play; favourites from its menu.</summary>
+/// <summary>A channel: its logo (or number), what's on, and Play; favourites (and, for an administrator, its group) from its menu.</summary>
 public sealed partial class ChannelCard(LiveTVViewModel live, BaseItem channel) : ObservableObject, ICard
 {
     public string Key => channel.Id;
@@ -43,7 +44,11 @@ public sealed partial class ChannelCard(LiveTVViewModel live, BaseItem channel) 
 
     public string FavoriteLabel => IsFavorite ? "Remove from Favorites" : "Add to Favorites";
 
+    public bool CanGroup => live.CanGroup;
+
     [RelayCommand] private void Play() => live.PlayChannel(channel.Id);
+
+    [RelayCommand] private void ChooseGroup() => live.ChooseGroup(channel.Id);
 
     [RelayCommand]
     private void ToggleFavorite()
@@ -135,8 +140,19 @@ public sealed partial class LiveTVViewModel : ViewModelBase, IRefreshable, IGuid
     /// <summary>Recordings, scheduled ones and series rules, loading or loaded.</summary>
     public Task RecordingsLoaded { get; private set; }
 
-    /// <summary>In the guide's order: favourites, then by number.</summary>
+    /// <summary>In the guide's order: favourites, then by number (group by group, once channels have groups).</summary>
     public IReadOnlyList<BaseItem> Channels { get; private set; } = [];
+
+    /// <summary>Each channel's group, from the Aster Channels plugin; null without it.</summary>
+    private IReadOnlyDictionary<string, string>? groups;
+
+    /// <summary>The channels' groups for the guide's filter, when there are any.</summary>
+    public ChannelGrouping? Grouping { get; private set; }
+
+    /// <summary>The user can put channels in groups: an administrator, with the plugin keeping groups.</summary>
+    public bool CanGroup => isAdministrator && groups is not null;
+
+    private bool isAdministrator;
 
     public IReadOnlyList<BaseItem> OnNow { get; private set; } = [];
     public IReadOnlyList<BaseItem> Movies { get; private set; } = [];
@@ -160,9 +176,12 @@ public sealed partial class LiveTVViewModel : ViewModelBase, IRefreshable, IGuid
             var sports = OrEmpty(Client.RecommendedProgramsAsync(limit: 20, isSports: true));
             var kids = OrEmpty(Client.RecommendedProgramsAsync(limit: 20, isKids: true));
             var news = OrEmpty(Client.RecommendedProgramsAsync(limit: 20, isNews: true));
-            Channels = LiveGuide.Order(await channels);
-            // So the player can flick through them in the same order.
-            LiveChannelDirectory.Register(Channels);
+            var groupList = Client.LiveTvGroupsAsync();
+            var me = MeOrNullAsync();
+            var loaded = await channels;
+            groups = await groupList;
+            isAdministrator = (await me)?.Policy?.IsAdministrator == true;
+            Arrange(loaded);
             OnNow = await onNow;
             Movies = await movies;
             Sports = await sports;
@@ -175,6 +194,45 @@ public sealed partial class LiveTVViewModel : ViewModelBase, IRefreshable, IGuid
             if (error is JellyfinException { StatusCode: 401 }) await navigator.SessionExpiredAsync();
             ErrorMessage = error.Message;
         }
+    }
+
+    private async Task<JellyfinUser?> MeOrNullAsync()
+    {
+        try { return await Client.MeAsync(); }
+        catch (Exception error) when (IsServerError(error)) { return null; }
+    }
+
+    /// <summary>The channels in the guide's order, with their groups, and handed to the player so it flicks through them the same way.</summary>
+    private void Arrange(IReadOnlyList<BaseItem> loaded)
+    {
+        var arranged = LiveGuide.Arranged(loaded, groups ?? new Dictionary<string, string>());
+        Channels = arranged.Channels;
+        Grouping = arranged.Grouping;
+        LiveChannelDirectory.Register(Channels, arranged.Listed, groups);
+    }
+
+    /// <summary>The groups in use, A to Z, for picking one.</summary>
+    public IReadOnlyList<string> GroupNames =>
+        (groups?.Values ?? []).Distinct().Order(StringComparer.CurrentCultureIgnoreCase).ToList();
+
+    public string? GroupOf(string channelId) => groups?.GetValueOrDefault(channelId);
+
+    /// <summary>
+    /// Puts a channel in a group (null: none), for an administrator, then
+    /// lays the channels out again with every channel's group after: the
+    /// guide is made afresh, and Channels with it.
+    /// </summary>
+    public async Task SetGroupAsync(string channelId, string? group)
+    {
+        groups = await Client.SetLiveTvGroupAsync(channelId, group);
+        Arrange(Channels);
+        foreach (var stale in new[] { Section.Guide, Section.Channels }) pages.Remove(stale);
+        Show(section);
+    }
+
+    public void ChooseGroup(string channelId)
+    {
+        if (CanGroup && Channels.FirstOrDefault(c => c.Id == channelId) is { } channel) navigator.Push(new LiveChannelGroupViewModel(navigator, this, channel));
     }
 
     private async Task LoadRecordingsAsync()
@@ -235,6 +293,12 @@ public sealed partial class LiveTVViewModel : ViewModelBase, IRefreshable, IGuid
 
     [ObservableProperty] public partial IReadOnlyList<Choice> Sections { get; private set; } = [];
     [ObservableProperty] public partial ViewModelBase? CurrentSection { get; private set; }
+
+    /// <summary>A section by its name (on-now, guide, channels, recordings), for <c>--section</c>.</summary>
+    public void ShowSection(string name)
+    {
+        if (Enum.TryParse<Section>(name.Replace("-", ""), ignoreCase: true, out var chosen)) Show(chosen);
+    }
 
     private void Show(Section chosen)
     {

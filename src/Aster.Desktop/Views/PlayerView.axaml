@@ -326,6 +326,10 @@
                     <c:RemoteImage Grid.Column="2" Url="{Binding Bug}" Width="180" MaxHeight="110" Stretch="Uniform" VerticalAlignment="Top" />
                 </Grid>
 
+                <!-- The picked channel's group, when channels have groups: it changes as flicking crosses into the next. -->
+                <TextBlock Text="{Binding SelectedGroup}" IsVisible="{Binding SelectedGroup, Converter={x:Static ObjectConverters.IsNotNull}}"
+                           HorizontalAlignment="Center" FontSize="15" FontWeight="SemiBold" Foreground="#B3FFFFFF" Margin="0,0,0,-12" />
+
                 <!-- Five places sharing the width, an empty one kept where the row is short. -->
                 <ItemsControl ItemsSource="{Binding Cards}" Margin="-8,0">
                     <ItemsControl.ItemsPanel>

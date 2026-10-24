@@ -29,6 +29,8 @@ public partial class GuideView : UserControl
         RowList.AddHandler(PointerMovedEvent, (_, e) => Highlight(e.Source), RoutingStrategies.Bubble, handledEventsToo: true);
         RowList.AddHandler(GotFocusEvent, (_, e) => Highlight(e.Source), RoutingStrategies.Bubble);
         RowList.AddHandler(KeyDownEvent, OnRowKeyDown, RoutingStrategies.Tunnel);
+        RowList.AddHandler(KeyDownEvent, OnFirstRowUp, RoutingStrategies.Tunnel);
+        GroupList.AddHandler(KeyDownEvent, OnGroupsDown, RoutingStrategies.Tunnel);
         Scroller.AddHandler(PointerWheelChangedEvent, (_, e) =>
         {
             var sideways = e.Delta.X != 0 ? -e.Delta.X : e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? -e.Delta.Y : 0;
@@ -59,6 +61,30 @@ public partial class GuideView : UserControl
             var next = container.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.DataContext is GuideCell c && c.Program.Id == target.Id);
             if (next is not null) KeyFocus.Move(next);
         }, DispatcherPriority.Loaded);
+    }
+
+    /// <summary>Up from the first row goes to the group filter, on the group picked, as the Apple TV's guide has it.</summary>
+    private void OnFirstRowUp(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Up || e.KeyModifiers != KeyModifiers.None || Model is not { HasGroups: true } guide) return;
+        if (e.Source is not Visual source || RowOf(source) is not var (_, row) || guide.Rows.FirstOrDefault() != row) return;
+        var picked = guide.Groups.ToList().FindIndex(g => g.IsSelected);
+        if (GroupList.ContainerFromIndex(System.Math.Max(0, picked)) is { } chip && KeyFocus.FirstIn(chip) is { } button)
+        {
+            KeyFocus.Move(button);
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>Down from the group filter goes to the first row, on what's airing.</summary>
+    private void OnGroupsDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Down || e.KeyModifiers != KeyModifiers.None) return;
+        if (RowList.ContainerFromIndex(0) is { } first && KeyFocus.FirstIn(first) is { } target)
+        {
+            KeyFocus.Move(target);
+            e.Handled = true;
+        }
     }
 
     /// <summary>The row a cell is in: its container in the list, and its model.</summary>
@@ -96,10 +122,21 @@ public partial class GuideView : UserControl
         base.OnDetachedFromVisualTree(e);
     }
 
+    private GuideViewModel? watched;
+
     protected override void OnDataContextChanged(System.EventArgs e)
     {
         base.OnDataContextChanged(e);
+        if (watched is not null) watched.PropertyChanged -= ModelChanged;
+        watched = Model;
+        if (watched is not null) watched.PropertyChanged += ModelChanged;
         if (Model is { } guide && IsAttachedToVisualTree()) guide.Shown(true);
+    }
+
+    /// <summary>Another group picked: its first channel, at the top.</summary>
+    private void ModelChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(GuideViewModel.Rows)) Scroller.Offset = default;
     }
 
     private bool IsAttachedToVisualTree() => TopLevel.GetTopLevel(this) is not null;

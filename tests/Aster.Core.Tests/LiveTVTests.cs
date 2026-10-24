@@ -25,6 +25,30 @@ public class LiveTVTests
     }
 
     [Fact]
+    public void WithoutGroupsLiveTVIsArrangedAsEver()
+    {
+        var channels = new[] { Channel("a", "12"), Channel("b", "2", favorite: true), Channel("c", "5") };
+        var arranged = LiveGuide.Arranged(channels, new Dictionary<string, string>());
+        Assert.Equal(["b", "c", "a"], arranged.Channels.Select(c => c.Id));
+        Assert.Null(arranged.Grouping);
+        Assert.Null(arranged.Listed);
+    }
+
+    [Fact]
+    public void GroupedLiveTVPutsFavouritesFirstThenEachGroup()
+    {
+        var channels = new[] { Channel("news", "40"), Channel("kids1", "20"), Channel("fav", "30", favorite: true), Channel("kids2", "22"), Channel("plain", "1") };
+        var groups = new Dictionary<string, string> { ["kids1"] = "Kids", ["kids2"] = "Kids", ["news"] = "News", ["fav"] = "News" };
+        var arranged = LiveGuide.Arranged(channels, groups);
+        Assert.Equal(["fav", "plain", "kids1", "kids2", "news"], arranged.Channels.Select(c => c.Id));
+        // The filter has each channel's own group; the player's row lists favourites as their own.
+        Assert.Equal(["Other", "Kids", "News"], arranged.Grouping!.Names);
+        Assert.Equal("News", arranged.Grouping.GroupOf("fav"));
+        Assert.Equal(["Favorites", "Other", "Kids", "News"], arranged.Listed!.Names);
+        Assert.Equal(LiveGuide.FavoritesGroup, arranged.Listed.GroupOf("fav"));
+    }
+
+    [Fact]
     public void FloorsToTheHalfHour()
     {
         var date = new DateTimeOffset(2026, 10, 21, 19, 47, 12, TimeSpan.Zero);

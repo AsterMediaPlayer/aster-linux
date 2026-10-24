@@ -91,7 +91,7 @@ public sealed record ChannelTags
         "channel", "number", "mode", "logo", "reshuffle", "seed", "blocks", "bug", "bug-location", "bug-size", "bug-hide", "bug-opacity",
         "genre", "type", "library", "network", "collection", "years", "rating", "weight", "min-length", "max-length", "filler-playlists",
         "filler-playlist", "filler-types", "filler-type", "bumpers-at", "promo-count", "trailer-count", "interstitial-count", "break-length",
-        "break-every", "align", "align-fit", "user", "users", "channel-name",
+        "break-every", "align", "align-fit", "user", "users", "channel-name", "group",
     ];
 
     public const int MostPromos = 5;
@@ -153,6 +153,14 @@ public sealed record ChannelTags
     /// <summary>Null for the playlist's own name.</summary>
     public string? Name { get; init; }
 
+    /// <summary>
+    /// The guide's group for the channel (group=Kids); null for none. Groups
+    /// go in order of their lowest channel number, and flicking runs through
+    /// one and into the next; without one a channel is under "Other", once
+    /// any channel has a group.
+    /// </summary>
+    public string? Group { get; init; }
+
     public bool HasSources => Genres.Count > 0 || Networks.Count > 0 || Collections.Count > 0;
     public bool HasBreaks => FillerPlaylists.Count > 0 && FillerTypes.Count > 0;
 
@@ -197,6 +205,7 @@ public sealed record ChannelTags
         var fillerTypes = AllKinds();
         var breaks = new ChannelBreaks();
         string? name = null;
+        string? group = null;
 
         foreach (var tag in tags ?? [])
         {
@@ -250,6 +259,7 @@ public sealed record ChannelTags
                 case "align": breaks = breaks with { Align = value is not null && Minutes(value) is { } a && Alignments.Contains(a) ? a : 0 }; break;
                 case "user" or "users": Collect(value, users); break;
                 case "channel-name": name = string.IsNullOrEmpty(value) ? null : value; break;
+                case "group": group = value?.Trim(' ', '\t') is { Length: > 0 } trimmed ? trimmed : null; break;
             }
         }
 
@@ -259,7 +269,7 @@ public sealed record ChannelTags
             ShowsBug = bug, BugCorner = corner, BugSize = bugSize, BugHideAfter = bugHide, BugOpacity = bugOpacity,
             Genres = genres, Content = content, Libraries = libraries, Networks = networks, Collections = collections, Years = years,
             Ratings = ratings, Weights = weights, MinLength = minLength, MaxLength = maxLength, FillerPlaylists = fillers,
-            FillerTypes = fillerTypes, Breaks = breaks, Users = users, Name = name,
+            FillerTypes = fillerTypes, Breaks = breaks, Users = users, Name = name, Group = group,
         };
     }
 
@@ -313,6 +323,7 @@ public sealed record ChannelTags
         }
         if (Users.Count > 0) Add("user=" + string.Join(",", Users));
         if (Name is { } name) Add($"channel-name={name}");
+        if (Group is { } group) Add($"group={group}");
         return result;
     }
 

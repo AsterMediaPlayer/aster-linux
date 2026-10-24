@@ -554,6 +554,17 @@ public sealed class JellyfinClient
     public Task<OpEdTheme?> OpEdThemeForLibraryItemAsync(string itemId, CancellationToken ct = default) =>
         OrNullAsync(() => GetAsync<OpEdTheme>($"/OpEd/LibraryItems/{itemId}/Theme", ct: ct), ct);
 
+    /// <summary>
+    /// Live TV channels' groups, by channel id, from the Aster Channels
+    /// plugin; null without it (or before 0.2), which leaves Live TV as it was.
+    /// </summary>
+    public Task<IReadOnlyDictionary<string, string>?> LiveTvGroupsAsync(CancellationToken ct = default) =>
+        OrNullAsync(async () => (await GetAsync<LiveTvGroupList>("/AsterChannels/LiveTvGroups", ct: ct).ConfigureAwait(false)).ByChannel, ct);
+
+    /// <summary>Puts a Live TV channel in <paramref name="group"/>, or out of its group for null (administrators only); every channel's group after.</summary>
+    public async Task<IReadOnlyDictionary<string, string>> SetLiveTvGroupAsync(string channelId, string? group, CancellationToken ct = default) =>
+        (await PostAsync<LiveTvGroupList>("/AsterChannels/LiveTvGroups", body: new LiveTvGroupList.Entry(channelId, group ?? ""), ct: ct).ConfigureAwait(false)).ByChannel;
+
     /// <summary>The OP/ED plugin's published libraries; null without the plugin (or before 0.2).</summary>
     public Task<OpEdLibraries?> OpEdLibrariesAsync(CancellationToken ct = default) =>
         OrNullAsync(() => GetAsync<OpEdLibraries>("/OpEd/Library", ct: ct), ct);

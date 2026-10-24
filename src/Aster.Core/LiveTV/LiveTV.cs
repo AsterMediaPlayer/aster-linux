@@ -1,4 +1,5 @@
 using System.Globalization;
+using Aster.Core.Channels;
 using Aster.Core.Jellyfin;
 
 namespace Aster.Core.LiveTV;
@@ -45,9 +46,40 @@ public static class LiveGuide
     /// <summary>The guide's order: favourites first, then by channel number, then name.</summary>
     public static IReadOnlyList<BaseItem> Order(IEnumerable<BaseItem> channels) => channels
         .OrderByDescending(c => c.UserData?.IsFavorite == true)
-        .ThenBy(c => double.TryParse(c.ChannelNumber, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) ? number : double.MaxValue)
+        .ThenBy(NumberOf)
         .ThenBy(c => c.DisplayTitle, StringComparer.CurrentCulture)
         .ToList();
+
+    /// <summary>Live TV's favourites, a group of their own at the front once channels have groups.</summary>
+    public const string FavoritesGroup = "Favorites";
+
+    /// <summary>
+    /// The guide's order: favourites first, then each group in order of its
+    /// lowest channel number (its channels by number), the ungrouped under
+    /// Other. Without groups, favourites then everything by number, as ever.
+    /// <c>Grouping</c> is each channel's own group, for the guide's filter;
+    /// <c>Listed</c> has the favourites as a group of their own, as they
+    /// come first, for the player's row.
+    /// </summary>
+    public static (IReadOnlyList<BaseItem> Channels, ChannelGrouping? Grouping, ChannelGrouping? Listed) Arranged(
+        IEnumerable<BaseItem> channels, IReadOnlyDictionary<string, string> groups)
+    {
+        var all = channels.ToList();
+        var byNumber = all.OrderBy(NumberOf).ThenBy(c => c.DisplayTitle, StringComparer.CurrentCulture).ToList();
+        if (ChannelGrouping.Make(byNumber, c => c.Id, c => groups.GetValueOrDefault(c.Id)) is not var (grouping, ordered))
+        {
+            return (Order(all), null, null);
+        }
+        static bool IsFavorite(BaseItem channel) => channel.UserData?.IsFavorite == true;
+        var favorites = byNumber.Where(IsFavorite).ToList();
+        var listedGroups = new Dictionary<string, string>(grouping.Groups);
+        foreach (var favorite in favorites) listedGroups[favorite.Id] = FavoritesGroup;
+        var listed = new ChannelGrouping(listedGroups, (favorites.Count > 0 ? [FavoritesGroup] : new List<string>()).Concat(grouping.Names).ToList());
+        return ([.. favorites, .. ordered.Where(c => !IsFavorite(c))], grouping, listed);
+    }
+
+    private static double NumberOf(BaseItem channel) =>
+        double.TryParse(channel.ChannelNumber, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) ? number : double.MaxValue;
 
     /// <summary>The half hour <paramref name="date"/> falls in, where the guide starts.</summary>
     public static DateTimeOffset FloorToHalfHour(DateTimeOffset date)

@@ -825,6 +825,25 @@ public enum ImageKind
     Chapter,
 }
 
+/// <summary><c>GET</c>/<c>POST /AsterChannels/LiveTvGroups</c> from the Aster Channels server plugin: each Live TV channel's group.</summary>
+public sealed record LiveTvGroupList
+{
+    public sealed record Entry(string ChannelId, string Group);
+
+    public IReadOnlyList<Entry> Groups { get; init; } = [];
+
+    /// <summary>The groups by channel id; a channel listed twice keeps its last.</summary>
+    public IReadOnlyDictionary<string, string> ByChannel
+    {
+        get
+        {
+            var byChannel = new Dictionary<string, string>();
+            foreach (var entry in Groups) byChannel[entry.ChannelId] = entry.Group;
+            return byChannel;
+        }
+    }
+}
+
 // ---- Playback reporting ----
 
 public sealed record PlaybackReport

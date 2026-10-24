@@ -33,15 +33,26 @@ public sealed record FlickProgram(
     }
 }
 
-/// <summary>A channel in the row, and what's on it now.</summary>
-public sealed record FlickChannel(string Id, string? Number, string Name, Uri? Logo, Uri? Bug, FlickProgram? Now);
+/// <summary>A channel in the row, what's on it now, and its group when the channels have groups.</summary>
+public sealed record FlickChannel(string Id, string? Number, string Name, Uri? Logo, Uri? Bug, FlickProgram? Now, string? Group = null);
 
 /// <summary>Live TV's channels in the guide's order, as the Live TV tab last loaded them, for the player to flick through.</summary>
 public static class LiveChannelDirectory
 {
     public static IReadOnlyList<BaseItem> Channels { get; private set; } = [];
 
-    public static void Register(IReadOnlyList<BaseItem> loaded) => Channels = loaded;
+    /// <summary>Their groups, from the Aster Channels plugin, when there are any, with favourites as a group of their own (they come first).</summary>
+    public static ChannelGrouping? Grouping { get; private set; }
+
+    /// <summary>Each channel's own group, for laying a fresh list out the same way.</summary>
+    public static IReadOnlyDictionary<string, string> Groups { get; private set; } = new Dictionary<string, string>();
+
+    public static void Register(IReadOnlyList<BaseItem> loaded, ChannelGrouping? grouping = null, IReadOnlyDictionary<string, string>? groups = null)
+    {
+        Channels = loaded;
+        Grouping = grouping;
+        Groups = groups ?? new Dictionary<string, string>();
+    }
 }
 
 /// <summary>One of the five places along the row: the picked channel in the middle, two either side; empty where the row is too short.</summary>
@@ -82,13 +93,18 @@ public sealed partial class ChannelFlickViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Selected), nameof(Cards), nameof(CanGoTo), nameof(GoToTitle), nameof(IsCurrentSelected), nameof(WatchHint),
-        nameof(Image), nameof(ChannelLine), nameof(Bug), nameof(Title), nameof(Subtitle), nameof(Overview), nameof(TimeRange), nameof(ProgressPercent), nameof(HasProgress), nameof(TimeLeft))]
+        nameof(Image), nameof(ChannelLine), nameof(Bug), nameof(Title), nameof(Subtitle), nameof(Overview), nameof(TimeRange), nameof(ProgressPercent), nameof(HasProgress), nameof(TimeLeft),
+        nameof(SelectedGroup))]
     public partial IReadOnlyList<FlickChannel> Channels { get; private set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Selected), nameof(Cards), nameof(CanGoTo), nameof(GoToTitle), nameof(IsCurrentSelected), nameof(WatchHint),
-        nameof(Image), nameof(ChannelLine), nameof(Bug), nameof(Title), nameof(Subtitle), nameof(Overview), nameof(TimeRange), nameof(ProgressPercent), nameof(HasProgress), nameof(TimeLeft))]
+        nameof(Image), nameof(ChannelLine), nameof(Bug), nameof(Title), nameof(Subtitle), nameof(Overview), nameof(TimeRange), nameof(ProgressPercent), nameof(HasProgress), nameof(TimeLeft),
+        nameof(SelectedGroup))]
     public partial int SelectedIndex { get; private set; }
+
+    /// <summary>The picked channel's group, over the row; it changes as flicking crosses from one group into the next.</summary>
+    public string? SelectedGroup => Selected?.Group;
 
     /// <summary>The channel playing now.</summary>
     public string CurrentId { get; private set; }
@@ -180,9 +196,10 @@ public sealed partial class ChannelFlickViewModel : ObservableObject
         {
             try
             {
-                var ordered = LiveGuide.Order(await client.ChannelsAsync());
-                LiveChannelDirectory.Register(ordered);
-                Channels = LiveChannels(ordered);
+                var groups = LiveChannelDirectory.Groups;
+                var arranged = LiveGuide.Arranged(await client.ChannelsAsync(), groups);
+                LiveChannelDirectory.Register(arranged.Channels, arranged.Listed, groups);
+                Channels = LiveChannels(arranged.Channels);
             }
             catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException) { return; }
         }
@@ -206,7 +223,8 @@ public sealed partial class ChannelFlickViewModel : ObservableObject
                 current.End,
                 current.ImageTags?.GetValueOrDefault("Primary") is { } tag ? client.ImageUrl(current.Id, ImageKind.Primary, tag, maxWidth: 480) : null)
             : null;
-        return new FlickChannel(channel.Id, channel.ChannelNumber, channel.DisplayTitle, client.ChannelLogoUrl(channel, width: 300), null, program);
+        return new FlickChannel(channel.Id, channel.ChannelNumber, channel.DisplayTitle, client.ChannelLogoUrl(channel, width: 300), null, program,
+            LiveChannelDirectory.Grouping?.GroupOf(channel.Id));
     }).ToList();
 
     private IReadOnlyList<FlickChannel> PlaylistChannels()
@@ -241,7 +259,7 @@ public sealed partial class ChannelFlickViewModel : ObservableObject
             var picture = channel.LogoUrl(client, 560);
             // The picture is a logo when it's the bug or the logo.
             return new FlickChannel(channel.Id, channel.Number.ToString(System.Globalization.CultureInfo.InvariantCulture), channel.Name,
-                channel.ShowsLogo ? picture : null, channel.ShowsBug || channel.ShowsLogo ? picture : null, program);
+                channel.ShowsLogo ? picture : null, channel.ShowsBug || channel.ShowsLogo ? picture : null, program, ChannelTuner.Grouping?.GroupOf(channel.Id));
         }).ToList();
     }
 

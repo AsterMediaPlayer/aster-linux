@@ -21,6 +21,9 @@ public static class Converters
     public static readonly IValueConverter Bold =
         new FuncValueConverter<bool, Avalonia.Media.FontWeight>(current => current ? Avalonia.Media.FontWeight.SemiBold : Avalonia.Media.FontWeight.Normal);
 
+    /// <summary>Text in capitals, in the reader's language: a guide's group name over its first channel.</summary>
+    public static readonly IValueConverter Upper = new FuncValueConverter<string?, string?>(text => text?.ToUpper(System.Globalization.CultureInfo.CurrentCulture));
+
     /// <summary>A disc menu's Back button: a step back, or closing the menu from its first screen.</summary>
     public static readonly IValueConverter BackTip = new FuncValueConverter<bool, string>(canGoBack => canGoBack ? "Back" : "Close");
 

@@ -22,6 +22,7 @@ public sealed partial class ChannelsViewModel : ViewModelBase, IGuideSource, IRe
     private readonly INavigator navigator;
     private readonly ChannelLoader loader = new();
     private IReadOnlyList<PlaylistChannel> channels = [];
+    private ChannelGrouping? grouping;
     private string? error;
 
     /// <summary>The scheduled movie or episode behind each guide listing, by the listing's id.</summary>
@@ -45,6 +46,8 @@ public sealed partial class ChannelsViewModel : ViewModelBase, IGuideSource, IRe
             // Channels can be kept to some users (aster:user=), by name.
             var userName = (await navigator.Client.MeAsync()).Name;
             channels = await loader.LoadAsync(navigator.Client, userName);
+            // By group once channels have them (aster:group=), as loading put them.
+            grouping = ChannelTuner.Grouping;
             error = null;
         }
         catch (Exception failure) when (failure is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException)
@@ -87,6 +90,12 @@ public sealed partial class ChannelsViewModel : ViewModelBase, IGuideSource, IRe
 
     public TimeSpan GuideLength => TimeSpan.FromDays(Days);
     public bool CanFavorite => false;
+    public ChannelGrouping? Grouping => grouping;
+
+    /// <summary>A channel's group is one of its tags, set in Edit Channels or Jellyfin.</summary>
+    public bool CanGroup => false;
+
+    public void ChooseGroup(string channelId) { }
 
     /// <summary>The channel's programmes, each with its break folded in, as listings; worked out away from the window.</summary>
     public Task<IReadOnlyList<BaseItem>> ProgramsAsync(string channelId, DateTimeOffset from, DateTimeOffset to)

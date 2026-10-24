@@ -27,8 +27,9 @@ public partial class MainViewModel : ViewModelBase
     /// <param name="openItemId">A title's page to open straight away (<c>--open &lt;id&gt;</c>), for development.</param>
     /// <param name="tab">A sidebar tab to start on (<c>--tab movies</c>), for development.</param>
     /// <param name="sort">That tab's sort (<c>--sort DateAdded</c>), for development.</param>
+    /// <param name="section">That tab's section (<c>--section guide</c> on Live TV), for development.</param>
     public MainViewModel(string? playItemId = null, int? maxBitrate = null, double? startSeconds = null, string? openItemId = null, AppTab? tab = null,
-        Aster.Core.Browsing.LibrarySort? sort = null)
+        Aster.Core.Browsing.LibrarySort? sort = null, string? section = null)
     {
         var development = DevelopmentSession();
         developmentSession = development is not null;
@@ -38,6 +39,7 @@ public partial class MainViewModel : ViewModelBase
             ShowShell(client, session);
             if (tab is { } startTab) shell!.ShowTab(startTab);
             if (sort is { } startSort && shell!.CurrentPage is BrowsePageViewModel page) page.SortIndex = (int)startSort;
+            if (section is not null && shell!.CurrentPage is LiveTVViewModel live) live.ShowSection(section);
             if (openItemId is not null) _ = OpenByIdAsync(client, openItemId);
             if (playItemId is not null) _ = PlayByIdAsync(client, playItemId, maxBitrate, startSeconds);
         }

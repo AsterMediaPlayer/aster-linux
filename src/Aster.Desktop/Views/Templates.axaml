@@ -234,6 +234,7 @@
                     <ContextMenu>
                         <MenuItem Header="Watch" Command="{Binding PlayCommand}" />
                         <MenuItem Header="{Binding FavoriteLabel}" Command="{Binding ToggleFavoriteCommand}" />
+                        <MenuItem Header="Group…" Command="{Binding ChooseGroupCommand}" IsVisible="{Binding CanGroup}" />
                     </ContextMenu>
                 </Button.ContextMenu>
                 <Panel>

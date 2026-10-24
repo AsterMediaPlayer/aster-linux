@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Aster.Core.Channels;
 using Aster.Core.Jellyfin;
 using Aster.Core.LiveTV;
 using Avalonia;
@@ -55,6 +56,15 @@ public interface IGuideSource
     /// <summary>Whether a channel can be made a favourite from its cell.</summary>
     bool CanFavorite { get; }
 
+    /// <summary>The channels' groups, for the filter along the top and the group names in the channel column; null when they have none.</summary>
+    ChannelGrouping? Grouping { get; }
+
+    /// <summary>Whether a channel's group can be chosen from its cell (an administrator's, on Live TV with the Aster Channels plugin).</summary>
+    bool CanGroup { get; }
+
+    /// <summary>Opens the choice of a channel's group.</summary>
+    void ChooseGroup(string channelId);
+
     Task<IReadOnlyList<BaseItem>> ProgramsAsync(string channelId, DateTimeOffset from, DateTimeOffset to);
 
     /// <summary>A programme's full record for the panel (its picture and overview), which a listing can leave out.</summary>
@@ -77,12 +87,19 @@ public sealed partial class GuideRowViewModel(GuideViewModel guide, IGuideSource
     private IReadOnlyList<BaseItem>? programs;
     private bool loading;
 
+    public GuideChannel Channel => channel;
     public string ChannelId => channel.Id;
     public Uri? Logo => channel.Logo;
     public string? Number => channel.Number;
     public string Name => channel.Name;
     public bool CanFavorite => source.CanFavorite;
-    public string AccessibleName => $"Watch {string.Join(" ", new[] { channel.Number, channel.Name }.OfType<string>())}";
+    public bool CanGroup => source.CanGroup;
+    public string AccessibleName => $"Watch {string.Join(" ", new[] { channel.Number, channel.Name, GroupCaption }.OfType<string>())}";
+
+    /// <summary>The group's name, on a group's first row in the All view: inside the channel's cell, so the rows keep their even spacing.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AccessibleName))]
+    public partial string? GroupCaption { get; set; }
 
     [ObservableProperty] public partial IReadOnlyList<GuideCell> Cells { get; private set; } = [];
 
@@ -98,6 +115,8 @@ public sealed partial class GuideRowViewModel(GuideViewModel guide, IGuideSource
     public string FavoriteLabel => IsFavorite ? "Remove from Favorites" : "Add to Favorites";
 
     [RelayCommand] private void Play() => source.PlayChannel(channel.Id);
+
+    [RelayCommand] private void ChooseGroup() => source.ChooseGroup(channel.Id);
 
     [RelayCommand]
     private void ToggleFavorite()
@@ -223,7 +242,17 @@ public sealed partial class GuideViewModel : ViewModelBase, IRefreshable
 
     public double VisibleMinutes => timelineWidth / PixelsPerMinute;
 
+    /// <summary>The rows shown: the picked group's, or every channel's.</summary>
     [ObservableProperty] public partial IReadOnlyList<GuideRowViewModel> Rows { get; private set; } = [];
+
+    private IReadOnlyList<GuideRowViewModel> allRows = [];
+
+    /// <summary>The filter along the top, when channels have groups: All, then each group in the order its channels come.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasGroups))]
+    public partial IReadOnlyList<Choice> Groups { get; private set; } = [];
+
+    public bool HasGroups => Groups.Count > 0;
     [ObservableProperty] public partial IReadOnlyList<GuideTick> Ticks { get; private set; } = [];
     [ObservableProperty] public partial Thickness NowMargin { get; private set; }
     [ObservableProperty] public partial bool ShowsNow { get; private set; }
@@ -247,7 +276,45 @@ public sealed partial class GuideViewModel : ViewModelBase, IRefreshable
             (MessageTitle, MessageDetail) = (title, detail);
             return;
         }
-        Rows = source.GuideChannels.Select(c => new GuideRowViewModel(this, source, c)).ToList();
+        allRows = source.GuideChannels.Select(c => new GuideRowViewModel(this, source, c)).ToList();
+        ShowGroup(null);
+    }
+
+    // ---- Groups ----
+
+    /// <summary>
+    /// The rows of <paramref name="group"/> (null for all of them). Live TV's
+    /// favourites are a group of their own at the front of the filter, as
+    /// they come first. In the All view each group's name is on its first
+    /// channel.
+    /// </summary>
+    private void ShowGroup(string? group)
+    {
+        var grouping = source.Grouping;
+        string? Listed(GuideChannel channel) => channel.IsFavorite ? LiveGuide.FavoritesGroup : grouping?.GroupOf(channel.Id);
+        Rows = group is null ? allRows
+            : group == LiveGuide.FavoritesGroup ? allRows.Where(r => r.Channel.IsFavorite).ToList()
+            : allRows.Where(r => grouping?.GroupOf(r.ChannelId) == group).ToList();
+        string? previous = null;
+        foreach (var row in allRows)
+        {
+            var listed = Listed(row.Channel);
+            row.GroupCaption = grouping is not null && group is null && listed is not null && listed != previous ? listed : null;
+            previous = listed;
+        }
+        if (grouping is null)
+        {
+            Groups = [];
+        }
+        else
+        {
+            var names = (allRows.Any(r => r.Channel.IsFavorite) ? [LiveGuide.FavoritesGroup] : new List<string>()).Concat(grouping.Names);
+            Groups = new[] { (Title: "All", Group: (string?)null) }.Concat(names.Select(n => (Title: n, Group: (string?)n)))
+                .Select(g => new Choice(g.Title, g.Group == group, new RelayCommand(() => ShowGroup(g.Group))))
+                .ToList();
+        }
+        // Another group: the panel starts again from its first channel.
+        highlighted = null;
         Relayout();
     }
 
