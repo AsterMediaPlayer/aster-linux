@@ -19,6 +19,19 @@
         <Button Content="Sign In" Command="{Binding SignInCommand}" IsDefault="True"
                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,16,0,0" />
 
+        <Button Content="Quick Connect" Command="{Binding QuickConnectCommand}"
+                IsVisible="{Binding !IsQuickConnecting}"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+
+        <StackPanel Spacing="8" Margin="0,16,0,0" IsVisible="{Binding IsQuickConnecting}">
+            <TextBlock Text="Enter this code in Jellyfin on another device, under your user menu ▸ Quick Connect"
+                       TextWrapping="Wrap" TextAlignment="Center" Opacity="0.7" />
+            <TextBlock Text="{Binding QuickConnectCode}" FontFamily="Consolas, monospace" FontSize="44" FontWeight="Bold"
+                       LetterSpacing="12" HorizontalAlignment="Center" />
+            <Button Content="Cancel" Command="{Binding CancelQuickConnectCommand}"
+                    HorizontalAlignment="Center" />
+        </StackPanel>
+
         <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="#FF8A80"
                    IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
     </StackPanel>

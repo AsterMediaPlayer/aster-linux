@@ -83,6 +83,31 @@ public class JellyfinClientTests
     }
 
     [Fact]
+    public async Task QuickConnectAsksForACodeChecksItAndSignsInWithItsSecret()
+    {
+        var server = new StubServer(request => request.Url.AbsolutePath switch
+        {
+            "/base/QuickConnect/Enabled" => (HttpStatusCode.OK, "true"),
+            "/base/QuickConnect/Initiate" => (HttpStatusCode.OK, """{"Authenticated":false,"Secret":"s3cret","Code":"123456"}"""),
+            "/base/QuickConnect/Connect" => (HttpStatusCode.OK, """{"Authenticated":true,"Secret":"s3cret","Code":"123456"}"""),
+            _ => (HttpStatusCode.OK, """{"User":{"Id":"u1","Name":"Phil"},"AccessToken":"t1","ServerId":"s"}"""),
+        });
+        var client = server.Client(token: null, userId: null);
+
+        Assert.True(await client.QuickConnectEnabledAsync());
+        var initiated = await client.QuickConnectInitiateAsync();
+        Assert.Equal("123456", initiated.Code);
+        Assert.True((await client.QuickConnectStateAsync(initiated.Secret)).Authenticated);
+        var result = await client.AuthenticateWithQuickConnectAsync(initiated.Secret);
+
+        Assert.Equal("t1", result.AccessToken);
+        Assert.Equal(HttpMethod.Post, server.Requests[1].Method);
+        Assert.Equal("?secret=s3cret", server.Requests[2].Url.Query);
+        Assert.Equal("/base/Users/AuthenticateWithQuickConnect", server.Requests[3].Url.AbsolutePath);
+        Assert.Equal("""{"Secret":"s3cret"}""", server.Requests[3].Body);
+    }
+
+    [Fact]
     public async Task UnauthorizedReadsAsAWrongPassword()
     {
         var server = new StubServer(_ => (HttpStatusCode.Unauthorized, ""));

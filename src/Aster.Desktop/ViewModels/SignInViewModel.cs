@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Aster.Core.Jellyfin;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -10,11 +11,13 @@ namespace Aster.Desktop.ViewModels;
 public partial class SignInViewModel : ViewModelBase
 {
     private readonly Action<JellyfinClient, StoredSession> signedIn;
+    private CancellationTokenSource? quickConnect;
 
     public SignInViewModel(Action<JellyfinClient, StoredSession> signedIn) => this.signedIn = signedIn;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SignInCommand))]
+    [NotifyCanExecuteChangedFor(nameof(QuickConnectCommand))]
     public partial string ServerAddress { get; set; } = "";
 
     [ObservableProperty]
@@ -27,6 +30,16 @@ public partial class SignInViewModel : ViewModelBase
     /// <summary>Why sign-in failed, or why the user is back here.</summary>
     [ObservableProperty]
     public partial string? Message { get; set; }
+
+    /// <summary>The Quick Connect code to enter on another device, while one is waiting.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsQuickConnecting))]
+    public partial string? QuickConnectCode { get; set; }
+
+    public bool IsQuickConnecting => QuickConnectCode is not null;
+
+    // Another server's code means nothing, so changing the address drops it.
+    partial void OnServerAddressChanged(string value) => CancelQuickConnect();
 
     private bool CanSignIn() => ServerAddress.Trim().Length > 0 && UserName.Trim().Length > 0;
 
@@ -44,22 +57,99 @@ public partial class SignInViewModel : ViewModelBase
             var server = new JellyfinClient(url);
             var info = await server.PublicSystemInfoAsync();
             var result = await server.AuthenticateAsync(UserName.Trim(), Password);
-            var session = new StoredSession
-            {
-                ServerUrl = url,
-                ServerName = info.ServerName,
-                UserId = result.User.Id,
-                UserName = result.User.Name,
-                AccessToken = result.AccessToken,
-            };
-            session.Save();
-            signedIn(server.SignedIn(result.AccessToken, result.User.Id), session);
+            CancelQuickConnect();
+            Finish(server, url, info.ServerName, result);
         }
         catch (Exception error) when (error is JellyfinException or HttpRequestException or TimeoutException)
         {
-            Message = error is HttpRequestException ? $"Couldn't reach the server: {error.Message}" : error.Message;
+            Message = Describe(error);
         }
     }
+
+    private bool CanQuickConnect() => ServerAddress.Trim().Length > 0;
+
+    /// <summary>
+    /// Asks the server for a code, shows it, and checks every 2 seconds
+    /// until it's approved on another device (in Jellyfin's user menu ▸
+    /// Quick Connect), then signs in as whoever approved it.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanQuickConnect))]
+    private async Task QuickConnectAsync()
+    {
+        Message = null;
+        if (ServerUrl(ServerAddress) is not { } url)
+        {
+            Message = JellyfinException.InvalidUrl().Message;
+            return;
+        }
+        CancelQuickConnect();
+        var cancel = quickConnect = new CancellationTokenSource();
+        var ct = cancel.Token;
+        try
+        {
+            var server = new JellyfinClient(url);
+            var info = await server.PublicSystemInfoAsync(ct);
+            if (!await server.QuickConnectEnabledAsync(ct))
+            {
+                Message = "Quick Connect is turned off on this server. An administrator can turn it on in the Dashboard, under General.";
+                return;
+            }
+            var initiated = await server.QuickConnectInitiateAsync(ct);
+            QuickConnectCode = initiated.Code;
+            while (true)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(2), ct);
+                var state = await server.QuickConnectStateAsync(initiated.Secret, ct);
+                if (!state.Authenticated) continue;
+                var result = await server.AuthenticateWithQuickConnectAsync(initiated.Secret, ct);
+                QuickConnectCode = null;
+                Finish(server, url, info.ServerName, result);
+                return;
+            }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+        }
+        catch (Exception error) when (error is JellyfinException or HttpRequestException or TimeoutException)
+        {
+            if (ct.IsCancellationRequested) return;
+            QuickConnectCode = null;
+            // The server forgets a code after 10 minutes, and then doesn't know its secret.
+            Message = error is JellyfinException { StatusCode: 404 }
+                ? "The Quick Connect code expired. Choose Quick Connect for a new one."
+                : $"Quick Connect failed: {Describe(error)}";
+        }
+        finally
+        {
+            if (quickConnect == cancel) quickConnect = null;
+            cancel.Dispose();
+        }
+    }
+
+    [RelayCommand]
+    private void CancelQuickConnect()
+    {
+        quickConnect?.Cancel();
+        quickConnect = null;
+        QuickConnectCode = null;
+    }
+
+    private void Finish(JellyfinClient server, Uri url, string? serverName, AuthenticationResult result)
+    {
+        var session = new StoredSession
+        {
+            ServerUrl = url,
+            ServerName = serverName,
+            UserId = result.User.Id,
+            UserName = result.User.Name,
+            AccessToken = result.AccessToken,
+        };
+        session.Save();
+        signedIn(server.SignedIn(result.AccessToken, result.User.Id), session);
+    }
+
+    private static string Describe(Exception error) =>
+        error is HttpRequestException ? $"Couldn't reach the server: {error.Message}" : error.Message;
 
     /// <summary>
     /// What was typed as a server address, with http:// assumed when no
