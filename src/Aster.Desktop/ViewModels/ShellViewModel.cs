@@ -23,6 +23,9 @@ public interface INavigator
     /// <summary>The song or book playing.</summary>
     Aster.Desktop.Audio.AudioSession Audio { get; }
 
+    /// <summary>Title pages' theme music and videos.</summary>
+    Aster.Desktop.Audio.ThemePlayer Theme { get; }
+
     /// <summary>A book's page.</summary>
     void OpenBook(Aster.Core.Audio.Audiobook book);
 
@@ -119,6 +122,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
         HasUpcoming = CheckUpcomingAsync(client);
         HasChannels = CheckChannelsAsync(client);
         Audio = new Aster.Desktop.Audio.AudioSession(client);
+        Theme = new Aster.Desktop.Audio.ThemePlayer(client, Audio);
         NowPlaying = new NowPlayingViewModel(this);
         UserName = session.UserName;
         ServerName = session.ServerName ?? session.ServerUrl.Host;
@@ -139,6 +143,8 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
     public Task<AnimeCatalog> Anime { get; }
     public Task<IReadOnlyList<BaseItem>> Libraries { get; }
     public Aster.Desktop.Audio.AudioSession Audio { get; }
+
+    public Aster.Desktop.Audio.ThemePlayer Theme { get; }
 
     /// <summary>The full player for the song or book, over the window.</summary>
     public NowPlayingViewModel NowPlaying { get; }
@@ -261,8 +267,19 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
     public string ServerName { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanGoBack), nameof(ShowsCapsule))]
+    [NotifyPropertyChangedFor(nameof(CanGoBack), nameof(ShowsCapsule), nameof(ShowsThemeVideo))]
     public partial ViewModelBase CurrentPage { get; set; }
+
+    /// <summary>A title's page is in view, so its theme video can show behind it.</summary>
+    public bool ShowsThemeVideo => CurrentPage is DetailViewModel;
+
+    // The theme follows the page in view: a title's page plays its own (or
+    // carries on with its series'), and any other lets it fade.
+    partial void OnCurrentPageChanged(ViewModelBase value)
+    {
+        Theme.PageChanged(value);
+        if (value is DetailViewModel detail) detail.ShowTheme();
+    }
 
     public bool CanGoBack => stack.Count > 0;
 
@@ -319,8 +336,10 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
     {
         // A song or book playing pauses for the video, and waits in the bar.
         Audio.Pause();
+        Theme.Suspend();
         play(entry, last =>
         {
+            Theme.Resume();
             // Watching changes resume points and watched states everywhere.
             userDataChanged = true;
             closed?.Invoke(last);
@@ -350,6 +369,10 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
 
     public Task SessionExpiredAsync() => signOut(SignOutKind.Expired);
 
-    /// <summary>Signing out: the song or book stops, its place saved.</summary>
-    public void Dispose() => Audio.Dispose();
+    /// <summary>Signing out: the song or book stops, its place saved, and the theme with it.</summary>
+    public void Dispose()
+    {
+        Theme.Dispose();
+        Audio.Dispose();
+    }
 }

@@ -87,6 +87,22 @@
             </Border>
             <TextBlock Classes="note" Text="Skip Intro and Skip Credits need markers on the server, from the Intro Skipper plugin or chapter markers." />
 
+            <TextBlock Classes="heading" Text="Title Pages" />
+            <Border Classes="group">
+                <StackPanel>
+                    <DockPanel Classes="row">
+                        <ToggleSwitch IsChecked="{Binding ThemeMusic}" AutomationProperties.Name="Theme music" />
+                        <TextBlock Text="Theme music" />
+                    </DockPanel>
+                    <Rectangle Classes="divider" />
+                    <DockPanel Classes="row">
+                        <ToggleSwitch IsChecked="{Binding ThemeVideos}" AutomationProperties.Name="Theme videos" />
+                        <TextBlock Text="Theme videos" />
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+            <TextBlock Classes="note" Text="Plays a title's theme song quietly, or loops its theme video behind the page, when your library has them. Theme music stays off while you are listening to music." />
+
             <TextBlock Classes="heading" Text="Audio &amp; Subtitles" />
             <Border Classes="group">
                 <StackPanel IsEnabled="{Binding HasConfiguration}">

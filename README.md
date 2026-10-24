@@ -152,7 +152,15 @@ theme from its own file, a chapter clip as just that stretch of its episode,
 the player closing at its end. Neither is reported, so resume points and
 watched state stay as they were.
 
-Not yet: theme music and videos, disc menus, the Apple app's Now Playing
+With Theme music or Theme videos on in Settings, a title's page plays its
+theme song quietly, or loops its theme video silently behind the page in
+place of the still backdrop (Jellyfin's theme media; a season or episode
+has its show's). Going from a show to one of its episodes carries on with
+the same theme; any other page fades it out. It stays off while a song or
+book plays, and quiet while a title plays.
+
+Not yet: an anime opening looping behind a show with no theme video of its
+own, disc menus, the Apple app's Now Playing
 panel (Play All and Shuffle through the openings and endings, a theme
 playing beside the page while browsing), full versions, and Watch OP and
 Watch ED. Chinese titles sort under # in the letter index; the Apple app
@@ -240,8 +248,8 @@ About pages on one page, as the Mac's Settings window has them:
   Mac; the window comes back as the player closes).
 - **Following the user** between devices and the Apple app: autoplaying
   the next episode, skipping intros, drawing ASS/SSA subtitles styled
-  (off, mpv strips them to plain text), and the song card at anime
-  openings and endings. They're fetched at sign-in and
+  (off, mpv strips them to plain text), theme music and theme videos on
+  title pages, and the song card at anime openings and endings. They're fetched at sign-in and
   when Settings opens, a change is saved as it's made, and a setting never
   chosen on this computer keeps the default rather than overwriting
   another device's choice.
@@ -251,7 +259,8 @@ About pages on one page, as the Mac's Settings window has them:
   with Switch User and Change Server (both sign out, after asking; Switch
   User keeps the server's address filled in).
 
-Not yet: the Disc Menus, Title Pages and Channels pages, and the Anime
+Not yet: the Disc Menus and Channels pages, Title Pages' anime opening
+with sound, and the Anime
 page's Now Playing panel and full versions, which wait on those features.
 
 ## The player

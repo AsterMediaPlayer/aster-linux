@@ -17,9 +17,10 @@ public sealed record SettingOption<T>(string Title, T Value)
 }
 
 /// <summary>
-/// The Settings tab: the Apple app's Playback, Audio &amp; Subtitles, Account
-/// and About pages, on one page as the Mac's Settings window has them. The
-/// Up Next, intro and styled-subtitle switches follow the user between
+/// The Settings tab: the Apple app's Playback, Title Pages, Audio &amp;
+/// Subtitles, Account and About pages, on one page as the Mac's Settings
+/// window has them. The Up Next, intro, theme and styled-subtitle switches
+/// follow the user between
 /// devices (<see cref="SettingsSync"/>); the languages are the user's own
 /// Jellyfin settings, shared with the web app.
 /// </summary>
@@ -61,6 +62,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
     [ObservableProperty] public partial bool AutoSkipIntro { get; set; }
     [ObservableProperty] public partial bool StyledSubtitles { get; set; }
     [ObservableProperty] public partial bool ThemeCards { get; set; }
+    [ObservableProperty] public partial bool ThemeMusic { get; set; }
+    [ObservableProperty] public partial bool ThemeVideos { get; set; }
 
     partial void OnBitrateChanged(SettingOption<int>? value)
     {
@@ -72,6 +75,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
     partial void OnAutoSkipIntroChanged(bool value) => Change(s => s with { AutoSkipIntro = value });
     partial void OnStyledSubtitlesChanged(bool value) => Change(s => s with { StyledSubtitles = value });
     partial void OnThemeCardsChanged(bool value) => Change(s => s with { ThemeCards = value });
+    partial void OnThemeMusicChanged(bool value) => Change(s => s with { ThemeMusic = value });
+    partial void OnThemeVideosChanged(bool value) => Change(s => s with { ThemeVideos = value });
 
     private void Change(Func<AppSettings, AppSettings> change)
     {
@@ -89,6 +94,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
         AutoSkipIntro = settings.AutoSkipIntro;
         StyledSubtitles = settings.StyledSubtitles;
         ThemeCards = settings.ThemeCards;
+        ThemeMusic = settings.ThemeMusic;
+        ThemeVideos = settings.ThemeVideos;
         showing = false;
     }
 

@@ -64,6 +64,20 @@ public sealed class SettingsSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task ThemeMusicAndVideosFollowTheUserUnderTheAppleAppsKeys()
+    {
+        Assert.False(AppSettings.Current.ThemeMusic);
+        Assert.False(AppSettings.Current.ThemeVideos);
+        var server = Server("""{"themeMusic":"true"}""");
+        var client = server.Client(userId: "themes");
+        await SettingsSync.PullAsync(client);
+        Assert.True(AppSettings.Current.ThemeMusic);
+
+        await SettingsSync.ChangeAsync(client, s => s with { ThemeVideos = true });
+        Assert.Equal("true", SavedPrefs(server).GetProperty("themeVideos").GetString());
+    }
+
+    [Fact]
     public async Task ComputerOnlySettingsStayOffTheServer()
     {
         var server = Server("{}");

@@ -3,6 +3,7 @@
              xmlns:vm="using:Aster.Desktop.ViewModels"
              xmlns:c="using:Aster.Desktop.Controls"
              xmlns:v="using:Aster.Desktop.Views"
+             xmlns:mpv="using:Aster.Mpv"
              x:Class="Aster.Desktop.Views.ShellView"
              x:DataType="vm:ShellViewModel">
 
@@ -73,6 +74,17 @@
     </UserControl.Styles>
 
     <Panel>
+        <!-- A title's theme video, behind its page (whose backdrop fades from over it). Here rather than in the page, as
+             mpv's video can't move between views: a series and its episode share one. The view leaves with the video,
+             letting go of mpv's render context as it does. -->
+        <ContentControl Content="{Binding Theme.Video}" IsVisible="{Binding ShowsThemeVideo}" IsHitTestVisible="False" Focusable="False">
+            <ContentControl.ContentTemplate>
+                <DataTemplate x:DataType="mpv:MpvPlayer">
+                    <c:MpvVideoView Player="{Binding}" />
+                </DataTemplate>
+            </ContentControl.ContentTemplate>
+        </ContentControl>
+
         <!-- The page, the whole width of the window. -->
         <ContentControl x:Name="Page" Content="{Binding CurrentPage}" />
 

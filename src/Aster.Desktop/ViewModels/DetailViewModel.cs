@@ -2,7 +2,8 @@
 // TV app: full-bleed artwork, title and actions, then shelves; a show's
 // page in tabs. A port of the Apple app's ItemDetailView and DetailModel.
 //
-// Not yet ported: theme music and videos, disc menus, the Now Playing
+// Not yet ported: an anime opening looping behind a series with no theme
+// video of its own, disc menus, the Now Playing
 // panel for openings and endings (they play full screen, one at a time),
 // Watch OP and Watch ED, playlists, recordings and downloads.
 
@@ -69,6 +70,15 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
     // ---- Header ----
 
     public Uri? Backdrop => Client.BackdropUrl(Item, width: 1920);
+
+    /// <summary>The theme music and video; the backdrop fades from over the video as it plays.</summary>
+    public Aster.Desktop.Audio.ThemePlayer Theme => navigator.Theme;
+
+    /// <summary>Plays the title's theme, while this page is the one in view.</summary>
+    public void ShowTheme() => navigator.Theme.Show(this, Item);
+
+    // The page's stub becomes the whole title as it loads: an episode's series is known then.
+    partial void OnItemChanged(BaseItem value) => ShowTheme();
 
     /// <summary>A movie's or show's own logo, in place of its title.</summary>
     public Uri? Logo => Item.Kind is ItemKind.Episode or ItemKind.Season ? null : Client.LogoUrl(Item);

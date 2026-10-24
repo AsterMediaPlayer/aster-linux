@@ -24,6 +24,12 @@ public sealed record AppSettings
     /// <summary>The song card as an anime episode's opening or ending plays, and on music videos.</summary>
     public bool ThemeCards { get; init; } = true;
 
+    /// <summary>A title's theme song, played quietly on its page.</summary>
+    public bool ThemeMusic { get; init; }
+
+    /// <summary>A title's theme video, looped silently behind its page.</summary>
+    public bool ThemeVideos { get; init; }
+
     /// <summary>A video takes the whole screen as it starts (the Mac's setting).</summary>
     public bool FullScreenPlayback { get; init; } = true;
 
