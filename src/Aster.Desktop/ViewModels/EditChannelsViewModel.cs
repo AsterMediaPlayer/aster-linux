@@ -514,8 +514,10 @@ public sealed partial class EditChannelsViewModel : ViewModelBase, IRefreshable
         rows.Add(new EditToggleRow("Logo in the Corner While Playing", null, tags.ShowsBug, new RelayCommand(() => Update(playlist, t => t with { ShowsBug = !t.ShowsBug }), () => CanEdit)));
         // Breaks: the filler playlists a channel's breaks play from; none is off. Turning
         // breaks on lines the channel up on the half hour too, best effort, as a channel with breaks usually wants.
+        // Not on Plex yet: its videos have no tags to tell a commercial from a bumper.
+        var breaksWork = Plex is null;
         var fillers = FillerNames.Concat(tags.FillerPlaylists.Where(f => !FillerNames.Contains(f, StringComparer.OrdinalIgnoreCase))).ToList();
-        if (fillers.Count > 0)
+        if (breaksWork && fillers.Count > 0)
             rows.Add(Multi("Breaks", fillers, tags.FillerPlaylists, "Off", names => Update(playlist, t =>
             {
                 var turningOn = t.FillerPlaylists.Count == 0 && names.Count > 0;
@@ -548,7 +550,7 @@ public sealed partial class EditChannelsViewModel : ViewModelBase, IRefreshable
             rows.Add(Choice("Logo Size", $"{tags.BugSize}%", With(BugSizeChoices, tags.BugSize).Select(s => (s, $"{s}%")), tags.BugSize,
                 s => Update(playlist, t => t with { BugSize = s })));
         }
-        if (tags.FillerPlaylists.Count > 0)
+        if (breaksWork && tags.FillerPlaylists.Count > 0)
         {
             var kinds = Enum.GetValues<BreakKind>();
             rows.Add(Multi("Filler Types", kinds.Select(k => k.Title).ToList(), kinds.Where(tags.FillerTypes.Contains).Select(k => k.Title).ToList(), "All", titles =>
@@ -557,7 +559,7 @@ public sealed partial class EditChannelsViewModel : ViewModelBase, IRefreshable
                 Update(playlist, t => t with { FillerTypes = chosen.Count == 0 ? kinds.ToHashSet() : chosen });
             }));
         }
-        if (tags.HasBreaks)
+        if (breaksWork && tags.HasBreaks)
         {
             var breaks = tags.Breaks;
             ChannelTags Breaks(ChannelTags t, Func<ChannelBreaks, ChannelBreaks> change) => t with { Breaks = change(t.Breaks) };
