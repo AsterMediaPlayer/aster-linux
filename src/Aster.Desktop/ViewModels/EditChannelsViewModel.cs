@@ -109,6 +109,9 @@ public sealed partial class EditChannelsViewModel : ViewModelBase, IRefreshable
     /// channels of them, and the tags go in a playlist's description.
     /// </summary>
     private PlexClient? Plex => navigator.Client as PlexClient;
+
+    /// <summary>"Jellyfin", "Emby" or "Plex": where the playlists and their settings are.</summary>
+    private string ServerKind => navigator.Client.Kind.ToString();
     private bool CanEdit => isAdministrator == true && !refused;
 
     public void Refresh() => _ = LoadAsync();
@@ -422,7 +425,7 @@ public sealed partial class EditChannelsViewModel : ViewModelBase, IRefreshable
         }
         if (isAdministrator != true)
         {
-            rows.Add(new EditNoteRow("Only your server's administrator can set up channels. Ask them to, here or in Jellyfin."));
+            rows.Add(new EditNoteRow($"Only your server's administrator can set up channels. Ask them to, here or in {ServerKind}."));
         }
         else
         {
@@ -437,7 +440,7 @@ public sealed partial class EditChannelsViewModel : ViewModelBase, IRefreshable
                 ? "A show plays its episodes in order; a genre, network or collection plays every movie and show in it (a network is a show's network, or a movie's studio). A playlist plays what you put in it. On Plex a playlist, and so its channel, is only yours."
                 : "A show plays its episodes in order; a genre, network or collection plays every movie and show in it. A playlist plays what you put in it. Each is shared with everyone on your server."));
         }
-        if (playlists.Count == 0) rows.Add(new EditNoteRow(Plex is not null ? "No video playlists yet. Make one in Plex." : "No video playlists yet. Make one in Jellyfin, or with Add to Playlist on any movie."));
+        if (playlists.Count == 0) rows.Add(new EditNoteRow(Plex is not null ? "No video playlists yet. Make one in Plex." : $"No video playlists yet. Make one in {ServerKind}, or with Add to Playlist on any movie."));
         var numbers = Numbers;
         foreach (var (playlist, tags) in Channels)
         {
@@ -463,7 +466,7 @@ public sealed partial class EditChannelsViewModel : ViewModelBase, IRefreshable
             showsHelp = !showsHelp;
             Rebuild();
         })));
-        if (showsHelp) foreach (var note in HelpNotes) rows.Add(new EditNoteRow(note));
+        if (showsHelp) foreach (var note in HelpNotes(Plex is not null)) rows.Add(new EditNoteRow(note));
     }
 
     /// <summary>An open channel's settings: the essentials, then what it plays and the rest folded away until asked for.</summary>
@@ -590,7 +593,7 @@ public sealed partial class EditChannelsViewModel : ViewModelBase, IRefreshable
         if (users.Count > 0) rows.Add(Multi("Users", users, tags.Users, "Everyone", u => Update(playlist, t => t with { Users = u })));
         rows.Add(new EditNoteRow(Plex is not null
             ? "Every setting is kept in the playlist's description in Plex (aster:channel, aster:number=3, …), so you can change it there too: see How Channels Work."
-            : "Every setting is a tag on the playlist in Jellyfin, so you can change it there too: see How Channels Work."));
+            : $"Every setting is a tag on the playlist in {ServerKind}, so you can change it there too: see How Channels Work."));
     }
 
     /// <summary>A row that opens or closes part of a channel's settings in place, with what's set there when closed.</summary>
@@ -694,12 +697,40 @@ public sealed partial class EditChannelsViewModel : ViewModelBase, IRefreshable
     private static string HideTitle(int seconds) => seconds == 0 ? "Never" : seconds < 60 ? $"{seconds} sec" : $"{seconds / 60} min";
     private static string EveryTitle(int every) => every == 1 ? "Every Programme" : $"Every {every} Programmes";
 
-    private static readonly string[] HelpNotes =
-    [
-        "Rotation plays one episode of each show in turn, and Blocks a few in a row; either way a show's episodes come in order and pick up where they left off, each movie takes a turn of its own, and specials are left out. Shuffle plays everything in its own order. These three deal a new order every day, week or month, as Reshuffle says, and Shuffle Again deals a different one. In Order plays the playlist as it's arranged, round and round.",
-        "Channels are saved as tags on the playlists in Jellyfin, so every device finds them. You can set them there too, in the playlist's Edit Metadata ▸ Tags: aster:channel, aster:number=3, aster:mode=blocks (or rotation, shuffle, sequential, airdate), aster:reshuffle=week (or day, month), aster:blocks=3-6, aster:seed=2, aster:logo=on, aster:bug=on (with aster:bug-location=top-left, top-right, bottom-left or bottom-right, aster:bug-size=150%, aster:bug-hide=30 and aster:bug-opacity=60%), aster:channel-name=Your Name, aster:group=Kids (channels go in the guide by group, groups in order of their lowest number), aster:min-length=20 and aster:max-length=60 (in minutes), aster:weight=Friends:2 (a show taking two turns to everyone else's one), and to fill a channel aster:genre=Horror, aster:network=NBC and aster:collection=Star Wars (once each), narrowed by aster:type=movies (or shows, all), aster:years=1980-1989, aster:rating=TV-PG,PG and aster:library=TV Shows (once per library, for genres and networks).",
-        "A channel with genres, networks or collections plays every movie and every episode of every show in them (any of them), as well as anything in its playlist. Air Date plays them all in the order they first aired.",
-        "A channel with filler playlists has a break after its programmes: a bumper, commercials, promos, trailers, interstitials, and a bumper back. Put the clips in Jellyfin as videos and tag each one with what it is: aster:commercial, aster:promo, aster:trailer, aster:interstitial or aster:bumper (aster:bumper=in only closes a break, right before the show, and aster:bumper=out only opens one); a clip without one isn't played. Put them in playlists tagged aster:filler, and pick those for a channel here, or name them with aster:filler-playlists=Its Name. aster:filler-types=commercials,bumpers keeps to some kinds; aster:bumpers-at=both (or out, in), aster:break-length=2 (minutes of commercials), aster:promo-count=1, aster:trailer-count=1, aster:interstitial-count=1 and aster:break-every=1 shape each break. With aster:align=30, programmes line up on the hour and half hour: Best Effort (aster:align-fit=best) fills each break with whole clips, as near the mark as they get, so a programme can start a few seconds early; Exact (aster:align-fit=exact) fills with interstitials and cuts the last one short to land right on it.",
-        "Other people on your server see a channel only if its playlist is shared with them, or public. Users (aster:user=peppy,jd) keeps a channel to certain people in Aster's Channels tab; it still lists every channel here, and doesn't hide the playlist in Jellyfin.",
-    ];
+    /// <summary>How Channels Work: the modes, where the settings are kept (tags on Jellyfin and Emby, the description on Plex), sources, breaks and who sees a channel.</summary>
+    private static IEnumerable<string> HelpNotes(bool plex)
+    {
+        yield return Modes;
+        yield return plex ? PlexSettings : TagSettings;
+        yield return Sources;
+        // Break clips are told apart by their tags, which Plex's videos don't have.
+        if (!plex) yield return Breaks;
+        yield return plex ? PlexWhoSees : WhoSees;
+    }
+
+    private const string Modes =
+        "Rotation plays one episode of each show in turn, and Blocks a few in a row; either way a show's episodes come in order and pick up where they left off, each movie takes a turn of its own, and specials are left out. Shuffle plays everything in its own order. These three deal a new order every day, week or month, as Reshuffle says, and Shuffle Again deals a different one. In Order plays the playlist as it's arranged, round and round.";
+
+    /// <summary>Every setting there is, as written in a tag or a description.</summary>
+    private const string SettingsList =
+        "aster:channel, aster:number=3, aster:mode=blocks (or rotation, shuffle, sequential, airdate), aster:reshuffle=week (or day, month), aster:blocks=3-6, aster:seed=2, aster:logo=on, aster:bug=on (with aster:bug-location=top-left, top-right, bottom-left or bottom-right, aster:bug-size=150%, aster:bug-hide=30 and aster:bug-opacity=60%), aster:channel-name=Your Name, aster:group=Kids (channels go in the guide by group, groups in order of their lowest number), aster:min-length=20 and aster:max-length=60 (in minutes), aster:weight=Friends:2 (a show taking two turns to everyone else's one), and to fill a channel aster:genre=Horror, aster:network=NBC and aster:collection=Star Wars (once each), narrowed by aster:type=movies (or shows, all), aster:years=1980-1989, aster:rating=TV-PG,PG and aster:library=TV Shows (once per library, for genres and networks).";
+
+    private const string TagSettings =
+        "On Jellyfin and Emby, channels are saved as tags on the playlists, so every device finds them. You can set them there too, in the playlist's Edit Metadata ▸ Tags, one tag each: " + SettingsList;
+
+    private const string PlexSettings =
+        "On Plex, which has no tags on playlists, channels are saved in the playlist's description, so every device finds them. You can set them there too, in the playlist's Edit ▸ Description (Summary), as one line with a comma between settings: " + SettingsList
+        + " Only a comma before the next aster: starts a new setting, so one inside a value (aster:channel-name=Laugh, Cry, Repeat) stays in it. Words before the settings stay the playlist's own description; Edit Channels keeps them and rewrites the settings line after them.";
+
+    private const string Sources =
+        "A channel with genres, networks or collections plays every movie and every episode of every show in them (any of them), as well as anything in its playlist. Air Date plays them all in the order they first aired.";
+
+    private const string Breaks =
+        "A channel with filler playlists has a break after its programmes: a bumper, commercials, promos, trailers, interstitials, and a bumper back. Put the clips in Jellyfin or Emby as videos and tag each one with what it is: aster:commercial, aster:promo, aster:trailer, aster:interstitial or aster:bumper (aster:bumper=in only closes a break, right before the show, and aster:bumper=out only opens one); a clip without one isn't played. Put them in playlists tagged aster:filler, and pick those for a channel here, or name them with aster:filler-playlists=Its Name. aster:filler-types=commercials,bumpers keeps to some kinds; aster:bumpers-at=both (or out, in), aster:break-length=2 (minutes of commercials), aster:promo-count=1, aster:trailer-count=1, aster:interstitial-count=1 and aster:break-every=1 shape each break. With aster:align=30, programmes line up on the hour and half hour: Best Effort (aster:align-fit=best) fills each break with whole clips, as near the mark as they get, so a programme can start a few seconds early; Exact (aster:align-fit=exact) fills with interstitials and cuts the last one short to land right on it.";
+
+    private const string WhoSees =
+        "Other people on your server see a channel only if its playlist is shared with them, or public. Users (aster:user=peppy,jd) keeps a channel to certain people in Aster's Channels tab; it still lists every channel here, and doesn't hide the playlist on the server.";
+
+    private const string PlexWhoSees =
+        "A Plex playlist belongs to the account that made it, so its channel is yours alone: others on your server make their own. Breaks (filler playlists) aren't available on Plex yet.";
 }

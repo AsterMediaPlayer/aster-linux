@@ -247,7 +247,7 @@
                         <TextBlock Text="Add Server" VerticalAlignment="Center" />
                     </Button>
                     <Border Classes="note">
-                        <TextBlock Text="Servers you've signed in to stay signed in, to switch between. Add one to sign in to another Jellyfin or Emby server, or as someone else." />
+                        <TextBlock Text="Servers you've signed in to stay signed in, to switch between. Add one to sign in to another Jellyfin, Emby or Plex server, or as someone else." />
                     </Border>
                     <Button Classes="row" Margin="0,8,0,8">
                         <TextBlock Text="{Binding ServerName, StringFormat='Sign Out of {0}'}" VerticalAlignment="Center" />
@@ -271,7 +271,7 @@
                         </DockPanel>
                     </Border>
                     <Border Classes="note">
-                        <TextBlock Text="A Jellyfin and Emby client for Windows and Linux, ported from the Apple TV, iPhone, iPad and Mac app." />
+                        <TextBlock Text="A Jellyfin, Emby and Plex client for Windows and Linux, ported from the Apple TV, iPhone, iPad and Mac app." />
                     </Border>
                 </StackPanel>
             </StackPanel>
