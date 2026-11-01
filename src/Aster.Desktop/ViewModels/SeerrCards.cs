@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Aster.Core.Jellyfin;
@@ -74,6 +75,33 @@ public static class SeerrPages
         try { return await jellyfin.Has4kCopyAsync(tmdbId, movie, name); }
         catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException or TaskCanceledException or System.Text.Json.JsonException) { return false; }
     }
+
+    private static (JellyfinClient Server, DateTime At, IReadOnlySet<int> Ids)? uhdFilms;
+
+    /// <summary>
+    /// The TMDB ids of the films a library has in 4K, for Discover to leave
+    /// out (nothing there to ask for); kept ten minutes. None without
+    /// Jellyfin, or when the server can't say.
+    /// </summary>
+    public static async Task<IReadOnlySet<int>> Uhd4kFilmsAsync(INavigator navigator)
+    {
+        if (navigator.Jellyfin is not { } jellyfin) return new HashSet<int>();
+        if (uhdFilms is { } kept && ReferenceEquals(kept.Server, jellyfin) && DateTime.UtcNow - kept.At < TimeSpan.FromMinutes(10)) return kept.Ids;
+        try
+        {
+            var ids = await jellyfin.Uhd4kFilmsAsync();
+            uhdFilms = (jellyfin, DateTime.UtcNow, ids);
+            return ids;
+        }
+        catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            return new HashSet<int>();
+        }
+    }
+
+    /// <summary>Discover's titles, but the films a library has in 4K.</summary>
+    public static IEnumerable<SeerrTitle> Not4k(this IEnumerable<SeerrTitle> titles, IReadOnlySet<int> uhd) =>
+        titles.Where(t => !(t.IsMovie && uhd.Contains(t.Id)));
 
     public static Uri? Url(string? url) => url is null ? null : new Uri(url);
 }

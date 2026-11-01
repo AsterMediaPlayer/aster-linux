@@ -760,6 +760,20 @@ public sealed class JellyfinClient : IMediaServer, Channels.IChannelServer
         return false;
     }
 
+    /// <summary>The TMDB ids of every film in 4K (about 3840 across), across all the libraries.</summary>
+    public async Task<IReadOnlySet<int>> Uhd4kFilmsAsync(CancellationToken ct = default) =>
+        (await JellyfinItemsAsync(new()
+        {
+            ["recursive"] = "true",
+            ["includeItemTypes"] = "Movie",
+            ["minWidth"] = "3200",
+            ["fields"] = "ProviderIds",
+            ["enableImages"] = "false",
+            ["enableUserData"] = "false",
+        }, ct).ConfigureAwait(false)).Items
+            .Select(i => i.ProviderIds?.FirstOrDefault(p => p.Key.Equals("Tmdb", StringComparison.OrdinalIgnoreCase)).Value)
+            .Select(id => int.TryParse(id, out var number) ? number : 0).Where(id => id > 0).ToHashSet();
+
     /// <summary>Any of its versions about 4K across (3840, or a little cropped).</summary>
     private static bool IsUhd(BaseItem item) =>
         (item.MediaSources?.SelectMany(s => s.MediaStreams ?? []) ?? item.MediaStreams ?? []).Any(s => s.Type == "Video" && (s.Width ?? 0) >= 3200);

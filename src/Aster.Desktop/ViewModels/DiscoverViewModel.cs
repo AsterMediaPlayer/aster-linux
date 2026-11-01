@@ -20,6 +20,8 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
 
     private Section? chosen;
     private IReadOnlyList<object> cards = [];
+    /// <summary>The films a library has in 4K: left out of Discover.</summary>
+    private IReadOnlySet<int> uhd = new HashSet<int>();
     /// <summary>The Movies and Series grids' filters, kept as each is left.</summary>
     private SeerrFilter movieFilter = new(SeerrKind.Movie), seriesFilter = new(SeerrKind.Tv);
     private readonly Dictionary<SeerrKind, IReadOnlyList<SeerrGenre>> genres = [];
@@ -81,6 +83,7 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
         Ambient = null;
         if (Navigator.Seerr.Account is not { } account) return [heading];
         var section = Shown;
+        uhd = await SeerrPages.Uhd4kFilmsAsync(Navigator);
         // A section's cards, only if it's still the one showing when they come.
         void Show(IReadOnlyList<object> found)
         {
@@ -108,7 +111,7 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
                         titles.AddRange(reply.Results);
                         if (page >= (reply.TotalPages ?? 1)) break;
                     }
-                    var found = titles.DistinctBy(t => t.Key).Select(t => (object)new SeerrCard(Navigator, t)).ToList();
+                    var found = titles.DistinctBy(t => t.Key).Not4k(uhd).Select(t => (object)new SeerrCard(Navigator, t)).ToList();
                     Show(found);
                     return found.Count == 0
                         ? [heading, Filters(kind, filter), new StatusRow("Nothing matches", "Try fewer filters.")]
@@ -254,7 +257,7 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
     }
 
     private ShelfRow? Posters(string name, IEnumerable<SeerrTitle> titles) =>
-        Shelf(name, titles.DistinctBy(t => t.Key).Select(t => new SeerrCard(Navigator, t)), CardStyle.Seerr);
+        Shelf(name, titles.DistinctBy(t => t.Key).Not4k(uhd).Select(t => new SeerrCard(Navigator, t)), CardStyle.Seerr);
 
     private ShelfRow? Tiles(string name, IEnumerable<SeerrTileCard> tiles) => Shelf(name, tiles, CardStyle.SeerrTile);
 
@@ -373,7 +376,7 @@ public sealed class SeerrListViewModel : BrowsePageViewModel
                 titles.AddRange(reply.Results);
                 if (page >= (reply.TotalPages ?? 1)) break;
             }
-            cards = titles.DistinctBy(t => t.Key).Select(t => (object)new SeerrCard(Navigator, t)).ToList();
+            cards = titles.DistinctBy(t => t.Key).Not4k(await SeerrPages.Uhd4kFilmsAsync(Navigator)).Select(t => (object)new SeerrCard(Navigator, t)).ToList();
             return [new TitleRow(title, this)];
         }
         catch (Exception error) when (error is SeerrException or HttpRequestException or TaskCanceledException)
