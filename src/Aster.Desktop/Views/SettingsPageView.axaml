@@ -35,8 +35,18 @@
                             <TextBlock Text="Play videos full screen" VerticalAlignment="Center" />
                         </DockPanel>
                     </Button>
+                    <Button Classes="row" AutomationProperties.Name="Back in a video">
+                        <DockPanel>
+                            <TextBlock Classes="chevron" />
+                            <TextBlock Classes="value" Text="{Binding VideoBack.Title}" />
+                            <TextBlock Text="Back in a video" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedRight" ItemsSource="{Binding VideoBackChoices}" ItemContainerTheme="{StaticResource SettingChoice}" />
+                        </Button.Flyout>
+                    </Button>
                     <Border Classes="note">
-                        <TextBlock Text="Over the quality limit, the server converts a video down to it. A video takes the whole screen as it starts, and the window comes back as it closes. Off, it plays inside the window." />
+                        <TextBlock Text="Over the quality limit, the server converts a video down to it. A video takes the whole screen as it starts, and the window comes back as it closes. Off, it plays inside the window. Back in a video asks whether to keep watching in the mini player (in a corner, while you browse) or stop; or always does one. A controller's Y switches between the mini player and full screen." />
                     </Border>
 
                     <TextBlock Classes="section" Text="EPISODES" />

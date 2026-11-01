@@ -116,6 +116,25 @@ public sealed partial class SettingsViewModel : ViewModelBase
     public partial SettingOption<int>? Bitrate { get; set; }
 
     public IReadOnlyList<TrackChoice> BitrateChoices => Choices(Bitrates, Bitrate, b => Bitrate = b);
+
+    public IReadOnlyList<SettingOption<VideoBack>> VideoBacks { get; } =
+    [
+        new("Ask each time", Aster.Core.VideoBack.Ask),
+        new("Mini player", Aster.Core.VideoBack.MiniPlayer),
+        new("Stop", Aster.Core.VideoBack.Stop),
+    ];
+
+    /// <summary>What Back does in a video.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VideoBackChoices))]
+    public partial SettingOption<VideoBack>? VideoBack { get; set; }
+
+    public IReadOnlyList<TrackChoice> VideoBackChoices => Choices(VideoBacks, VideoBack, b => VideoBack = b);
+
+    partial void OnVideoBackChanged(SettingOption<VideoBack>? value)
+    {
+        if (value is not null) Change(s => s with { BackInVideo = value.Value });
+    }
     [ObservableProperty] public partial bool FullScreenPlayback { get; set; }
     [ObservableProperty] public partial bool AutoplayNext { get; set; }
     [ObservableProperty] public partial bool AutoSkipIntro { get; set; }
@@ -175,6 +194,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         var settings = AppSettings.Current;
         showing = true;
         Bitrate = Bitrates.FirstOrDefault(b => b.Value == settings.MaxBitrate) ?? Bitrates[0];
+        VideoBack = VideoBacks.FirstOrDefault(b => b.Value == settings.BackInVideo) ?? VideoBacks[0];
         FullScreenPlayback = settings.FullScreenPlayback;
         AutoplayNext = settings.AutoplayNext;
         AutoSkipIntro = settings.AutoSkipIntro;

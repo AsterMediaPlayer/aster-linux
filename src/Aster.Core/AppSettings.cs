@@ -7,6 +7,9 @@ namespace Aster.Core;
 /// This computer's settings, kept in %LOCALAPPDATA%\Aster\settings.json.
 /// The names and defaults are the Apple app's.
 /// </summary>
+/// <summary>Back in a video: ask each time, to the mini player, or stop.</summary>
+public enum VideoBack { Ask, MiniPlayer, Stop }
+
 public sealed record AppSettings
 {
     /// <summary>The streaming limit in bits per second; the top choice means "no limit".</summary>
@@ -55,6 +58,9 @@ public sealed record AppSettings
 
     /// <summary>A video takes the whole screen as it starts (the Mac's setting).</summary>
     public bool FullScreenPlayback { get; init; } = true;
+
+    /// <summary>What Back does in a video played from the app's pages: ask, the mini player, or stop.</summary>
+    public VideoBack BackInVideo { get; init; } = VideoBack.Ask;
 
     /// <summary>
     /// The synced settings (by their server keys) chosen on this computer, so

@@ -531,12 +531,21 @@ public partial class PlayerViewModel : ViewModelBase
     [RelayCommand]
     private void KeepWatching() => LeavePromptVisible = false;
 
-    /// <summary>Back in the player: the prompt (mini player or stop) where there's a mini player, else closing.</summary>
+    /// <summary>
+    /// Back in the player, where there's a mini player: as Settings has it,
+    /// the prompt (mini player or stop), the mini player, or stopping.
+    /// Without one (a disc menu's), or on an error, closing.
+    /// </summary>
     public void Back()
     {
         if (LeavePromptVisible) LeavePromptVisible = false;
-        else if (CanMinimize && ErrorMessage is null) LeavePromptVisible = true;
-        else CloseCommand.Execute(null);
+        else if (!CanMinimize || ErrorMessage is not null) CloseCommand.Execute(null);
+        else switch (AppSettings.Current.BackInVideo)
+        {
+            case VideoBack.MiniPlayer: IsMini = true; break;
+            case VideoBack.Stop: CloseCommand.Execute(null); break;
+            default: LeavePromptVisible = true; break;
+        }
     }
 
     [ObservableProperty] public partial IReadOnlyList<TrackChoice> AudioChoices { get; set; } = [];

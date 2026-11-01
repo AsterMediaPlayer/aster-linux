@@ -31,6 +31,18 @@
             <Setter Property="Foreground" Value="Black" />
             <Setter Property="FontSize" Value="26" />
         </Style>
+        <!-- The keyboard's (a controller's) mark: white, as the Apple TV's, not Fluent's rectangle; the big play/pause grows. -->
+        <Style Selector="Button.control, Button.corner">
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+        </Style>
+        <Style Selector="Button.control:focus-visible /template/ ContentPresenter, Button.corner:focus-visible /template/ ContentPresenter">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="Black" />
+        </Style>
+        <Style Selector="Button.control.main:focus-visible">
+            <Setter Property="RenderTransform" Value="scale(1.1)" />
+        </Style>
         <Style Selector="Button.control.main:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#E6FFFFFF" />
             <Setter Property="Foreground" Value="Black" />

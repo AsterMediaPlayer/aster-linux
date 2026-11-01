@@ -106,6 +106,18 @@
         <Style Selector="ContentControl#Page.deck">
             <Setter Property="Margin" Value="0,0,440,0" />
         </Style>
+        <!-- The keyboard's (a controller's) mark on the shell's own buttons: a fill, not Fluent's rectangle. -->
+        <Style Selector="Button.bar, Button.capsule, Button.np">
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+        </Style>
+        <Style Selector="Button.bar:focus-visible /template/ ContentPresenter, Button.np:focus-visible /template/ ContentPresenter">
+            <Setter Property="Background" Value="#4DFFFFFF" />
+        </Style>
+        <Style Selector="Button.capsule:focus-visible /template/ ContentPresenter">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="Black" />
+        </Style>
+
         <!-- The video player: over everything, or the mini player, in the bottom-right corner over the pages. -->
         <Style Selector="Border#VideoLayer">
             <Setter Property="Background" Value="Black" />
@@ -164,7 +176,7 @@
             <Border Background="#B3202020" CornerRadius="28" Padding="6,6,8,6" BorderThickness="1" BorderBrush="#1FFFFFFF"
                     VerticalAlignment="Center" IsVisible="{Binding Audio.IsLoaded}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                    <Button Command="{Binding Audio.ShowPlayerCommand}" Background="Transparent" Padding="0,0,10,0" CornerRadius="22"
+                    <Button Classes="np" Command="{Binding Audio.ShowPlayerCommand}" Background="Transparent" Padding="0,0,10,0" CornerRadius="22"
                             ToolTip.Tip="Open the player" AutomationProperties.Name="Now Playing">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <Border Width="44" Height="44" CornerRadius="22" ClipToBounds="True" Background="{StaticResource CardBackground}">
@@ -211,7 +223,7 @@
                 <!-- The song or book playing, whichever page is showing: the rest opens the full player. -->
                 <Border DockPanel.Dock="Bottom" Background="#1FFFFFFF" CornerRadius="24" Padding="8" Margin="0,12,0,0" IsVisible="{Binding Audio.IsLoaded}">
                     <Grid ColumnDefinitions="*,Auto,Auto">
-                        <Button Command="{Binding Audio.ShowPlayerCommand}" Background="Transparent" Padding="0,0,6,0" CornerRadius="12" AutomationProperties.Name="Now Playing"
+                        <Button Classes="np" Command="{Binding Audio.ShowPlayerCommand}" Background="Transparent" Padding="0,0,6,0" CornerRadius="12" AutomationProperties.Name="Now Playing"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" ToolTip.Tip="Open the player">
                             <Grid ColumnDefinitions="Auto,*">
                                 <Border Width="56" Height="56" CornerRadius="10" ClipToBounds="True" Background="{StaticResource CardBackground}">
