@@ -319,6 +319,8 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
     /// <summary>A tab's page, from the top: made the first time, kept after.</summary>
     public void ShowTab(AppTab chosen)
     {
+        // Chosen from the sidebar over the Now Playing player: the page, in its place (what's playing plays on).
+        Audio.IsNowPlayingShown = false;
         if (!tabs.TryGetValue(chosen, out var page))
         {
             page = chosen switch

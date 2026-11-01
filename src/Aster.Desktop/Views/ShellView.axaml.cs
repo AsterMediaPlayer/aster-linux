@@ -136,10 +136,11 @@ public partial class ShellView : UserControl
         {
             var back = beforePlayer;
             beforePlayer = null;
+            // Put away by a tab chosen in the sidebar over it: the keyboard goes to that page, not back to a mini player.
+            var forTab = shell.IsSidebarOpen;
             Dispatcher.UIThread.Post(() =>
             {
-                // Left for the sidebar: it has the keyboard now.
-                if (Model is { IsSidebarOpen: true }) return;
+                if (forTab || Model is { IsSidebarOpen: true }) return;
                 if (back?.TryGetTarget(out var was) == true && KeyFocus.CanFocus(was)) Land(was);
                 else if (keyboardLast) FocusPage();
             }, DispatcherPriority.Loaded);
@@ -208,20 +209,16 @@ public partial class ShellView : UserControl
         var inPlayer = focused is not null && KeyFocus.IsWithin(focused, NowPlayingPanel);
         switch (e.Key)
         {
-            // The Now Playing player, over everything: the arrows stay in it
-            // (they'd find the page and sidebar under it too). A slider keeps
-            // its Left and Right, to seek. Left with nothing further left puts
-            // the player away (what's playing plays on) for the sidebar, as
-            // Left does from a page.
-            case Key.Left or Key.Right or Key.Up or Key.Down when shell.NowPlaying.IsShown:
+            // The Now Playing player, over every page: the arrows stay in it
+            // (they'd find the page under it too). A slider keeps its Left and
+            // Right, to seek. Left with nothing further left slides the sidebar
+            // out over the player, as over a page; Right or Back from the
+            // sidebar comes back to it, a tab chosen there puts it away.
+            case Key.Left or Key.Right or Key.Up or Key.Down when shell.NowPlaying.IsShown && !shell.IsSidebarOpen:
                 if (!inPlayer) { if (PlayerStart() is { } start) KeyFocus.Move(start); }
                 else if (focused is Slider && e.Key is Key.Left or Key.Right) return;
                 else if (Neighbor(NowPlayingPanel, focused!, e.Key) is { } near) KeyFocus.Move(near);
-                else if (e.Key == Key.Left)
-                {
-                    shell.Audio.IsNowPlayingShown = false;
-                    OpenWithKeyboard(null);
-                }
+                else if (e.Key == Key.Left) OpenWithKeyboard(focused as InputElement);
                 e.Handled = true;
                 break;
             // A on the tab's capsule: the sidebar, with the keyboard on the tab showing.
@@ -230,7 +227,7 @@ public partial class ShellView : UserControl
                 e.Handled = true;
                 break;
             // The sidebar out (the pointer slid it) with the keyboard still behind it: the arrows start on its tab showing.
-            case Key.Up or Key.Down or Key.Left when shell.IsSidebarOpen && !inSidebar && !shell.NowPlaying.IsShown:
+            case Key.Up or Key.Down or Key.Left when shell.IsSidebarOpen && !inSidebar:
                 if (CurrentTabButton() is { } tab) KeyFocus.Move(tab);
                 e.Handled = true;
                 break;
@@ -292,11 +289,12 @@ public partial class ShellView : UserControl
                 if (Neighbor(Sidebar, focused!, e.Key) is { } next) KeyFocus.Move(next);
                 e.Handled = true;
                 break;
-            case Key.Escape or Key.BrowserBack when shell.NowPlaying.IsShown:
-                break;
+            // Back puts the sidebar away first (over the player, back to it), then the player.
             case Key.Escape or Key.BrowserBack when shell.IsSidebarOpen:
                 shell.IsSidebarOpen = false;
                 e.Handled = true;
+                break;
+            case Key.Escape or Key.BrowserBack when shell.NowPlaying.IsShown:
                 break;
             // The remote's Menu (or a controller's B): back, or on a tab's own page, the sidebar.
             case Key.Escape or Key.BrowserBack when shell.CanGoBack:
@@ -350,7 +348,7 @@ public partial class ShellView : UserControl
     private void OpenWithKeyboard(InputElement? from)
     {
         if (Model is not { } shell) return;
-        if (from is not null && KeyFocus.IsWithin(from, Page)) beforeSidebar = new WeakReference<InputElement>(from);
+        if (from is not null && (KeyFocus.IsWithin(from, Page) || KeyFocus.IsWithin(from, NowPlayingPanel))) beforeSidebar = new WeakReference<InputElement>(from);
         shell.IsSidebarOpen = true;
         Dispatcher.UIThread.Post(() =>
         {
@@ -368,7 +366,8 @@ public partial class ShellView : UserControl
     /// <summary>Back to where the keyboard was on the page, or where the page starts.</summary>
     private void ReturnToPage()
     {
-        if (beforeSidebar?.TryGetTarget(out var element) == true && element.IsEffectivelyVisible && KeyFocus.IsWithin(element, Page))
+        if (beforeSidebar?.TryGetTarget(out var element) == true && KeyFocus.CanFocus(element)
+            && (KeyFocus.IsWithin(element, Page) || KeyFocus.IsWithin(element, NowPlayingPanel)))
         {
             KeyFocus.Move(element);
             return;

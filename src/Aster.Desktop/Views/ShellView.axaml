@@ -162,6 +162,9 @@
         <!-- The Music tab's Now Playing panel, at the top right over every page, or filling the window full screen. -->
         <v:ThemeDeckView DataContext="{Binding Deck}" />
 
+        <!-- The full player, over every page while it's open; the sidebar slides out over it, as over a page. -->
+        <v:NowPlayingView x:Name="NowPlayingPanel" DataContext="{Binding NowPlaying}" IsVisible="{Binding IsShown}" />
+
         <!-- The window's left edge: the pointer there slides the sidebar out. -->
         <Border x:Name="Edge" Width="6" HorizontalAlignment="Left" Background="Transparent" />
 
@@ -228,7 +231,5 @@
             </DockPanel>
         </Border>
 
-        <!-- The full player, over everything, while it's open. -->
-        <v:NowPlayingView x:Name="NowPlayingPanel" DataContext="{Binding NowPlaying}" IsVisible="{Binding IsShown}" />
     </Panel>
 </UserControl>
