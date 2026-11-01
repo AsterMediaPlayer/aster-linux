@@ -38,7 +38,8 @@ public sealed class TypeGridViewModel : BrowsePageViewModel
     protected override async Task<IReadOnlyList<BrowseRow>> LoadTopAsync()
     {
         var client = Navigator.Client;
-        anime = (await Navigator.Anime).ItemIds;
+        var catalog = await Navigator.Anime;
+        anime = catalog.ItemIds;
         // Extra, as the anime ones are taken out.
         var latest = AnimeCatalog.OrEmpty(client.LatestAsync(null, 40, kind.ToString()));
         var resumed = AnimeCatalog.OrEmpty(client.ResumeAsync(limit: 30));
@@ -60,6 +61,14 @@ public sealed class TypeGridViewModel : BrowsePageViewModel
 
         var rows = new List<BrowseRow>();
         if (hero.HasPages) rows.Add(new HeroRow(hero, this));
+        // TV Shows: its libraries right below the hero (Down from it lands
+        // there), less the anime ones, which are the Anime tab's.
+        if (kind == ItemKind.Series)
+        {
+            var animeLibraries = catalog.Libraries.Select(l => l.Id).ToHashSet();
+            var shows = (await Navigator.Libraries).Where(l => l.CollectionType == "tvshows" && !animeLibraries.Contains(l.Id));
+            if (TileShelf("Libraries", shows) is { } libraries) rows.Add(libraries);
+        }
         rows.Add(new TitleRow(Title, this));
         if (LandscapeShelf("Recently Added", newest) is { } recent) rows.Add(recent);
         return rows;
