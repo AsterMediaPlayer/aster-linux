@@ -170,7 +170,7 @@
         </Panel>
 
         <!-- The controls, shown on mouse movement and while paused. -->
-        <Grid RowDefinitions="Auto,*,Auto" IsVisible="{Binding ControlsVisible}">
+        <Grid x:Name="Controls" RowDefinitions="Auto,*,Auto" IsVisible="{Binding ControlsVisible}">
             <Border Grid.Row="0" Padding="16,12,24,40">
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
@@ -268,7 +268,7 @@
                     </Grid>
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="4">
-                            <Button Classes="bar" Command="{Binding TogglePauseCommand}" ToolTip.Tip="Play/Pause (Space)">
+                            <Button x:Name="PlayPauseButton" Classes="bar" Command="{Binding TogglePauseCommand}" ToolTip.Tip="Play/Pause (Space)">
                                 <Panel>
                                     <TextBlock Classes="icon" Text="&#xE768;" IsVisible="{Binding IsPaused}" />
                                     <TextBlock Classes="icon" Text="&#xE769;" IsVisible="{Binding !IsPaused}" />

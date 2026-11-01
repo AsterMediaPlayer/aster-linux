@@ -66,7 +66,11 @@ public partial class PlayerView : UserControl
                 if (change.PropertyName is nameof(PlayerViewModel.ControlsVisible) or nameof(PlayerViewModel.Flick)) PlaceThemeCard();
             };
         };
-        Surface.PointerMoved += (_, _) => Model?.PokeControls();
+        Surface.PointerMoved += (_, _) =>
+        {
+            usingGamepad = false;
+            Model?.PokeControls();
+        };
         Surface.DoubleTapped += (_, e) =>
         {
             // Only on the picture, not on a control.
@@ -75,7 +79,7 @@ public partial class PlayerView : UserControl
         // The controls stay up while a menu is open.
         foreach (var node in this.GetLogicalDescendants())
         {
-            if (node is Button { Flyout: { } flyout })
+            if (node is Button { Flyout: { } flyout } button)
             {
                 flyout.Opened += (_, _) => { if (Model is { } m) m.OpenMenus++; };
                 flyout.Closed += (_, _) =>
@@ -83,7 +87,9 @@ public partial class PlayerView : UserControl
                     if (Model is not { } m) return;
                     m.OpenMenus = Math.Max(0, m.OpenMenus - 1);
                     m.PokeControls();
-                    Focus();
+                    // With a controller, back on the button the menu came from, to go on from there.
+                    if (usingGamepad && KeyFocus.CanFocus(button)) KeyFocus.Move(button);
+                    else Focus();
                 };
             }
         }
@@ -231,6 +237,14 @@ public partial class PlayerView : UserControl
             e.Handled = true;
             return;
         }
+        if (e.KeyDeviceType == KeyDeviceType.Gamepad)
+        {
+            switch (Gamepad(model, e.Key))
+            {
+                case true: e.Handled = true; return;
+                case false: return;
+            }
+        }
         switch (e.Key)
         {
             case Key.Space or Key.K or Key.MediaPlayPause:
@@ -309,5 +323,110 @@ public partial class PlayerView : UserControl
         if (Window is not { } window) return;
         FullScreen.Toggle(window);
         Focus();
+    }
+
+    // ---- A game controller ----
+
+    /// <summary>A controller's key came last, not the mouse: a menu closing gives focus back to its button.</summary>
+    private bool usingGamepad;
+
+    /// <summary>
+    /// A controller's keys, where they differ from the keyboard's. The D-pad
+    /// and left stick move between the controls (bringing them up, on Play/Pause,
+    /// if they're hidden) rather than seeking and changing the volume, which
+    /// the right stick does; on the timeline left and right seek. A presses
+    /// the control it's on; B shuts an open menu, or puts the controls away.
+    /// True: dealt with. False: left to the control it's on. Null: as the keyboard.
+    /// </summary>
+    private bool? Gamepad(PlayerViewModel model, Key key)
+    {
+        usingGamepad = true;
+        if (model.OpenMenus > 0)
+        {
+            if (key != Key.BrowserBack) return false;
+            CloseMenus();
+            return true;
+        }
+        var focused = KeyFocus.Current(this) as Visual;
+        // On one of the player's controls, and it's showing (hidden controls can't take focus).
+        var onControl = focused is InputElement element && focused != this && KeyFocus.IsWithin(focused, this) && KeyFocus.CanFocus(element);
+        switch (key)
+        {
+            case Key.Left or Key.Right or Key.Up or Key.Down:
+                model.PokeControls();
+                if (!onControl)
+                {
+                    // Shown now; focused once they're laid out.
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if ((KeyFocus.CanFocus(PlayPauseButton) ? PlayPauseButton : KeyFocus.FirstIn(this)) is { } first) KeyFocus.Move(first);
+                    }, DispatcherPriority.Loaded);
+                    return true;
+                }
+                if (focused == SeekBar && key is Key.Left or Key.Right)
+                {
+                    model.SeekBy(key == Key.Left ? -10 : 10);
+                    return true;
+                }
+                if (Nearest(focused!, key) is { } next) KeyFocus.Move(next);
+                return true;
+            // A on a button presses it (the timeline's A pauses, as the keyboard's Enter).
+            case Key.Enter when onControl && focused != SeekBar:
+                model.PokeControls();
+                return false;
+            case Key.BrowserBack when onControl && KeyFocus.IsWithin(focused, Controls):
+                model.ControlsVisible = false;
+                Focus();
+                return true;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// The control the arrow points to: among those showing, the nearest
+    /// one past this one that way, preferring those in line with it.
+    /// </summary>
+    private InputElement? Nearest(Visual from, Key direction)
+    {
+        if (from.TranslatePoint(default, this) is not { } origin) return null;
+        var a = new Rect(origin, from.Bounds.Size);
+        InputElement? best = null;
+        var bestScore = double.MaxValue;
+        foreach (var candidate in this.GetVisualDescendants().OfType<InputElement>())
+        {
+            if (candidate == from || !KeyFocus.CanFocus(candidate) || KeyFocus.IsWithin(candidate, from) || KeyFocus.IsWithin(from, candidate)) continue;
+            if (candidate.TranslatePoint(default, this) is not { } at) continue;
+            var b = new Rect(at, candidate.Bounds.Size);
+            // How far it is that way (edge to edge), and how far out of line.
+            var (ahead, beside) = direction switch
+            {
+                Key.Left => (a.Left - b.Right, Gap(a.Top, a.Bottom, b.Top, b.Bottom)),
+                Key.Right => (b.Left - a.Right, Gap(a.Top, a.Bottom, b.Top, b.Bottom)),
+                Key.Up => (a.Top - b.Bottom, Gap(a.Left, a.Right, b.Left, b.Right)),
+                _ => (b.Top - a.Bottom, Gap(a.Left, a.Right, b.Left, b.Right)),
+            };
+            var past = direction switch
+            {
+                Key.Left => b.Center.X < a.Center.X,
+                Key.Right => b.Center.X > a.Center.X,
+                Key.Up => b.Center.Y < a.Center.Y,
+                _ => b.Center.Y > a.Center.Y,
+            };
+            if (!past || ahead < -a.Width / 2 && direction is Key.Left or Key.Right || ahead < -a.Height / 2 && direction is Key.Up or Key.Down) continue;
+            var score = Math.Max(ahead, 0) + beside * 3;
+            if (score < bestScore) (best, bestScore) = (candidate, score);
+        }
+        return best;
+
+        static double Gap(double start, double end, double otherStart, double otherEnd) =>
+            Math.Max(0, Math.Max(otherStart - end, start - otherEnd));
+    }
+
+    private void CloseMenus()
+    {
+        foreach (var node in this.GetLogicalDescendants())
+        {
+            if (node is Button { Flyout: { IsOpen: true } flyout }) flyout.Hide();
+        }
     }
 }
