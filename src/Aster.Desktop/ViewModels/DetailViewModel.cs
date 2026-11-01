@@ -263,6 +263,7 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
             Item = full;
             Cast = full.Cast.Select(p => ItemCard.Person(navigator, p)).ToList();
             IsLoading = false;
+            _ = LoadSeerr4kAsync(full);
 
             var similar = Client.SimilarAsync(full.Id, 20);
             var themes = full.Kind == ItemKind.Series && full.IsAnime ? OpeningsEndingsAsync(full) : Task.FromResult<IReadOnlyList<OpeningEndingCard>>([]);
@@ -354,6 +355,8 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
                 ShowSeasonEpisodes(await Client.EpisodesAsync(series, season));
             }
             await LoadDiscMenuAsync();
+            // Back from its Seerr page, a 4K copy just asked for leaves nothing to ask.
+            _ = LoadSeerr4kAsync(Item);
         }
         catch (Exception error) when (IsServerError(error)) { }
     }

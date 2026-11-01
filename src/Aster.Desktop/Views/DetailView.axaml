@@ -187,6 +187,12 @@
                                     <TextBlock Text="Disc Menu" />
                                 </StackPanel>
                             </Button>
+                            <Button Theme="{StaticResource PillButton}" Command="{Binding Request4kCommand}" IsVisible="{Binding CanRequest4k}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="+" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <TextBlock Text="Request in 4K" />
+                                </StackPanel>
+                            </Button>
                             <Button Theme="{StaticResource PillButton}" Command="{Binding ToggleFavoriteCommand}" ToolTip.Tip="Favorite" Width="44" Padding="0" IsVisible="{Binding CanFavorite}">
                                 <Panel>
                                     <TextBlock Text="&#xEB51;" FontFamily="{StaticResource IconFont}" IsVisible="{Binding IsFavorite}" HorizontalAlignment="Center" />

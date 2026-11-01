@@ -43,12 +43,15 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
     /// <summary>The request this page was opened from, while it waits for approval.</summary>
     private SeerrRequest? request;
     private SeerrUser? me;
+    private readonly bool prefer4k;
 
-    public SeerrTitleViewModel(INavigator navigator, SeerrTitle title, SeerrRequest? request = null)
+    /// <param name="prefer4k">Opened to ask for the 4K copy (from the library's page): a 4K server, or 4K, picked to start.</param>
+    public SeerrTitleViewModel(INavigator navigator, SeerrTitle title, SeerrRequest? request = null, bool prefer4k = false)
     {
         this.navigator = navigator;
         this.title = title;
         this.request = request;
+        this.prefer4k = wants4k = prefer4k;
         _ = LoadAsync();
     }
 
@@ -68,7 +71,8 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
     /// <summary>
     /// The servers, a 4K one among them for whoever may ask for 4K (its
     /// requests go to that Radarr or Sonarr, and the 4K copy's status is
-    /// the one that counts). Seerr's default, not a 4K one, to start.
+    /// the one that counts). Seerr's default, not a 4K one, to start
+    /// (its 4K default, opened to ask for 4K).
     /// </summary>
     private async Task LoadOptionsAsync(SeerrAccount account, int? serverId = null)
     {
@@ -76,6 +80,7 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
         if (services.Count == 0)
             services = (await SeerrClient.ServicesAsync(kind, account)).Where(s => s.Is4k != true || me?.Requests4k(title.IsMovie) == true).ToList();
         var server = services.FirstOrDefault(s => s.Id == serverId)
+            ?? (prefer4k ? services.FirstOrDefault(s => s.IsDefault == true && s.Is4k == true) ?? services.FirstOrDefault(s => s.Is4k == true) : null)
             ?? services.FirstOrDefault(s => s.IsDefault == true && s.Is4k != true) ?? services.FirstOrDefault(s => s.Is4k != true) ?? services.FirstOrDefault();
         if (server is null) return;
         serviceChoices = await SeerrClient.ServiceChoicesAsync(kind, server.Id, account);
@@ -349,8 +354,13 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
         catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException) { Message = "Couldn't open a browser for the trailer."; }
     }
 
+    /// <summary>The library's page: opened from it (for 4K), back to it.</summary>
     [RelayCommand]
-    private Task OpenInLibrary() => SeerrPages.OpenAsync(navigator, title);
+    private async Task OpenInLibrary()
+    {
+        if (prefer4k) navigator.Back();
+        else await SeerrPages.OpenAsync(navigator, title);
+    }
 
     [RelayCommand]
     private void Back() => navigator.Back();
