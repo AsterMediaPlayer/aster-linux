@@ -64,12 +64,27 @@ public partial class PlayerView : UserControl
                 if (change.PropertyName is nameof(PlayerViewModel.Chapters) or nameof(PlayerViewModel.Duration)) MarkChapters();
                 if (change.PropertyName is nameof(PlayerViewModel.PreviewSeconds)) PlacePreview();
                 if (change.PropertyName is nameof(PlayerViewModel.ControlsVisible) or nameof(PlayerViewModel.Flick)) PlaceThemeCard();
+                if (change.PropertyName is nameof(PlayerViewModel.ControlsVisible)) ShowPointer();
             };
+            ShowPointer();
         };
-        Surface.PointerMoved += (_, _) =>
+        Surface.PointerMoved += (_, e) =>
         {
+            // Only a pointer that moved: one resting where the picture
+            // changes under it (or the controls come and go) is heard too.
+            var at = e.GetPosition(this);
+            var moved = pointerAt is { } was && (Math.Abs(at.X - was.X) > 2 || Math.Abs(at.Y - was.Y) > 2);
+            pointerAt = at;
+            if (!moved) return;
             usingGamepad = false;
+            pointerResting = false;
             Model?.PokeControls();
+            ShowPointer();
+        };
+        Surface.PointerPressed += (_, _) =>
+        {
+            pointerResting = false;
+            ShowPointer();
         };
         Surface.DoubleTapped += (_, e) =>
         {
@@ -221,6 +236,9 @@ public partial class PlayerView : UserControl
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
         if (Model is not { } model || e.Handled) return;
+        // The keyboard or a controller: the pointer goes until the mouse moves.
+        pointerResting = true;
+        ShowPointer();
         // The channel row has the arrows while it's open.
         if (model.Flick is { } flick)
         {
@@ -324,6 +342,24 @@ public partial class PlayerView : UserControl
         FullScreen.Toggle(window);
         Focus();
     }
+
+    // ---- The pointer ----
+
+    private static readonly Cursor NoPointer = new(StandardCursorType.None);
+
+    /// <summary>Where the pointer was last heard, to tell it moving from the picture changing under it.</summary>
+    private Point? pointerAt;
+
+    /// <summary>A key or a controller was used since the mouse last moved.</summary>
+    private bool pointerResting;
+
+    /// <summary>
+    /// The pointer only with the controls, and not while the keyboard or a
+    /// controller is in use: out of the picture as the controls fade, back
+    /// as the mouse moves.
+    /// </summary>
+    private void ShowPointer() =>
+        Cursor = Model is { ControlsVisible: true } && !pointerResting ? Cursor.Default : NoPointer;
 
     // ---- A game controller ----
 
