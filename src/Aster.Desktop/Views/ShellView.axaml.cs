@@ -166,14 +166,24 @@ public partial class ShellView : UserControl
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        TopLevel.GetTopLevel(this)?.AddHandler(KeyDownEvent, OnKeyDownFirst, RoutingStrategies.Tunnel);
+        window = TopLevel.GetTopLevel(this);
+        window?.AddHandler(KeyDownEvent, OnKeyDownFirst, RoutingStrategies.Tunnel);
     }
 
+    // Taken from the window the shell was in: as it leaves (for the video
+    // player, say) it can no longer find it from itself, and the handler
+    // stayed, one more each time it came back, all answering every key.
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        TopLevel.GetTopLevel(this)?.RemoveHandler(KeyDownEvent, OnKeyDownFirst);
+        window?.RemoveHandler(KeyDownEvent, OnKeyDownFirst);
+        window = null;
         base.OnDetachedFromVisualTree(e);
     }
+
+    private TopLevel? window;
+
+    /// <summary>Keys pressed, so a page's search for where to start gives way once the keyboard's in use.</summary>
+    private int keysPressed;
 
     private void Open()
     {
@@ -198,6 +208,7 @@ public partial class ShellView : UserControl
     {
         keyboardLast = true;
         pointerResting = true;
+        keysPressed++;
         if (Model is not { } shell || e.Handled) return;
         var focused = KeyFocus.Current(this) as Visual;
         // In a menu or a dropdown's list (drawn in the window, so its keys pass
@@ -388,14 +399,18 @@ public partial class ShellView : UserControl
         beforeSidebar = null;
         var tries = 0;
         var page = Model?.CurrentPage;
+        var keys = keysPressed;
         IInputElement? standIn = null;
         DispatcherTimer? retry = null;
         retry = new DispatcherTimer(TimeSpan.FromMilliseconds(150), DispatcherPriority.Background, (_, _) =>
         {
             tries++;
             var focused = KeyFocus.Current(this);
-            // Gone, given up, or the keyboard has moved on its own.
-            if (Model?.CurrentPage != page || tries > 20 || (HasFocusOnPage() && focused != standIn))
+            // Gone, given up, or the keyboard has moved on its own. Or a key
+            // was pressed: from then the keys say where focus goes. (It went
+            // on putting the page's first control back while the keys opened
+            // the sidebar, which that put away: in and out for three seconds.)
+            if (Model?.CurrentPage != page || tries > 20 || keysPressed != keys || (HasFocusOnPage() && focused != standIn))
             {
                 retry!.Stop();
                 return;
@@ -442,4 +457,5 @@ public partial class ShellView : UserControl
     /// <summary>The keyboard is on something in <paramref name="container"/>.</summary>
     private bool HasFocusWithin(Control container) =>
         KeyFocus.Current(this) is Visual focused && KeyFocus.IsWithin(focused, container);
+
 }
