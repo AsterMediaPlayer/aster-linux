@@ -410,6 +410,14 @@ public static class SeerrClient
 
     // ---- Requests ----
 
+    /// <summary>The Sonarr (shows) or Radarr (films) servers, 4K ones left out: Aster asks for the usual copy.</summary>
+    public static async Task<IReadOnlyList<SeerrService>> ServicesAsync(SeerrKind kind, SeerrAccount account, CancellationToken ct = default) =>
+        (await GetAsync<List<SeerrService>>(account, kind == SeerrKind.Tv ? "/service/sonarr" : "/service/radarr", ct).ConfigureAwait(false))
+            .Where(s => s.Is4k != true).ToList();
+
+    public static Task<SeerrServiceChoices> ServiceChoicesAsync(SeerrKind kind, int server, SeerrAccount account, CancellationToken ct = default) =>
+        GetAsync<SeerrServiceChoices>(account, kind == SeerrKind.Tv ? $"/service/sonarr/{server}" : $"/service/radarr/{server}", ct);
+
     private sealed record RequestsReply(RequestsPageInfo PageInfo, List<SeerrRequest> Results);
     private sealed record RequestsPageInfo(int? Pages, int? Page, int? Results);
 

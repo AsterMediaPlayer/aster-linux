@@ -229,9 +229,15 @@ public sealed record SeerrDetails
     public IReadOnlyList<SeerrVideo>? RelatedVideos { get; init; }
     public IReadOnlyList<SeerrSeason>? Seasons { get; init; }
     public SeerrMediaInfo? MediaInfo { get; init; }
+    public string? OriginalLanguage { get; init; }
+    public IReadOnlyList<SeerrNamed>? Keywords { get; init; }
 
     public string DisplayTitle => Title ?? Name ?? "";
     public string? Year => (ReleaseDate ?? FirstAirDate) is { Length: >= 4 } date ? date[..4] : null;
+
+    /// <summary>Japanese animation, or tagged anime on TMDB: as Seerr decides when to use Sonarr's anime folder.</summary>
+    public bool IsAnime => OriginalLanguage == "ja" && (Genres ?? []).Any(g => g.Name == "Animation")
+        || (Keywords ?? []).Any(k => string.Equals(k.Name, "anime", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>The trailer to show: YouTube's, a trailer before a teaser (new anime often have only that).</summary>
     public SeerrVideo? Trailer => RelatedVideos?.Where(v => v.Site == "YouTube" && !string.IsNullOrEmpty(v.Key))
@@ -244,4 +250,51 @@ public sealed record SeerrNamed(int Id, string Name);
 public sealed record SeerrVideo(string? Site, string? Key, string? Type, string? Name)
 {
     public string? Url => Site == "YouTube" && !string.IsNullOrEmpty(Key) ? $"https://www.youtube.com/watch?v={Key}" : null;
+}
+
+/// <summary>A Sonarr (shows) or Radarr (films) server Seerr sends requests to, with its defaults.</summary>
+public sealed record SeerrService
+{
+    public int Id { get; init; }
+    public string Name { get; init; } = "";
+    public bool? Is4k { get; init; }
+    public bool? IsDefault { get; init; }
+    public int? ActiveProfileId { get; init; }
+    public string? ActiveDirectory { get; init; }
+    public int? ActiveLanguageProfileId { get; init; }
+    public int? ActiveAnimeProfileId { get; init; }
+    public string? ActiveAnimeDirectory { get; init; }
+    public int? ActiveAnimeLanguageProfileId { get; init; }
+}
+
+/// <summary>A server's choices: its quality profiles, folders and (Sonarr's) language profiles.</summary>
+public sealed record SeerrServiceChoices
+{
+    public SeerrService Server { get; init; } = new();
+    public IReadOnlyList<SeerrNamed>? Profiles { get; init; }
+    public IReadOnlyList<SeerrFolder>? RootFolders { get; init; }
+    public IReadOnlyList<SeerrNamed>? LanguageProfiles { get; init; }
+}
+
+public sealed record SeerrFolder(string Path, long? FreeSpace);
+
+/// <summary>Where a request goes (an admin's choice): the server, quality, folder and language.</summary>
+public sealed record SeerrRequestOptions(int ServerId, int? ProfileId, string? RootFolder, int? LanguageProfileId)
+{
+    /// <summary>The server's defaults, its anime ones for an anime title.</summary>
+    public static SeerrRequestOptions Defaults(SeerrService server, bool anime) => new(
+        server.Id,
+        (anime ? server.ActiveAnimeProfileId : null) ?? server.ActiveProfileId,
+        (anime && !string.IsNullOrEmpty(server.ActiveAnimeDirectory) ? server.ActiveAnimeDirectory : null) ?? server.ActiveDirectory,
+        (anime ? server.ActiveAnimeLanguageProfileId : null) ?? server.ActiveLanguageProfileId);
+
+    /// <summary>The request's fields for these.</summary>
+    public Dictionary<string, object> Body()
+    {
+        var body = new Dictionary<string, object> { ["serverId"] = ServerId };
+        if (ProfileId is { } profile) body["profileId"] = profile;
+        if (RootFolder is { } folder) body["rootFolder"] = folder;
+        if (LanguageProfileId is { } language) body["languageProfileId"] = language;
+        return body;
+    }
 }

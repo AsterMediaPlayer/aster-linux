@@ -44,6 +44,51 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
         _ = LoadAsync();
     }
 
+    // ---- Where a request goes (whoever manages requests chooses) ----
+
+    private IReadOnlyList<SeerrService> services = [];
+    private SeerrServiceChoices? serviceChoices;
+    private SeerrRequestOptions? options;
+
+    /// <summary>Server, Quality, Folder and (shows) Language, as menus, starting on Seerr's defaults (its anime ones for anime).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasRequestOptions))]
+    public partial IReadOnlyList<FilterChip> RequestOptions { get; private set; } = [];
+    public bool HasRequestOptions => RequestOptions.Count > 0 && CanRequest;
+
+    private async Task LoadOptionsAsync(SeerrAccount account, int? serverId = null)
+    {
+        var kind = title.IsMovie ? SeerrKind.Movie : SeerrKind.Tv;
+        if (services.Count == 0) services = await SeerrClient.ServicesAsync(kind, account);
+        var server = services.FirstOrDefault(s => s.Id == serverId) ?? services.FirstOrDefault(s => s.IsDefault == true) ?? services.FirstOrDefault();
+        if (server is null) return;
+        serviceChoices = await SeerrClient.ServiceChoicesAsync(kind, server.Id, account);
+        options = SeerrRequestOptions.Defaults(server, details?.IsAnime == true);
+        ShowOptions();
+    }
+
+    private void ShowOptions()
+    {
+        if (options is not { } chosen || serviceChoices is not { } offered) return;
+        var server = services.FirstOrDefault(s => s.Id == chosen.ServerId);
+        var chips = new List<FilterChip>
+        {
+            new(server?.Name ?? "Server", false, Choices: services.Select(s => new TrackChoice(s.Id, s.Name, s.Id == chosen.ServerId,
+                new RelayCommand(() => { if (navigator.Seerr.Account is { } account) _ = LoadOptionsAsync(account, s.Id); }))).ToList()),
+        };
+        if (offered.Profiles is { Count: > 0 } profiles)
+            chips.Add(new(profiles.FirstOrDefault(p => p.Id == chosen.ProfileId)?.Name ?? "Quality", false, Choices: profiles.Select(p =>
+                new TrackChoice(p.Id, p.Name, p.Id == chosen.ProfileId, new RelayCommand(() => { options = chosen with { ProfileId = p.Id }; ShowOptions(); }))).ToList()));
+        if (offered.RootFolders is { Count: > 0 } folders)
+            chips.Add(new(chosen.RootFolder ?? "Folder", false, Choices: folders.Select((f, i) =>
+                new TrackChoice(i, f.FreeSpace is { } free ? $"{f.Path} ({free / 1_000_000_000:N0} GB free)" : f.Path, f.Path == chosen.RootFolder,
+                    new RelayCommand(() => { options = chosen with { RootFolder = f.Path }; ShowOptions(); }))).ToList()));
+        if (offered.LanguageProfiles is { Count: > 0 } languages)
+            chips.Add(new(languages.FirstOrDefault(l => l.Id == chosen.LanguageProfileId)?.Name ?? "Language", false, Choices: languages.Select(l =>
+                new TrackChoice(l.Id, l.Name, l.Id == chosen.LanguageProfileId, new RelayCommand(() => { options = chosen with { LanguageProfileId = l.Id }; ShowOptions(); }))).ToList()));
+        RequestOptions = chips;
+    }
+
     // ---- A request waiting for approval ----
 
     /// <summary>"Requested by Phillip · Pending Approval", for a request opened from Requests.</summary>
@@ -118,7 +163,7 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
         if (navigator.Seerr.Account is not { } account) return;
         try
         {
-            if (request is not null && me is null) me = await SeerrClient.MeAsync(account);
+            me ??= await SeerrClient.MeAsync(account);
             details = await SeerrClient.DetailsAsync(title, account);
             if (details.MediaInfo is { } info) title = title with { MediaInfo = info };
             if (!title.IsMovie)
@@ -135,6 +180,12 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
         catch (SeerrException error) when (error.Failure == SeerrFailure.SignedOut) { navigator.Seerr.SessionEnded(); Message = error.Message; }
         catch (Exception error) when (error is SeerrException or HttpRequestException or TaskCanceledException) { Message = error.Message; }
         OnPropertyChanged(string.Empty);
+        // Whoever manages requests chooses where one goes; a fault there leaves Seerr's defaults.
+        if (me?.ManagesRequests == true && CanRequest && options is null && navigator.Seerr.Account is { } manager)
+        {
+            try { await LoadOptionsAsync(manager); }
+            catch (Exception error) when (error is SeerrException or HttpRequestException or TaskCanceledException or System.Text.Json.JsonException) { }
+        }
     }
 
     /// <summary>Asks Seerr for the film, or the seasons ticked (all those open, with none ticked).</summary>
@@ -152,7 +203,7 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
         IsBusy = true;
         try
         {
-            await SeerrClient.RequestAsync(title, seasons, account);
+            await SeerrClient.RequestAsync(title, seasons, account, options?.Body());
             Message = title.IsMovie ? "Requested." : $"Requested {(seasons!.Count == 1 ? $"season {seasons[0]}" : $"{seasons!.Count} seasons")}.";
             await LoadAsync();
         }

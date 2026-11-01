@@ -79,6 +79,30 @@
                                         IsVisible="{Binding CanCancel}" IsEnabled="{Binding !IsBusy}" />
                             </WrapPanel>
                         </StackPanel>
+                        <!-- Where the request goes (for whoever manages requests): Server, Quality, Folder, Language. -->
+                        <StackPanel Spacing="8" IsVisible="{Binding HasRequestOptions}">
+                            <TextBlock Text="Request Options" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource Secondary}" />
+                            <ItemsControl ItemsSource="{Binding RequestOptions}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel ItemSpacing="10" LineSpacing="10" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:FilterChip">
+                                        <Button Theme="{StaticResource PillButton}" MinHeight="36" Padding="16,6">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{Binding Title}" VerticalAlignment="Center" MaxWidth="320" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="&#xE70D;" FontFamily="{StaticResource IconFont}" FontSize="12" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                            <Button.Flyout>
+                                                <MenuFlyout ItemsSource="{Binding Choices}" ItemContainerTheme="{StaticResource MenuChoice}" />
+                                            </Button.Flyout>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
                         <TextBlock Text="{Binding Message}" Foreground="{StaticResource Secondary}" TextWrapping="Wrap"
                                    IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
                     </StackPanel>
