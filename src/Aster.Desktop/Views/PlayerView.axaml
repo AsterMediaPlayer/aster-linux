@@ -102,6 +102,9 @@
     <Grid x:Name="Surface" Background="Transparent">
         <c:MpvVideoView Player="{Binding Player}" />
 
+        <!-- Everything over the picture; in the mini player, just the picture. -->
+        <Panel IsVisible="{Binding !IsMini}">
+
         <!-- A Channel's bug: faint in a corner of the picture, placed in code. -->
         <Canvas x:Name="BugLayer" IsHitTestVisible="False">
             <c:RemoteImage x:Name="Bug" Url="{Binding BugUrl}" Width="{Binding BugWidth}" Height="{Binding BugWidth}" Stretch="Uniform"
@@ -311,6 +314,8 @@
                                     <MenuFlyout ItemsSource="{Binding QualityChoices}" ItemContainerTheme="{StaticResource ChoiceItem}" />
                                 </Button.Flyout>
                             </Button>
+                            <Button Classes="bar" Content="Mini Player" Command="{Binding MinimizeCommand}" IsVisible="{Binding CanMinimize}"
+                                    ToolTip.Tip="Watch in a corner while you browse (controller: Y)" />
                             <Button Classes="bar" x:Name="FullScreenButton" ToolTip.Tip="Full screen (F)">
                                 <TextBlock Classes="icon" Text="&#xE740;" />
                             </Button>
@@ -454,5 +459,22 @@
                 <Button Content="Close" Command="{Binding CloseCommand}" HorizontalAlignment="Right" />
             </StackPanel>
         </Border>
+
+        <!-- Back: watch on in the mini player while browsing, or stop. Back again keeps watching. -->
+        <Panel x:Name="LeavePrompt" IsVisible="{Binding LeavePromptVisible}" Background="#99000000">
+            <Border Background="#F0181818" CornerRadius="16" Padding="28,24" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    BorderThickness="1" BorderBrush="#1FFFFFFF" MinWidth="420">
+                <StackPanel Spacing="18">
+                    <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis" MaxWidth="520" />
+                    <TextBlock Text="Keep watching in the mini player while you browse, or stop." Foreground="#CCFFFFFF" TextWrapping="Wrap" MaxWidth="520" />
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button x:Name="MiniPlayerChoice" Classes="pill" Content="Mini Player" Command="{Binding MinimizeCommand}" />
+                        <Button Classes="pill secondary" Content="Stop Watching" Command="{Binding CloseCommand}" />
+                        <Button Classes="pill secondary" Content="Keep Watching" Command="{Binding KeepWatchingCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Panel>
+        </Panel>
     </Grid>
 </UserControl>

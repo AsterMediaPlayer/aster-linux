@@ -106,6 +106,22 @@
         <Style Selector="ContentControl#Page.deck">
             <Setter Property="Margin" Value="0,0,440,0" />
         </Style>
+        <!-- The video player: over everything, or the mini player, in the bottom-right corner over the pages. -->
+        <Style Selector="Border#VideoLayer">
+            <Setter Property="Background" Value="Black" />
+        </Style>
+        <Style Selector="Border#VideoLayer.mini">
+            <Setter Property="Width" Value="480" />
+            <Setter Property="Height" Value="270" />
+            <Setter Property="Margin" Value="0,0,32,32" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Bottom" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="ClipToBounds" Value="True" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="BorderBrush" Value="#40FFFFFF" />
+            <Setter Property="BoxShadow" Value="0 12 40 0 #B3000000" />
+        </Style>
     </UserControl.Styles>
 
     <Panel>
@@ -132,6 +148,16 @@
                     <TextBlock Text="&#xE76B;" FontFamily="{StaticResource IconFont}" FontSize="11" VerticalAlignment="Center" Opacity="0.7" />
                     <TextBlock Text="{Binding CurrentTab.Glyph}" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" />
                     <TextBlock Text="{Binding CurrentTab.Title}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <!-- The video in the mini player: full screen again (or a controller's Y, from anywhere). -->
+            <Button Classes="capsule" Command="{Binding RestoreVideoCommand}" AutomationProperties.Name="Back to the Video"
+                    IsVisible="{Binding Video.IsMini, FallbackValue=False}" VerticalAlignment="Center" Padding="16,12"
+                    ToolTip.Tip="Watch full screen again (controller: Y)">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <TextBlock Text="&#xE740;" FontFamily="{StaticResource IconFont}" FontSize="16" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Video.Title, FallbackValue=''}" FontSize="15" FontWeight="SemiBold" MaxWidth="260"
+                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                 </StackPanel>
             </Button>
             <!-- The song or book playing: its artwork and title (opening the full player), and play/pause. Big enough to read and aim at from the couch. -->
@@ -231,5 +257,9 @@
             </DockPanel>
         </Border>
 
+        <!-- The video playing, over everything; or the mini player, the pages browsable in front. -->
+        <Border x:Name="VideoLayer" Classes.mini="{Binding Video.IsMini, FallbackValue=False}" IsVisible="{Binding HasVideo}">
+            <ContentControl Content="{Binding Video}" />
+        </Border>
     </Panel>
 </UserControl>

@@ -190,6 +190,9 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
         HasUpcoming = CheckUpcomingAsync(client);
         HasChannels = CheckChannelsAsync(client);
         Audio = new Aster.Desktop.Audio.AudioSession(client);
+        // A song or book started stops the video in the mini player: one thing heard at a time.
+        Audio.Music.Starting += StopVideo;
+        Audio.Books.Starting += StopVideo;
         Theme = new Aster.Desktop.Audio.ThemePlayer(client, Audio);
         Deck = new Aster.Desktop.Audio.ThemeDeck(client, Audio, Theme, show => Open(show));
         NowPlaying = new NowPlayingViewModel(this);
@@ -425,6 +428,8 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
 
     public void Play(PlaybackQueueItem entry, Action<BaseItem?>? closed = null)
     {
+        // A video already in the mini player stops for the new one.
+        StopVideo();
         // The Now Playing panel's openings end; a song or book playing pauses for the video, and waits in the bar.
         Deck.Stop();
         Audio.Pause();
@@ -474,6 +479,33 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
     public Task SessionExpiredAsync() => signOut(SignOutKind.Expired);
 
     /// <summary>Signing out: the song or book stops, its place saved, and the theme with it.</summary>
+    // ---- The video player, over the pages, full screen or in the mini player ----
+
+    /// <summary>The video playing, over every page (full screen) or in the corner (mini); null with none.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasVideo))]
+    public partial PlayerViewModel? Video { get; set; }
+
+    public bool HasVideo => Video is not null;
+
+    /// <summary>The mini player, full screen again.</summary>
+    [RelayCommand]
+    private void RestoreVideo()
+    {
+        if (Video is { IsMini: true } video) video.IsMini = false;
+    }
+
+    /// <summary>Between the mini player and full screen (a controller's Y).</summary>
+    public void ToggleVideo()
+    {
+        if (Video is { CanMinimize: true } video) video.IsMini = !video.IsMini;
+    }
+
+    private void StopVideo()
+    {
+        if (Video is { } video) video.CloseCommand.Execute(null);
+    }
+
     public void Dispose()
     {
         foreach (var live in tabs.Values.OfType<LiveTVViewModel>()) live.Mini.Dispose();

@@ -296,17 +296,25 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
         AwayClock.Clear();
     }
 
-    /// <summary>Plays over everything; closing comes back to the page it was played from.</summary>
+    /// <summary>
+    /// Plays over everything; closing comes back to the page it was played
+    /// from. Played from the app's pages it's a layer over them, so it can
+    /// shrink to the mini player and play on while they're browsed.
+    /// </summary>
     private void Play(IMediaServer server, PlaybackQueueItem entry, Action<BaseItem?>? closed)
     {
+        var over = shell is { } open && CurrentPage == open ? open : null;
         var player = new PlayerViewModel(server, entry, last =>
         {
-            CurrentPage = shell;
+            if (over is not null) over.Video = null;
+            else CurrentPage = shell;
             closed?.Invoke(last);
-        });
+        })
+        { CanMinimize = over is not null };
         if (OpensChannelRow) player.OpenFlickWhenStarted();
         if (StartsPaused) player.PauseWhenStarted();
-        CurrentPage = player;
+        if (over is not null) over.Video = player;
+        else CurrentPage = player;
     }
 
     /// <summary>
@@ -456,7 +464,7 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
     public void Shutdown()
     {
         NoteLeft(closing: true);
-        if (CurrentPage is PlayerViewModel player)
+        if ((CurrentPage as PlayerViewModel ?? shell?.Video) is { } player)
         {
             player.SaveProgressNow();
             player.Stop();

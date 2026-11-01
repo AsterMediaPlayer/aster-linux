@@ -23,6 +23,7 @@ namespace Aster.Desktop.Input;
 /// <item>A (the bottom button): Enter, to choose;</item>
 /// <item>B (the right button): Back, which goes back, or opens the sidebar;</item>
 /// <item>X or Start: play/pause;</item>
+/// <item>Y (the top button): a video to the mini player, or back full screen from it;</item>
 /// <item>the shoulder buttons: previous and next (the song, the book's chapter, the channel);</item>
 /// <item>the right stick: up and down the volume (the volume keys), left and
 /// right back and forward 10 seconds (the player's J and L), repeating more
@@ -184,6 +185,8 @@ public sealed unsafe class Gamepads : IDisposable
             SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH => Key.Enter,
             SDL_GamepadButton.SDL_GAMEPAD_BUTTON_EAST => Key.BrowserBack,
             SDL_GamepadButton.SDL_GAMEPAD_BUTTON_WEST or SDL_GamepadButton.SDL_GAMEPAD_BUTTON_START => Key.MediaPlayPause,
+            // The mini player: a video to it, or back full screen from it.
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_NORTH => Key.MediaMenu,
             SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_SHOULDER => Key.MediaPreviousTrack,
             SDL_GamepadButton.SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER => Key.MediaNextTrack,
             _ => null,

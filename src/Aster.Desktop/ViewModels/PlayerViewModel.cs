@@ -495,6 +495,50 @@ public partial class PlayerViewModel : ViewModelBase
     /// <summary>A menu is open, so the controls stay up.</summary>
     public int OpenMenus { get; set; }
 
+    // ---- The mini player ----
+
+    /// <summary>
+    /// Played over the app's pages (not a disc menu), so it can shrink to a
+    /// corner and play on while the pages are browsed.
+    /// </summary>
+    public bool CanMinimize { get; set; }
+
+    /// <summary>In the corner, the pages in front: just the picture, no controls.</summary>
+    [ObservableProperty] public partial bool IsMini { get; set; }
+
+    /// <summary>Back pressed: watch on in the mini player, or stop.</summary>
+    [ObservableProperty] public partial bool LeavePromptVisible { get; set; }
+
+    partial void OnIsMiniChanged(bool value)
+    {
+        LeavePromptVisible = false;
+        if (value)
+        {
+            hideTimer.Stop();
+            ControlsVisible = false;
+        }
+        else PokeControls();
+    }
+
+    /// <summary>To the corner, playing on.</summary>
+    [RelayCommand]
+    private void Minimize()
+    {
+        if (CanMinimize) IsMini = true;
+    }
+
+    /// <summary>The prompt put away: back to the picture.</summary>
+    [RelayCommand]
+    private void KeepWatching() => LeavePromptVisible = false;
+
+    /// <summary>Back in the player: the prompt (mini player or stop) where there's a mini player, else closing.</summary>
+    public void Back()
+    {
+        if (LeavePromptVisible) LeavePromptVisible = false;
+        else if (CanMinimize && ErrorMessage is null) LeavePromptVisible = true;
+        else CloseCommand.Execute(null);
+    }
+
     [ObservableProperty] public partial IReadOnlyList<TrackChoice> AudioChoices { get; set; } = [];
     [ObservableProperty] public partial IReadOnlyList<TrackChoice> SubtitleChoices { get; set; } = [];
     [ObservableProperty] public partial IReadOnlyList<TrackChoice> QualityChoices { get; set; } = [];
@@ -1095,6 +1139,7 @@ public partial class PlayerViewModel : ViewModelBase
     /// <summary>Shows the controls, and hides them again after a while of nothing.</summary>
     public void PokeControls()
     {
+        if (IsMini) return;
         ControlsVisible = true;
         hideTimer.Stop();
         hideTimer.Start();

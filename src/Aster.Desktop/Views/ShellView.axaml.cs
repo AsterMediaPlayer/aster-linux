@@ -97,6 +97,12 @@ public partial class ShellView : UserControl
             if (e.Source is InputElement element && Model?.CurrentPage is { } page) pageFocus.AddOrUpdate(page, new WeakReference<InputElement>(element));
         }, RoutingStrategies.Bubble);
 
+        // Where the keyboard last was among the pages, sidebar and top row, to come back to from the video.
+        AddHandler(GotFocusEvent, (_, e) =>
+        {
+            if (e.Source is InputElement element && !KeyFocus.IsWithin(element, VideoLayer)) lastShellFocus = new WeakReference<InputElement>(element);
+        }, RoutingStrategies.Bubble, handledEventsToo: true);
+
         DataContextChanged += (_, _) =>
         {
             if (watched is not null)
@@ -112,6 +118,46 @@ public partial class ShellView : UserControl
             }
             ShowPage();
         };
+    }
+
+    // ---- The video player ----
+
+    private PlayerViewModel? watchedVideo;
+    private bool videoWasMini;
+    private WeakReference<InputElement>? lastShellFocus;
+
+    /// <summary>
+    /// A video started (full screen, the player takes the keyboard itself) or
+    /// stopped: from full screen, the keyboard goes back where it was on the
+    /// pages; from the mini player it stays where the browsing has it.
+    /// </summary>
+    private void VideoChanged()
+    {
+        if (watchedVideo is not null) watchedVideo.PropertyChanged -= OnVideoChanged;
+        var wasMini = watchedVideo is not null && videoWasMini;
+        watchedVideo = Model?.Video;
+        videoWasMini = watchedVideo?.IsMini ?? false;
+        if (watchedVideo is not null)
+        {
+            watchedVideo.PropertyChanged += OnVideoChanged;
+            if (Model is { IsSidebarOpen: true } shell) shell.IsSidebarOpen = false;
+        }
+        else if (!wasMini) Dispatcher.UIThread.Post(BackFromVideo, DispatcherPriority.Loaded);
+    }
+
+    private void OnVideoChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(PlayerViewModel.IsMini) || watchedVideo is not { } video) return;
+        videoWasMini = video.IsMini;
+        // To the corner: the pages have the keyboard again, where it was.
+        if (video.IsMini) Dispatcher.UIThread.Post(BackFromVideo, DispatcherPriority.Loaded);
+    }
+
+    private void BackFromVideo()
+    {
+        if (Model?.Video is { IsMini: false }) return;
+        if (lastShellFocus?.TryGetTarget(out var was) == true && KeyFocus.CanFocus(was)) Land(was);
+        else if (keyboardLast) FocusPage();
     }
 
     // ---- The Now Playing player ----
@@ -197,6 +243,7 @@ public partial class ShellView : UserControl
 
     private void OnShellChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(ShellViewModel.Video)) VideoChanged();
         if (e.PropertyName == nameof(ShellViewModel.CurrentPage)) ShowPage();
         // Put away with the keyboard in it: back to the page.
         if (e.PropertyName == nameof(ShellViewModel.IsSidebarOpen) && Model is { IsSidebarOpen: false } && HasFocusWithin(Sidebar)) ReturnToPage();
@@ -210,6 +257,25 @@ public partial class ShellView : UserControl
         pointerResting = true;
         keysPressed++;
         if (Model is not { } shell || e.Handled) return;
+        // A video: a controller's Y between full screen and the mini player;
+        // full screen, every other key is the player's.
+        if (shell.Video is { } video)
+        {
+            if (e.Key == Key.MediaMenu && video.CanMinimize)
+            {
+                shell.ToggleVideo();
+                e.Handled = true;
+                return;
+            }
+            if (!video.IsMini) return;
+            // In the mini player: the play key (a controller's X) is the video's, not the paused song's.
+            if (e.Key == Key.MediaPlayPause)
+            {
+                video.TogglePauseCommand.Execute(null);
+                e.Handled = true;
+                return;
+            }
+        }
         var focused = KeyFocus.Current(this) as Visual;
         // In a menu or a dropdown's list (drawn in the window, so its keys pass
         // here first): its own, to move through and choose from.
@@ -352,7 +418,8 @@ public partial class ShellView : UserControl
 
     /// <summary>Where Up from the page lands on the top row: the song or book playing, else the tab's capsule.</summary>
     private InputElement? TopBarStart() =>
-        TopBar.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => AutomationProperties.GetName(b) == "Now Playing" && KeyFocus.CanFocus(b))
+        TopBar.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => AutomationProperties.GetName(b) == "Back to the Video" && KeyFocus.CanFocus(b))
+        ?? TopBar.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => AutomationProperties.GetName(b) == "Now Playing" && KeyFocus.CanFocus(b))
         ?? (KeyFocus.CanFocus(Capsule) ? Capsule : null);
 
     /// <summary>Slides the sidebar out with the keyboard on the tab showing, remembering where it was on the page.</summary>
