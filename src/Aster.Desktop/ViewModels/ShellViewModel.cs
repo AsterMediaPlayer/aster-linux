@@ -302,7 +302,18 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
             })
             .Select(t => new SidebarTab(t.Title, t.Glyph, t.Tab == tab, new RelayCommand(() => ShowTab(t.Tab))))
             .ToList();
+        // Full screen for good (launched from Steam, in gamescope) there's no
+        // window close button, so the sidebar ends with Exit.
+        if (Aster.Desktop.Controls.FullScreen.Pinned)
+            Tabs = [.. Tabs, new SidebarTab("Exit", "", false, new RelayCommand(Exit))];
         CurrentTab = Tabs.FirstOrDefault(t => t.IsSelected);
+    }
+
+    /// <summary>Quits the app, as closing its window would: what's playing reports where it stopped.</summary>
+    private static void Exit()
+    {
+        if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+            desktop.TryShutdown();
     }
 
     /// <summary>A tab's page, from the top: made the first time, kept after.</summary>

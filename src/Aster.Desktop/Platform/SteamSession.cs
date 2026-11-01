@@ -30,14 +30,16 @@ public static class SteamSession
 
     /// <summary>
     /// Watched from the couch with a controller: the window is full screen
-    /// from the start and stays so. On by itself in gamescope and Steam's
-    /// Big Picture; <c>--couch</c> asks for it anywhere, <c>--desktop</c> turns it off.
+    /// from the start and stays so, and the sidebar has an Exit. On by itself
+    /// whenever Steam starts the app (its desktop Big Picture doesn't say it's
+    /// Big Picture, so launched by Steam at all counts) and in gamescope;
+    /// <c>--couch</c> asks for it anywhere, <c>--desktop</c> turns it off.
     /// </summary>
     public static bool Couch(string[] args)
     {
         if (Array.IndexOf(args, "--desktop") >= 0) return false;
         if (Array.IndexOf(args, "--couch") >= 0) return true;
-        return InGamescope || InGamepadUi;
+        return LaunchedBySteam || InGamescope || InGamepadUi;
     }
 
     public static string Describe() =>
