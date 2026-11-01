@@ -3,7 +3,7 @@
              xmlns:vm="using:Aster.Desktop.ViewModels"
              x:Class="Aster.Desktop.Views.SeriesTimerView"
              x:DataType="vm:SeriesTimerViewModel"
-             Background="#141414">
+             Background="{StaticResource SlateBackground}">
 
     <!-- Laid out as Settings is: a heading over each rounded group. -->
     <UserControl.Styles>

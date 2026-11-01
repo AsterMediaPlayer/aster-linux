@@ -17,6 +17,8 @@ sealed class Program
             System.Diagnostics.Trace.Listeners.Add(new System.Diagnostics.ConsoleTraceListener());
             System.Diagnostics.Trace.AutoFlush = true;
         }
+        // A couch app: laid out for about 1280 units across, whatever the screen.
+        Aster.Desktop.Platform.TvScale.Apply();
 #if WINDOWS
         // Before any window, which takes the process's app id.
         WindowsAppIdentity.Apply();

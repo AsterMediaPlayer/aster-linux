@@ -136,7 +136,7 @@
         </Style>
     </UserControl.Styles>
 
-    <Panel>
+    <Panel Background="{StaticResource SlateBackground}">
         <!-- A title's theme video, behind its page (whose backdrop fades from over it). Here rather than in the page, as
              mpv's video can't move between views: a series and its episode share one. The view leaves with the video,
              letting go of mpv's render context as it does. -->

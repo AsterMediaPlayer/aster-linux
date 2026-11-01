@@ -4,7 +4,7 @@
              xmlns:c="using:Aster.Desktop.Controls"
              x:Class="Aster.Desktop.Views.SeerrTitleView"
              x:DataType="vm:SeerrTitleViewModel"
-             Background="#141414">
+             Background="{StaticResource SlateBackground}">
 
     <UserControl.Styles>
         <!-- A season ticked for the request: white, as a chosen pill is. -->

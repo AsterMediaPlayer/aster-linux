@@ -4,7 +4,7 @@
              xmlns:c="using:Aster.Desktop.Controls"
              x:Class="Aster.Desktop.Views.EditChannelsView"
              x:DataType="vm:EditChannelsViewModel"
-             Background="#141414">
+             Background="{StaticResource SlateBackground}">
 
     <UserControl.Styles>
         <StyleInclude Source="avares://Aster.Desktop/Views/SettingsStyles.axaml" />

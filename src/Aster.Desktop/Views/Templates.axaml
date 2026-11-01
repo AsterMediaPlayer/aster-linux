@@ -408,6 +408,13 @@
         </Button>
     </DataTemplate>
 
+    <!-- Behind every page: a soft slate gradient, as the Apple TV app's, not black. -->
+    <LinearGradientBrush x:Key="SlateBackground" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Offset="0" Color="#FF2B3138" />
+        <GradientStop Offset="0.55" Color="#FF20242A" />
+        <GradientStop Offset="1" Color="#FF2A2620" />
+    </LinearGradientBrush>
+
     <!-- A choice in a menu (a filter's), the one chosen ticked. -->
     <ControlTheme x:Key="MenuChoice" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="vm:TrackChoice">
         <Setter Property="Header" Value="{Binding Title}" />

@@ -31,9 +31,11 @@ public sealed record TitleRow(string Title, BrowsePageViewModel Page, string? Su
     /// </summary>
     public bool Segmented { get; init; }
 
-    public bool ShowsTitle => !Segmented;
-    public bool ShowsPills => !Segmented && Page.HasSections;
-    public bool ShowsSegments => Segmented && Page.HasSections;
+    /// <summary>Segmented: asked for, or any page with sections (Music's, Audiobooks'), as the Apple TV app's.</summary>
+    private bool IsSegmented => Segmented || Page.HasSections;
+    public bool ShowsTitle => !IsSegmented;
+    public bool ShowsPills => false;
+    public bool ShowsSegments => IsSegmented && Page.HasSections;
 }
 
 /// <summary>A titled row of cards; <see cref="Style"/> says which kind.</summary>
@@ -231,7 +233,7 @@ public abstract partial class BrowsePageViewModel : ViewModelBase, IRefreshable
     /// TV app's Discover; <see cref="Ambient"/>, when there's one, blurred and
     /// darkened behind it (Upcoming's focused show).
     /// </summary>
-    public virtual bool HasAmbientBackground => false;
+    public virtual bool HasAmbientBackground => true;
 
     [ObservableProperty] public partial Uri? Ambient { get; set; }
 

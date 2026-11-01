@@ -57,8 +57,6 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
         })))
         .ToList();
 
-    public override bool HasAmbientBackground => true;
-
     // Movies and Series: a grid of Seerr's cards. (Requests is a list of rows.)
     protected override bool HasGrid => Shown is Section.Movies or Section.Series;
     public override CardStyle GridStyle => CardStyle.Seerr;
@@ -324,7 +322,6 @@ public sealed class SeerrListViewModel : BrowsePageViewModel
     protected override bool HasGrid => true;
     public override CardStyle GridStyle => CardStyle.Seerr;
     public override bool ShowsSort => false;
-    public override bool HasAmbientBackground => true;
     protected override IReadOnlyList<object>? LocalCards => cards;
 
     protected override async Task<IReadOnlyList<BrowseRow>> LoadTopAsync()

@@ -4,7 +4,7 @@
              xmlns:c="using:Aster.Desktop.Controls"
              x:Class="Aster.Desktop.Views.ArtistView"
              x:DataType="vm:ArtistViewModel"
-             Background="#141414">
+             Background="{StaticResource SlateBackground}">
 
     <Panel>
         <c:RemoteImage Url="{Binding Backdrop}">

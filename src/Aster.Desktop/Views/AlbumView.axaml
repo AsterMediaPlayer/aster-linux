@@ -4,7 +4,7 @@
              xmlns:c="using:Aster.Desktop.Controls"
              x:Class="Aster.Desktop.Views.AlbumView"
              x:DataType="vm:AlbumViewModel"
-             Background="#141414">
+             Background="{StaticResource SlateBackground}">
 
     <Panel>
         <!-- The artwork, blurred and darkened, behind the page. -->
