@@ -74,11 +74,12 @@
 
         <DataTemplate DataType="vm:CardsRow">
             <Panel>
-                <ItemsControl ItemsSource="{Binding Cards}" Margin="107,6,107,10" IsVisible="{Binding !IsTrack}"
+                <!-- Spread over the page, each card centred in its column (a last, short row keeps the columns). -->
+                <ItemsControl ItemsSource="{Binding Cards}" Margin="107,10,107,14" IsVisible="{Binding !IsTrack}"
                               ItemTemplate="{ReflectionBinding Style, Converter={x:Static c:Converters.CardTemplate}}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal" Spacing="24" />
+                            <UniformGrid Columns="{ReflectionBinding Columns}" />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                 </ItemsControl>
@@ -90,31 +91,39 @@
 
         <!-- Filters over a grid: a switch is a pill, white while on; a list opens its choices. -->
         <DataTemplate DataType="vm:FilterRow">
-            <ItemsControl ItemsSource="{Binding Chips}" Margin="107,0,107,8">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <WrapPanel ItemSpacing="10" LineSpacing="10" />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:FilterChip">
-                        <Panel>
-                            <Button Theme="{StaticResource PillButton}" Classes.selected="{Binding IsOn}" Command="{Binding Toggle}"
-                                    Content="{Binding Title}" MinHeight="39" Padding="18,6" FontSize="20" IsVisible="{Binding IsSwitch}" />
-                            <Button Theme="{StaticResource PillButton}" Classes.selected="{Binding IsOn}" MinHeight="39" Padding="18,6" FontSize="20"
-                                    IsVisible="{Binding HasChoices}">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
-                                    <TextBlock Text="&#xE70D;" FontFamily="{StaticResource IconFont}" FontSize="12" VerticalAlignment="Center" />
-                                </StackPanel>
-                                <Button.Flyout>
-                                    <MenuFlyout ItemsSource="{Binding Choices}" ItemContainerTheme="{StaticResource MenuChoice}" />
-                                </Button.Flyout>
-                            </Button>
-                        </Panel>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <!-- One line, running on past the edge as the Apple TV app's: a switch white while on; a list opens its choices. -->
+            <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,10">
+                <ItemsControl ItemsSource="{Binding Chips}" Margin="107,4,107,4">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="14" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:FilterChip">
+                            <Panel>
+                                <Button Theme="{StaticResource PillButton}" Classes="chip" Classes.selected="{Binding IsOn}" Command="{Binding Toggle}"
+                                        MinHeight="37" Padding="18,6" FontSize="19" IsVisible="{Binding IsSwitch}">
+                                    <StackPanel Orientation="Horizontal" Spacing="9">
+                                        <TextBlock Text="{Binding Icon}" VerticalAlignment="Center" IsVisible="{Binding HasIcon}" />
+                                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Theme="{StaticResource PillButton}" Classes="chip" Classes.selected="{Binding IsOn}" MinHeight="37" Padding="18,6" FontSize="19"
+                                        IsVisible="{Binding HasChoices}">
+                                    <StackPanel Orientation="Horizontal" Spacing="9">
+                                        <TextBlock Text="{Binding Icon}" VerticalAlignment="Center" IsVisible="{Binding HasIcon}" />
+                                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <Button.Flyout>
+                                        <MenuFlyout ItemsSource="{Binding Choices}" ItemContainerTheme="{StaticResource MenuChoice}" />
+                                    </Button.Flyout>
+                                </Button>
+                            </Panel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
         </DataTemplate>
 
         <!-- A day of Upcoming's agenda: the date down the side, as a desk calendar shows it, its episodes beside it, wide. -->
@@ -263,6 +272,13 @@
     </Panel>
 
     <UserControl.Styles>
+        <!-- Filter chips, measured from the Apple TV app's: regular weight, a fill a little lighter than the page. -->
+        <Style Selector="Button.chip">
+            <Setter Property="FontWeight" Value="Normal" />
+        </Style>
+        <Style Selector="Button.chip:not(.selected)">
+            <Setter Property="Background" Value="#26FFFFFF" />
+        </Style>
         <Style Selector="StackPanel.title">
             <Setter Property="Margin" Value="107,28,107,12" />
         </Style>

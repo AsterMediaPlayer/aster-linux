@@ -47,6 +47,9 @@ public sealed record HeadingRow(string Title, bool IsLetter = false) : BrowseRow
 /// <summary>One row of a grid; <see cref="Style"/> says which kind of card.</summary>
 public sealed record CardsRow(IReadOnlyList<object> Cards, CardStyle Style) : BrowseRow
 {
+    /// <summary>Columns across: the cards spread over the page's width, each centred in its column, as the Apple TV app's grids.</summary>
+    public int Columns { get; init; } = 1;
+
     /// <summary>A song, one to a row and the row's full width.</summary>
     public bool IsTrack => Style == CardStyle.Track;
 }
@@ -73,8 +76,9 @@ public sealed record RequestRow(Uri? Poster, string Title, string Meta, string S
 public sealed record FilterRow(IReadOnlyList<FilterChip> Chips) : BrowseRow;
 
 /// <summary>A filter: a switch (<paramref name="Toggle"/>), or a list whose chosen one it names (<paramref name="Choices"/>).</summary>
-public sealed record FilterChip(string Title, bool IsOn, CommunityToolkit.Mvvm.Input.IRelayCommand? Toggle = null, IReadOnlyList<TrackChoice>? Choices = null)
+public sealed record FilterChip(string Title, bool IsOn, CommunityToolkit.Mvvm.Input.IRelayCommand? Toggle = null, IReadOnlyList<TrackChoice>? Choices = null, string? Icon = null)
 {
+    public bool HasIcon => Icon is not null;
     public bool HasChoices => Choices is not null;
     public bool IsSwitch => Choices is null;
 }
@@ -491,7 +495,7 @@ public abstract partial class BrowsePageViewModel : ViewModelBase, IRefreshable
 
     /// <summary>Cards in rows of as many as fit; songs one to a row.</summary>
     private IEnumerable<BrowseRow> CardRows(IEnumerable<object> cards) =>
-        cards.Chunk(GridStyle == CardStyle.Track ? 1 : columns).Select(chunk => new CardsRow(chunk, GridStyle));
+        cards.Chunk(GridStyle == CardStyle.Track ? 1 : columns).Select(chunk => new CardsRow(chunk, GridStyle) { Columns = columns });
 
     protected ShelfRow? Shelf(string title, IEnumerable<object> cards, CardStyle style)
     {

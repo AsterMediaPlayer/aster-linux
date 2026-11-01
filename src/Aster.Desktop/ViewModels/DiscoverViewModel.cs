@@ -23,6 +23,7 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
     /// <summary>The Movies and Series grids' filters, kept as each is left.</summary>
     private SeerrFilter movieFilter = new(SeerrKind.Movie), seriesFilter = new(SeerrKind.Tv);
     private readonly Dictionary<SeerrKind, IReadOnlyList<SeerrGenre>> genres = [];
+    private readonly Dictionary<SeerrKind, IReadOnlyList<SeerrCompany>> companies = [];
     /// <summary>Requests' filters: which state, and (for whoever manages them) everyone's or one's own.</summary>
     private SeerrRequestFilter requestFilter = SeerrRequestFilter.All;
     private bool onlyMine;
@@ -97,6 +98,8 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
                         try { genres[kind] = await SeerrClient.GenresAsync(kind, account); }
                         catch (SeerrException) { genres[kind] = []; }
                     }
+                    // Seerr's own studios (films) or networks (shows), for their menu.
+                    if (!companies.ContainsKey(kind)) companies[kind] = await SeerrClient.CompaniesAsync(kind, account);
                     var titles = new List<SeerrTitle>();
                     // Five pages, a hundred titles.
                     for (var page = 1; page <= 5; page++)
@@ -159,11 +162,45 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
         var genreChoices = new List<TrackChoice> { new(0, "Any Genre", chosenGenre is null, new RelayCommand(() => Set(filter with { Genres = Keep(null) }))) };
         genreChoices.AddRange(available.Where(g => !filter.IsAnime || g.Id != SeerrFilter.AnimationGenre)
             .Select(g => new TrackChoice(g.Id, g.Name, g.Id == chosenGenre?.Id, new RelayCommand(() => Set(filter with { Genres = Keep(g.Id) })))));
+        var thisYear = DateTime.Now.Year;
+        var years = new (string Title, int? From, int? To)[]
+        {
+            ("Any Year", null, null), ($"{thisYear}", thisYear, thisYear), ($"{thisYear - 1}", thisYear - 1, thisYear - 1),
+            ("2020s", 2020, 2029), ("2010s", 2010, 2019), ("2000s", 2000, 2009), ("1990s", 1990, 1999), ("1980s", 1980, 1989), ("Before 1980", null, 1979),
+        };
+        var ratings = new (string Title, double? At)[] { ("Any Rating", null), ("6+", 6), ("7+", 7), ("8+", 8) };
+        var lengths = kind == SeerrKind.Movie
+            ? new (string Title, int? From, int? To)[] { ("Any Length", null, null), ("Under 90 min", null, 89), ("90 min to 2 h", 90, 120), ("Over 2 h", 121, null) }
+            : new (string Title, int? From, int? To)[] { ("Any Length", null, null), ("Under 30 min", null, 29), ("30 to 60 min", 30, 60), ("Over 60 min", 61, null) };
+        var languages = new (string Title, string? Code)[]
+        {
+            ("Any Language", null), ("English", "en"), ("Japanese", "ja"), ("Korean", "ko"), ("Spanish", "es"), ("French", "fr"),
+            ("German", "de"), ("Italian", "it"), ("Chinese", "zh"), ("Hindi", "hi"),
+        };
+        var companies = this.companies.GetValueOrDefault(kind) ?? [];
+        var anyCompany = kind == SeerrKind.Movie ? "Any Studio" : "Any Network";
+        var year = years.FirstOrDefault(y => y.From == filter.FromYear && y.To == filter.ToYear);
+        var rating = ratings.FirstOrDefault(r => r.At == filter.MinimumRating);
+        var length = lengths.FirstOrDefault(l => l.From == filter.MinimumRuntime && l.To == filter.MaximumRuntime);
+        var language = languages.FirstOrDefault(l => l.Code == filter.Language);
+        List<TrackChoice> Menu<T>(IEnumerable<T> options, Func<T, string> title, Func<T, bool> chosen, Func<T, SeerrFilter> pick) =>
+            options.Select((o, i) => new TrackChoice(i, title(o), chosen(o), new RelayCommand(() => Set(pick(o))))).ToList();
         return new FilterRow(
         [
-            new FilterChip(SeerrFilter.SortLabel(filter.Sort), filter.Sort != SeerrSort.Popular, Choices: sorts),
-            new FilterChip(chosenGenre?.Name ?? "Genre", chosenGenre is not null, Choices: genreChoices),
-            new FilterChip("Anime", filter.IsAnime, new RelayCommand(() => Set(filter.WithAnime(!filter.IsAnime)))),
+            new FilterChip("Anime", filter.IsAnime, new RelayCommand(() => Set(filter.WithAnime(!filter.IsAnime))), Icon: "✦"),
+            new FilterChip(SeerrFilter.SortLabel(filter.Sort), filter.Sort != SeerrSort.Popular, Choices: sorts, Icon: "⇅"),
+            new FilterChip(chosenGenre?.Name ?? "Any Genre", chosenGenre is not null, Choices: genreChoices),
+            new FilterChip(year.Title ?? "Any Year", filter.FromYear is not null || filter.ToYear is not null,
+                Choices: Menu(years, y => y.Title, y => y.From == filter.FromYear && y.To == filter.ToYear, y => filter with { FromYear = y.From, ToYear = y.To })),
+            new FilterChip(rating.Title ?? "Any Rating", filter.MinimumRating is not null,
+                Choices: Menu(ratings, r => r.Title, r => r.At == filter.MinimumRating, r => filter with { MinimumRating = r.At })),
+            new FilterChip(length.Title ?? "Any Length", filter.MinimumRuntime is not null || filter.MaximumRuntime is not null,
+                Choices: Menu(lengths, l => l.Title, l => l.From == filter.MinimumRuntime && l.To == filter.MaximumRuntime, l => filter with { MinimumRuntime = l.From, MaximumRuntime = l.To })),
+            // Anime sets Japanese itself; another language chosen turns it off.
+            new FilterChip(language.Title ?? "Any Language", filter.Language is not null && !filter.IsAnime,
+                Choices: Menu(languages, l => l.Title, l => l.Code == filter.Language, l => filter with { Language = l.Code })),
+            new FilterChip(filter.Company?.Name ?? anyCompany, filter.Company is not null,
+                Choices: Menu(new SeerrCompany?[] { null }.Concat(companies), c => c?.Name ?? anyCompany, c => c?.Id == filter.Company?.Id, c => filter with { Company = c })),
         ]);
     }
 

@@ -151,7 +151,7 @@ public partial class BrowsePageView : UserControl
         {
             CardStyle.Landscape or CardStyle.Tile or CardStyle.Program or CardStyle.Timer or CardStyle.SeriesRule or CardStyle.Upcoming or CardStyle.SeerrTile => 300,
             CardStyle.Channel => 200,
-            _ => 180,
+            _ => 160,
         };
         var room = Page.Bounds.Width - PagePadding - (page.IndexKeys.Count > 0 ? IndexRoom : 0);
         page.SetColumns((int)Math.Floor((room + CardSpacing) / (card + CardSpacing)));
