@@ -45,6 +45,9 @@ public sealed partial class AudiobookPlayer : ObservableObject, IDisposable
     /// <summary>Called as a book starts, so songs playing step aside.</summary>
     public event Action? Starting;
 
+    /// <summary>A book was played (started, or the one loaded from a chapter or carried on), for its player to open.</summary>
+    public event Action? Played;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CurrentChapter), nameof(BookElapsed), nameof(BookDuration), nameof(Chapters))]
     public partial Audiobook? Book { get; private set; }
@@ -102,6 +105,7 @@ public sealed partial class AudiobookPlayer : ObservableObject, IDisposable
         {
             if (chapter is not null) JumpTo(chapter);
             if (!IsPlaying) Resume();
+            Played?.Invoke();
             return;
         }
         Starting?.Invoke();
@@ -112,6 +116,7 @@ public sealed partial class AudiobookPlayer : ObservableObject, IDisposable
         engine.Speed = Rate;
         var start = chapter is not null ? (chapter.Part, chapter.Start) : book.ResumePoint ?? (0, 0);
         Load(start.Item1, start.Item2, playing: true);
+        Played?.Invoke();
     }
 
     // ---- Transport ----

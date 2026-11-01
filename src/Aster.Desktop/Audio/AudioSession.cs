@@ -25,6 +25,8 @@ public sealed partial class AudioSession : ObservableObject, IDisposable
         // Starting one stops the other.
         Music.Starting += () => Books.Stop();
         Books.Starting += () => Music.Stop();
+        // Playing a book opens its player, whichever page it was played from.
+        Books.Played += () => IsNowPlayingShown = IsLoaded;
         Music.PropertyChanged += Changed;
         Books.PropertyChanged += Changed;
         Sleep = new SleepTimer(this);
