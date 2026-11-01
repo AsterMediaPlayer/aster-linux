@@ -192,7 +192,7 @@
     </DataTemplate>
 
     <!-- An episode in Upcoming's agenda: wide, the show's logo (or name) and the episode over its picture. -->
-    <DataTemplate x:Key="AgendaCard" x:DataType="vm:UpcomingCard">
+    <DataTemplate x:Key="AgendaCard" x:DataType="vm:AgendaEntry">
         <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}" Width="420" Height="236"
                 AutomationProperties.Name="{Binding AccessibleName}" ToolTip.Tip="{Binding Title}">
             <Panel>

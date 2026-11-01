@@ -56,7 +56,7 @@ public sealed record StatusRow(string Title, string? Detail = null, bool IsLoadi
 /// A day of Upcoming's agenda, as a desk calendar shows it: the weekday,
 /// the date big, the month, how far off; its episodes beside it, wide.
 /// </summary>
-public sealed record AgendaDayRow(string Weekday, string Date, string Month, string Relative, IReadOnlyList<UpcomingCard> Cards) : BrowseRow;
+public sealed record AgendaDayRow(string Weekday, string Date, string Month, string Relative, IReadOnlyList<AgendaEntry> Cards) : BrowseRow;
 
 /// <summary>Segmented controls side by side (Requests' state, and whose): each a group of choices, one chosen.</summary>
 public sealed record SegmentRow(IReadOnlyList<IReadOnlyList<Choice>> Groups) : BrowseRow;

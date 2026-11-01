@@ -408,6 +408,31 @@ public static class SeerrClient
         (await GetAsync<List<SeerrProvider>>(account, $"/watchproviders/{(kind == SeerrKind.Movie ? "movies" : "tv")}?watchRegion={region}", ct).ConfigureAwait(false))
             .OrderBy(p => p.DisplayPriority ?? 999).ToList();
 
+    // ---- Requested films on the way ----
+
+    private sealed record Dated(SeerrReleases? Releases);
+
+    /// <summary>The viewer's approved film requests not out yet, soonest first, each with when and how it arrives.</summary>
+    public static async Task<IReadOnlyList<SeerrComingFilm>> ComingFilmsAsync(SeerrAccount account, string? region = null, DateTimeOffset? now = null, CancellationToken ct = default)
+    {
+        region ??= Region;
+        var at = now ?? DateTimeOffset.Now;
+        var requests = (await RequestsAsync(SeerrRequestFilter.Approved, mine: true, account.UserId, 1, account, ct).ConfigureAwait(false)).Results
+            .Where(r => r.Type == "movie" && r.Media.Status != SeerrStatus.Available).ToList();
+        var films = await Task.WhenAll(requests.Select(async request =>
+        {
+            try
+            {
+                var path = $"/movie/{request.Media.TmdbId}";
+                var title = (await GetAsync<SeerrTitle>(account, path, ct).ConfigureAwait(false)) with { MediaType = "movie" };
+                var dated = await GetAsync<Dated>(account, path, ct).ConfigureAwait(false);
+                return dated.Releases?.Arrival(region, at) is { } arrival ? new SeerrComingFilm(title, arrival.Date, arrival.How) : null;
+            }
+            catch (Exception error) when (error is SeerrException or HttpRequestException or TaskCanceledException or JsonException) { return null; }
+        })).ConfigureAwait(false);
+        return films.OfType<SeerrComingFilm>().OrderBy(f => f.Date).ToList();
+    }
+
     // ---- Requests ----
 
     /// <summary>The Sonarr (shows) or Radarr (films) servers, 4K ones left out: Aster asks for the usual copy.</summary>

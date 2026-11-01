@@ -298,3 +298,41 @@ public sealed record SeerrRequestOptions(int ServerId, int? ProfileId, string? R
         return body;
     }
 }
+
+/// <summary>A film the viewer asked for and got approved, not out yet: when it arrives and how.</summary>
+public sealed record SeerrComingFilm(SeerrTitle Title, DateTimeOffset Date, string How);
+
+/// <summary>TMDB's release dates for a film, by country and kind (Seerr's /movie/{id} "releases").</summary>
+public sealed record SeerrReleases
+{
+    public sealed record Country(
+        [property: System.Text.Json.Serialization.JsonPropertyName("iso_3166_1")] string Region,
+        [property: System.Text.Json.Serialization.JsonPropertyName("release_dates")] IReadOnlyList<Release> Dates);
+
+    /// <summary><paramref name="Type"/>: 1 premiere, 2 limited, 3 theatrical, 4 digital, 5 physical, 6 TV.</summary>
+    public sealed record Release(
+        int Type,
+        [property: System.Text.Json.Serialization.JsonPropertyName("release_date")] string When);
+
+    public IReadOnlyList<Country>? Results { get; init; }
+
+    /// <summary>
+    /// When it can be watched at home and how: the first digital or disc
+    /// release still ahead; null once one's past (it's out). With none
+    /// known, its cinema release if that's ahead.
+    /// </summary>
+    public (DateTimeOffset Date, string How)? Arrival(string region, DateTimeOffset now)
+    {
+        var countries = Results ?? [];
+        var releases = (countries.FirstOrDefault(c => c.Region == region) ?? countries.FirstOrDefault(c => c.Region == "US"))?.Dates ?? [];
+        var dated = releases.Select(r => (r.Type, Date: DateTimeOffset.TryParse(r.When, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AssumeUniversal, out var when) ? when : (DateTimeOffset?)null))
+            .Where(r => r.Date is not null).Select(r => (r.Type, Date: r.Date!.Value)).ToList();
+        var home = dated.Where(r => r.Type is 4 or 5).ToList();
+        if (home.Any(r => r.Date <= now)) return null;
+        if (home.Where(r => r.Date > now).OrderBy(r => r.Date).Select(r => ((DateTimeOffset, string)?)(r.Date, r.Type == 4 ? "Digital Release" : "On Disc")).FirstOrDefault() is { } next)
+            return next;
+        return dated.Where(r => r.Type is >= 1 and <= 3 && r.Date > now).OrderBy(r => r.Date)
+            .Select(r => ((DateTimeOffset, string)?)(r.Date, "In Theaters")).FirstOrDefault();
+    }
+}

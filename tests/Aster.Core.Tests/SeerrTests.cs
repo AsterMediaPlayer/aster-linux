@@ -178,3 +178,31 @@ public class SeerrFilterTests
         Assert.Null(off.Language);
     }
 }
+
+/// <summary>When a requested film arrives at home (or in cinemas), from TMDB's release dates.</summary>
+public class SeerrReleasesTests
+{
+    private static SeerrReleases Read(string json) => System.Text.Json.JsonSerializer.Deserialize<SeerrReleases>(json, SeerrClient.Json)!;
+    private static readonly DateTimeOffset Now = new(2026, 11, 1, 12, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void TheFirstHomeReleaseAhead()
+    {
+        var releases = Read("""{"results":[{"iso_3166_1":"US","release_dates":[{"type":3,"release_date":"2026-10-17T00:00:00.000Z"},{"type":5,"release_date":"2027-01-20T00:00:00.000Z"},{"type":4,"release_date":"2026-12-01T00:00:00.000Z"}]}]}""");
+        var arrival = releases.Arrival("US", Now);
+        Assert.Equal((new DateTimeOffset(2026, 12, 1, 0, 0, 0, TimeSpan.Zero), "Digital Release"), arrival);
+    }
+
+    [Fact]
+    public void OutAtHomeAlreadyIsLeftOut() =>
+        Assert.Null(Read("""{"results":[{"iso_3166_1":"US","release_dates":[{"type":4,"release_date":"2026-10-01T00:00:00.000Z"}]}]}""").Arrival("US", Now));
+
+    [Fact]
+    public void OnlyACinemaDateAheadIsInTheaters()
+    {
+        var releases = Read("""{"results":[{"iso_3166_1":"GB","release_dates":[{"type":3,"release_date":"2026-12-19T00:00:00.000Z"}]}]}""");
+        // No row for the region: the US's, and none there, so nothing; the GB one for GB.
+        Assert.Null(releases.Arrival("US", Now));
+        Assert.Equal("In Theaters", releases.Arrival("GB", Now)?.How);
+    }
+}

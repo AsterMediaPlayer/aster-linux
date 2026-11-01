@@ -27,7 +27,7 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
     private SeerrRequestFilter requestFilter = SeerrRequestFilter.All;
     private bool onlyMine;
     /// <summary>Upcoming's switches: anime, and other shows.</summary>
-    private bool upcomingAnime = true, upcomingTV = true;
+    private bool upcomingAnime = true, upcomingTV = true, upcomingFilms = true;
 
     public DiscoverViewModel(INavigator navigator) : base(navigator)
     {
@@ -73,9 +73,9 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
         if (Shown == Section.Upcoming)
         {
             Ambient = null;
-            return await UpcomingAgenda.LoadAsync(Navigator, heading, upcomingAnime, upcomingTV, (anime, tv) =>
+            return await UpcomingAgenda.LoadAsync(Navigator, heading, upcomingAnime, upcomingTV, upcomingFilms, (anime, tv, films) =>
             {
-                (upcomingAnime, upcomingTV) = (anime, tv);
+                (upcomingAnime, upcomingTV, upcomingFilms) = (anime, tv, films);
                 _ = LoadAsync();
             });
         }
