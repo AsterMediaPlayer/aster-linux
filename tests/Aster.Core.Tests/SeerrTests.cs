@@ -123,3 +123,58 @@ public class SeerrTests
         Assert.NotEqual(blob, TrackerVault.Seal(secrets, "5f2cab10"));
     }
 }
+
+/// <summary>Discover's Movies and Series filters, as the Apple app's SeerrDiscoverTests check them.</summary>
+public class SeerrFilterTests
+{
+    [Fact]
+    public void AnUnfilteredGrid() =>
+        Assert.Equal("/discover/movies?page=1&sortBy=popularity.desc", new SeerrFilter(SeerrKind.Movie).Path(1));
+
+    [Fact]
+    public void EveryFilterAsSeerrWritesIt()
+    {
+        var filter = new SeerrFilter(SeerrKind.Tv)
+        {
+            Sort = SeerrSort.Newest,
+            Genres = new HashSet<int> { 16, 10759 },
+            FromYear = 2020,
+            ToYear = 2029,
+            MinimumRating = 7,
+            MinimumRuntime = 30,
+            MaximumRuntime = 60,
+            Language = "ja",
+            Company = new SeerrCompany(213, "Netflix", null),
+            Providers = new HashSet<int> { 8, 337 },
+            Region = "US",
+        };
+        var path = filter.Path(2);
+        Assert.StartsWith("/discover/tv?page=2&sortBy=first_air_date.desc", path);
+        Assert.Contains("genre=16%2C10759", path);
+        Assert.Contains("firstAirDateGte=2020-01-01&firstAirDateLte=2029-12-31", path);
+        Assert.Contains("voteAverageGte=7&voteCountGte=50", path);
+        Assert.Contains("withRuntimeGte=30&withRuntimeLte=60", path);
+        Assert.Contains("language=ja", path);
+        Assert.Contains("network=213", path);
+        Assert.Contains("watchProviders=8|337&watchRegion=US", path);
+        Assert.Equal(7, filter.ActiveCount);
+
+        var film = new SeerrFilter(SeerrKind.Movie) { Company = new SeerrCompany(3, "Pixar", null), FromYear = 1990 };
+        Assert.Contains("studio=3", film.Path(1));
+        Assert.Contains("primaryReleaseDateGte=1990-01-01", film.Path(1));
+    }
+
+    [Fact]
+    public void AnimeIsAnimationFromJapan()
+    {
+        var filter = new SeerrFilter(SeerrKind.Tv) { Genres = new HashSet<int> { 35 } }.WithAnime(true);
+        Assert.True(filter.IsAnime);
+        Assert.Contains("genre=16%2C35", filter.Path(1));
+        Assert.Contains("language=ja", filter.Path(1));
+        // Off takes both away, leaving the comedy chosen.
+        var off = filter.WithAnime(false);
+        Assert.False(off.IsAnime);
+        Assert.Equal(new HashSet<int> { 35 }, off.Genres);
+        Assert.Null(off.Language);
+    }
+}

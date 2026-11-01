@@ -42,6 +42,16 @@ public sealed record CardsRow(IReadOnlyList<object> Cards, CardStyle Style) : Br
 /// <summary>Loading, nothing here, or why it couldn't load.</summary>
 public sealed record StatusRow(string Title, string? Detail = null, bool IsLoading = false) : BrowseRow;
 
+/// <summary>A row of filters over a grid (Discover's Movies and Series): switches, and lists to choose from.</summary>
+public sealed record FilterRow(IReadOnlyList<FilterChip> Chips) : BrowseRow;
+
+/// <summary>A filter: a switch (<paramref name="Toggle"/>), or a list whose chosen one it names (<paramref name="Choices"/>).</summary>
+public sealed record FilterChip(string Title, bool IsOn, CommunityToolkit.Mvvm.Input.IRelayCommand? Toggle = null, IReadOnlyList<TrackChoice>? Choices = null)
+{
+    public bool HasChoices => Choices is not null;
+    public bool IsSwitch => Choices is null;
+}
+
 /// <summary>A person's photo, name and biography.</summary>
 public sealed record PersonRow(string Name, Uri? Photo, string? Overview) : BrowseRow;
 

@@ -21,6 +21,9 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
     private readonly HeroModel upcomingHero;
     private Section? chosen;
     private IReadOnlyList<object> cards = [];
+    /// <summary>The Movies and Series grids' filters, kept as each is left.</summary>
+    private SeerrFilter movieFilter = new(SeerrKind.Movie), seriesFilter = new(SeerrKind.Tv);
+    private readonly Dictionary<SeerrKind, IReadOnlyList<SeerrGenre>> genres = [];
 
     public DiscoverViewModel(INavigator navigator) : base(navigator)
     {
@@ -75,18 +78,26 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
             switch (section)
             {
                 case Section.Movies or Section.Series:
-                    var kind = Shown == Section.Movies ? SeerrKind.Movie : SeerrKind.Tv;
-                    var path = kind == SeerrKind.Movie ? "/discover/movies?sortBy=popularity.desc" : "/discover/tv?sortBy=popularity.desc";
+                    var kind = section == Section.Movies ? SeerrKind.Movie : SeerrKind.Tv;
+                    var filter = kind == SeerrKind.Movie ? movieFilter : seriesFilter;
+                    if (!genres.ContainsKey(kind))
+                    {
+                        try { genres[kind] = await SeerrClient.GenresAsync(kind, account); }
+                        catch (SeerrException) { genres[kind] = []; }
+                    }
                     var titles = new List<SeerrTitle>();
-                    // Five pages, a hundred titles: the most popular first.
+                    // Five pages, a hundred titles.
                     for (var page = 1; page <= 5; page++)
                     {
-                        var reply = await SeerrClient.TitlesAsync($"{path}&page={page}", kind, account);
+                        var reply = await SeerrClient.TitlesAsync(filter.Path(page), kind, account);
                         titles.AddRange(reply.Results);
                         if (page >= (reply.TotalPages ?? 1)) break;
                     }
-                    Show(titles.DistinctBy(t => t.Key).Select(t => (object)new SeerrCard(Navigator, t)).ToList());
-                    return [heading, new HeadingRow(section == Section.Movies ? "Popular Movies" : "Popular Series")];
+                    var found = titles.DistinctBy(t => t.Key).Select(t => (object)new SeerrCard(Navigator, t)).ToList();
+                    Show(found);
+                    return found.Count == 0
+                        ? [heading, Filters(kind, filter), new StatusRow("Nothing matches", "Try fewer filters.")]
+                        : [heading, Filters(kind, filter)];
                 case Section.Requests:
                     var requests = await RequestCardsAsync(account);
                     Show(requests);
@@ -113,6 +124,39 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
             System.Diagnostics.Trace.WriteLine($"Discover: {section} broke: {error}");
             return [heading, new StatusRow("Something went wrong", error.Message)];
         }
+    }
+
+    /// <summary>
+    /// The grid's filters, as chips a controller reaches: the sort, a genre,
+    /// and Anime (the Animation genre, originally in Japanese, at one press).
+    /// </summary>
+    private FilterRow Filters(SeerrKind kind, SeerrFilter filter)
+    {
+        void Set(SeerrFilter changed)
+        {
+            if (kind == SeerrKind.Movie) movieFilter = changed; else seriesFilter = changed;
+            _ = LoadAsync();
+        }
+        var sorts = Enum.GetValues<SeerrSort>().Select((sort, i) => new TrackChoice(i, SeerrFilter.SortLabel(sort), sort == filter.Sort,
+            new RelayCommand(() => Set(filter with { Sort = sort })))).ToList();
+        // One genre at a time, besides Animation (which Anime keeps).
+        var available = genres.GetValueOrDefault(kind) ?? [];
+        var chosenGenre = available.FirstOrDefault(g => g.Id != SeerrFilter.AnimationGenre && filter.Genres.Contains(g.Id));
+        HashSet<int> Keep(int? genre)
+        {
+            var kept = filter.IsAnime ? new HashSet<int> { SeerrFilter.AnimationGenre } : [];
+            if (genre is { } id) kept.Add(id);
+            return kept;
+        }
+        var genreChoices = new List<TrackChoice> { new(0, "Any Genre", chosenGenre is null, new RelayCommand(() => Set(filter with { Genres = Keep(null) }))) };
+        genreChoices.AddRange(available.Where(g => !filter.IsAnime || g.Id != SeerrFilter.AnimationGenre)
+            .Select(g => new TrackChoice(g.Id, g.Name, g.Id == chosenGenre?.Id, new RelayCommand(() => Set(filter with { Genres = Keep(g.Id) })))));
+        return new FilterRow(
+        [
+            new FilterChip(SeerrFilter.SortLabel(filter.Sort), filter.Sort != SeerrSort.Popular, Choices: sorts),
+            new FilterChip(chosenGenre?.Name ?? "Genre", chosenGenre is not null, Choices: genreChoices),
+            new FilterChip("Anime", filter.IsAnime, new RelayCommand(() => Set(filter.WithAnime(!filter.IsAnime)))),
+        ]);
     }
 
     /// <summary>Seerr's own Discover rows, in its admin's order and names, with In Theaters after Trending.</summary>

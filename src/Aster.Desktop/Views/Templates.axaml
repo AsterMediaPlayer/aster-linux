@@ -376,6 +376,14 @@
         </Button>
     </DataTemplate>
 
+    <!-- A choice in a menu (a filter's), the one chosen ticked. -->
+    <ControlTheme x:Key="MenuChoice" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="vm:TrackChoice">
+        <Setter Property="Header" Value="{Binding Title}" />
+        <Setter Property="Command" Value="{Binding Select}" />
+        <Setter Property="ToggleType" Value="Radio" />
+        <Setter Property="IsChecked" Value="{Binding IsSelected, Mode=OneWay}" />
+    </ControlTheme>
+
     <!-- A library as a wide tile, its name over its picture. -->
     <DataTemplate x:Key="TileCard" x:DataType="vm:ItemCard">
         <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}"

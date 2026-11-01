@@ -65,7 +65,42 @@ public partial class BrowsePageView : UserControl
                 && KeyFocus.Current(this) is Button { DataContext: Choice } pill && KeyFocus.IsWithin(pill, this))
                 RefocusChosenPill();
         };
+        if (Model is { } rows) rows.Rows.CollectionChanged += (_, _) => RefocusFilterChip();
         UpdateColumns();
+    }
+
+    /// <summary>The filter chip last focused (its place in the row), and when: a filter changed remakes the row.</summary>
+    private (int Index, DateTime At)? chipFocus;
+
+    protected override void OnGotFocus(FocusChangedEventArgs e)
+    {
+        base.OnGotFocus(e);
+        if (e.Source is Button { DataContext: FilterChip chip } && Model?.Rows.OfType<FilterRow>().FirstOrDefault() is { } row)
+            chipFocus = (row.Chips.ToList().IndexOf(chip), DateTime.UtcNow);
+    }
+
+    /// <summary>A filter changed (the grid reloads, the chips with it): back on the same chip, once it's there again.</summary>
+    private void RefocusFilterChip()
+    {
+        if (chipFocus is not { } last || DateTime.UtcNow - last.At > TimeSpan.FromSeconds(10)) return;
+        var tries = 0;
+        DispatcherTimer? timer = null;
+        timer = new DispatcherTimer(TimeSpan.FromMilliseconds(100), DispatcherPriority.Background, (_, _) =>
+        {
+            var focused = KeyFocus.Current(this);
+            if (++tries > 30 || focused is Visual on && KeyFocus.IsWithin(on, this) && focused is not Button { DataContext: FilterChip })
+            {
+                timer!.Stop();
+                return;
+            }
+            if (Model?.Rows.OfType<FilterRow>().FirstOrDefault() is not { } row || last.Index < 0 || last.Index >= row.Chips.Count) return;
+            var chip = row.Chips[last.Index];
+            var button = this.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => ReferenceEquals(b.DataContext, chip) && KeyFocus.CanFocus(b));
+            if (button is null) return;
+            if (!ReferenceEquals(focused, button)) KeyFocus.Move(button);
+            timer!.Stop();
+        });
+        timer.Start();
     }
 
     /// <summary>The chosen section's pill, once the page has made it again (its rows load after); given up after two seconds, or once the keyboard's moved on.</summary>

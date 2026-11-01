@@ -65,6 +65,35 @@
             </Panel>
         </DataTemplate>
 
+        <!-- Filters over a grid: a switch is a pill, white while on; a list opens its choices. -->
+        <DataTemplate DataType="vm:FilterRow">
+            <ItemsControl ItemsSource="{Binding Chips}" Margin="48,0,48,8">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel ItemSpacing="10" LineSpacing="10" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:FilterChip">
+                        <Panel>
+                            <Button Theme="{StaticResource PillButton}" Classes.selected="{Binding IsOn}" Command="{Binding Toggle}"
+                                    Content="{Binding Title}" MinHeight="36" Padding="16,6" IsVisible="{Binding IsSwitch}" />
+                            <Button Theme="{StaticResource PillButton}" Classes.selected="{Binding IsOn}" MinHeight="36" Padding="16,6"
+                                    IsVisible="{Binding HasChoices}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                                    <TextBlock Text="&#xE70D;" FontFamily="{StaticResource IconFont}" FontSize="12" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <Button.Flyout>
+                                    <MenuFlyout ItemsSource="{Binding Choices}" ItemContainerTheme="{StaticResource MenuChoice}" />
+                                </Button.Flyout>
+                            </Button>
+                        </Panel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </DataTemplate>
+
         <DataTemplate DataType="vm:StatusRow">
             <StackPanel Spacing="10" Margin="48,60" HorizontalAlignment="Center">
                 <ProgressBar IsIndeterminate="True" Width="200" IsVisible="{Binding IsLoading}" />
