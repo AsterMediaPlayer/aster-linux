@@ -104,6 +104,14 @@
         </Style>
     </ControlTheme>
 
+    <!-- A page's round back arrow: lit white, round, on keyboard focus, as the pills are. -->
+    <ControlTheme x:Key="BackButton" TargetType="Button" BasedOn="{StaticResource PillButton}">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </ControlTheme>
+
     <!-- "2019 · PG-13 · 2 hr 9 min · Action" with its badge and rating. -->
     <DataTemplate x:Key="MetadataTemplate" x:DataType="vm:MetadataLine">
         <StackPanel Orientation="Horizontal" Spacing="14">
