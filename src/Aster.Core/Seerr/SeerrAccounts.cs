@@ -126,25 +126,10 @@ public sealed class SeerrAccounts
 
     private async Task ReachAsync(SeerrAccount account)
     {
-        var host = account.Url.Host;
-        if (host.Contains('.', StringComparison.Ordinal) || System.Net.IPAddress.TryParse(host, out _)) return;
-        // Both at once: a name DNS doesn't know takes seconds to fail (seven,
-        // here), and mDNS answers at once. Whichever finds it first.
-        var bare = ResolvesAsync(host);
-        var local = ResolvesAsync(host + ".local");
-        bool useLocal;
-        if (await Task.WhenAny(bare, local).ConfigureAwait(false) == local && await local.ConfigureAwait(false)) useLocal = true;
-        else if (await bare.ConfigureAwait(false)) useLocal = false;
-        else useLocal = await local.ConfigureAwait(false);
-        if (!useLocal || Stored != account) return;
-        reached = new UriBuilder(account.Url) { Host = host + ".local" }.Uri;
+        var url = await SeerrClient.ReachableAsync(account.Url).ConfigureAwait(false);
+        if (url == account.Url || Stored != account) return;
+        reached = url;
         Changed?.Invoke();
-    }
-
-    private static async Task<bool> ResolvesAsync(string host)
-    {
-        try { return (await System.Net.Dns.GetHostAddressesAsync(host).ConfigureAwait(false)).Length > 0; }
-        catch (System.Net.Sockets.SocketException) { return false; }
     }
 
     private static SeerrAccount? Read(JsonObject? seerr)

@@ -25,7 +25,7 @@ public sealed partial class SeerrCard(INavigator navigator, SeerrTitle title, st
     public bool IsAvailable => title.Status == SeerrStatus.Available;
 
     [RelayCommand]
-    private Task Open() => SeerrPages.OpenAsync(navigator, title);
+    private Task Open() => SeerrPages.OpenAsync(navigator, title, request);
 }
 
 /// <summary>A genre, studio or network: its picture (or logo) and name; opens its titles.</summary>
@@ -47,8 +47,14 @@ public static class SeerrPages
     /// A title's page: the library's when the server has it (Seerr knows its
     /// Jellyfin id), else its Seerr page, to read about and request.
     /// </summary>
-    public static async Task OpenAsync(INavigator navigator, SeerrTitle title)
+    public static async Task OpenAsync(INavigator navigator, SeerrTitle title, SeerrRequest? request = null)
     {
+        // A request still waiting opens its Seerr page, for Approve, Decline or Cancel.
+        if (request is { IsPending: true })
+        {
+            navigator.Push(new SeerrTitleViewModel(navigator, title, request));
+            return;
+        }
         if (title.MediaInfo?.JellyfinMediaId is { Length: > 0 } id && navigator.Jellyfin is { } jellyfin)
         {
             try

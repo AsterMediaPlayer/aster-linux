@@ -32,12 +32,54 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
     private readonly INavigator navigator;
     private SeerrTitle title;
     private SeerrDetails? details;
+    /// <summary>The request this page was opened from, while it waits for approval.</summary>
+    private SeerrRequest? request;
+    private SeerrUser? me;
 
-    public SeerrTitleViewModel(INavigator navigator, SeerrTitle title)
+    public SeerrTitleViewModel(INavigator navigator, SeerrTitle title, SeerrRequest? request = null)
     {
         this.navigator = navigator;
         this.title = title;
+        this.request = request;
         _ = LoadAsync();
+    }
+
+    // ---- A request waiting for approval ----
+
+    /// <summary>"Requested by Phillip · Pending Approval", for a request opened from Requests.</summary>
+    public string? RequestLine => request is { } asked
+        ? string.Join(" · ", new[] { asked.RequestedBy?.DisplayName is { } who ? $"Requested by {who}" : null, asked.StateLabel }.OfType<string>())
+        : null;
+    public bool HasRequestLine => RequestLine is not null;
+    /// <summary>Approve and Decline: for whoever manages Seerr's requests (its admin, or MANAGE_REQUESTS).</summary>
+    public bool CanDecide => request is { IsPending: true } && me?.ManagesRequests == true;
+    /// <summary>Cancel: one's own request, while it waits.</summary>
+    public bool CanCancel => request is { IsPending: true } asked && me is { } user && asked.RequestedBy?.Id == user.Id;
+
+    [RelayCommand]
+    private Task Approve() => DecideAsync(SeerrClient.ApproveAsync, "Approved.");
+
+    [RelayCommand]
+    private Task Decline() => DecideAsync(SeerrClient.DeclineAsync, "Declined.");
+
+    [RelayCommand]
+    private Task CancelRequest() => DecideAsync(SeerrClient.CancelAsync, "Request cancelled.");
+
+    private async Task DecideAsync(Func<SeerrRequest, SeerrAccount, System.Threading.CancellationToken, Task> act, string done)
+    {
+        if (navigator.Seerr.Account is not { } account || request is not { } asked || IsBusy) return;
+        IsBusy = true;
+        try
+        {
+            await act(asked, account, default);
+            Message = done;
+            // Done with: the buttons go, and the page shows where the title stands now.
+            request = null;
+            await LoadAsync();
+        }
+        catch (SeerrException error) when (error.Failure == SeerrFailure.SignedOut) { navigator.Seerr.SessionEnded(); Message = error.Message; }
+        catch (Exception error) when (error is SeerrException or HttpRequestException or TaskCanceledException) { Message = error.Message; }
+        finally { IsBusy = false; }
     }
 
     public string Title => details?.DisplayTitle ?? title.DisplayTitle;
@@ -76,6 +118,7 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
         if (navigator.Seerr.Account is not { } account) return;
         try
         {
+            if (request is not null && me is null) me = await SeerrClient.MeAsync(account);
             details = await SeerrClient.DetailsAsync(title, account);
             if (details.MediaInfo is { } info) title = title with { MediaInfo = info };
             if (!title.IsMovie)

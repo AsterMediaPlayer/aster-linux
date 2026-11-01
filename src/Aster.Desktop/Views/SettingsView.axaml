@@ -48,6 +48,14 @@
                     <TextBlock Text="Channels (Beta)" VerticalAlignment="Center" />
                 </DockPanel>
             </Button>
+            <Button Classes="row" Command="{Binding OpenRequestsCommand}">
+                <DockPanel>
+                    <TextBlock Classes="chevron" />
+                    <TextBlock Classes="value" Text="{Binding RequestsValue}" />
+                    <TextBlock Classes="icon" Text="&#xE734;" />
+                    <TextBlock Text="Requests" VerticalAlignment="Center" />
+                </DockPanel>
+            </Button>
             <Button Classes="row" Command="{Binding OpenServerPluginsCommand}" IsVisible="{Binding IsJellyfin}">
                 <DockPanel>
                     <TextBlock Classes="chevron" />

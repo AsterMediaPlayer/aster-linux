@@ -262,6 +262,14 @@ public sealed class JellyfinClient : IMediaServer, Channels.IChannelServer
     public Task<QuickConnectResult> QuickConnectStateAsync(string secret, CancellationToken ct = default) =>
         GetAsync<QuickConnectResult>("/QuickConnect/Connect", new() { ["secret"] = secret }, ct);
 
+    /// <summary>
+    /// Approves another app's Quick Connect code as this user, as Settings ›
+    /// Quick Connect in Jellyfin's web app does: Seerr's, when it signs in
+    /// through this Jellyfin, so the couch has nothing to type.
+    /// </summary>
+    public Task<bool> QuickConnectAuthorizeAsync(string code, CancellationToken ct = default) =>
+        PostAsync<bool>("/QuickConnect/Authorize", new() { ["code"] = code, ["userId"] = RequireUser() }, ct: ct);
+
     public Task<AuthenticationResult> AuthenticateWithQuickConnectAsync(string secret, CancellationToken ct = default) =>
         PostAsync<AuthenticationResult>("/Users/AuthenticateWithQuickConnect", body: new { Secret = secret }, ct: ct);
 

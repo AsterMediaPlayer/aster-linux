@@ -67,6 +67,18 @@
                                 </StackPanel>
                             </Button>
                         </WrapPanel>
+                        <!-- A request waiting: who asked, and Approve or Decline (for whoever manages them), or Cancel (one's own). -->
+                        <StackPanel Spacing="10" IsVisible="{Binding HasRequestLine}">
+                            <TextBlock Text="{Binding RequestLine}" FontWeight="SemiBold" />
+                            <WrapPanel ItemSpacing="12" LineSpacing="12">
+                                <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding ApproveCommand}" Content="Approve"
+                                        IsVisible="{Binding CanDecide}" IsEnabled="{Binding !IsBusy}" />
+                                <Button Theme="{StaticResource PillButton}" Command="{Binding DeclineCommand}" Content="Decline"
+                                        IsVisible="{Binding CanDecide}" IsEnabled="{Binding !IsBusy}" />
+                                <Button Theme="{StaticResource PillButton}" Command="{Binding CancelRequestCommand}" Content="Cancel Request"
+                                        IsVisible="{Binding CanCancel}" IsEnabled="{Binding !IsBusy}" />
+                            </WrapPanel>
+                        </StackPanel>
                         <TextBlock Text="{Binding Message}" Foreground="{StaticResource Secondary}" TextWrapping="Wrap"
                                    IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
                     </StackPanel>

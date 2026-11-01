@@ -37,6 +37,31 @@ public static class SeerrClient
 
     private static string Base(Uri url) => url.GetLeftPart(UriPartial.Path).TrimEnd('/');
 
+    /// <summary>
+    /// Where this computer reaches an address: as it is, or for a one-word
+    /// name ("server:5055") that a phone finds on the local network but Linux
+    /// knows by mDNS as "server.local", that. Both are looked up at once: a
+    /// name DNS doesn't know takes seconds to fail, and mDNS answers at once.
+    /// </summary>
+    public static async Task<Uri> ReachableAsync(Uri url)
+    {
+        var host = url.Host;
+        if (host.Contains('.', StringComparison.Ordinal) || IPAddress.TryParse(host, out _)) return url;
+        var bare = ResolvesAsync(host);
+        var local = ResolvesAsync(host + ".local");
+        bool useLocal;
+        if (await Task.WhenAny(bare, local).ConfigureAwait(false) == local && await local.ConfigureAwait(false)) useLocal = true;
+        else if (await bare.ConfigureAwait(false)) useLocal = false;
+        else useLocal = await local.ConfigureAwait(false);
+        return useLocal ? new UriBuilder(url) { Host = host + ".local" }.Uri : url;
+    }
+
+    private static async Task<bool> ResolvesAsync(string host)
+    {
+        try { return (await Dns.GetHostAddressesAsync(host).ConfigureAwait(false)).Length > 0; }
+        catch (System.Net.Sockets.SocketException) { return false; }
+    }
+
     public static async Task<(byte[] Body, HttpResponseMessage Response)> SendAsync(Uri baseUrl, string path, HttpMethod? method = null,
         object? body = null, string? cookie = null, CancellationToken ct = default)
     {
