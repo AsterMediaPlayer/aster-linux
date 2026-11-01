@@ -130,6 +130,10 @@ public sealed unsafe class Gamepads : IDisposable
             // Those plugged in when it starts come as added too.
             case SDL_EventType.SDL_EVENT_GAMEPAD_ADDED:
                 var id = e.gdevice.which;
+#if DEBUG
+                // A scripted run hears only its pretend controller, not one someone's holding.
+                if (Environment.GetEnvironmentVariable("ASTER_GAMEPAD_SCRIPT") is { Length: > 0 } && !SDL_IsJoystickVirtual(id)) break;
+#endif
                 if (!open.ContainsKey(id) && SDL_OpenGamepad(id) is var gamepad && gamepad != null)
                 {
                     open[id] = (IntPtr)gamepad;
