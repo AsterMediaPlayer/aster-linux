@@ -44,6 +44,8 @@
                 <c:ShelfView Title="Albums &amp; Playlists" Items="{Binding Albums}" ItemTemplate="{StaticResource SquareCard}" />
                 <c:ShelfView Title="Artists" Items="{Binding Artists}" ItemTemplate="{StaticResource RoundCard}" />
                 <c:ShelfView Title="Songs" Items="{Binding Songs}" ItemTemplate="{StaticResource SquareCard}" />
+                <!-- With Seerr: what it has for the search that the library hasn't, to request. -->
+                <c:ShelfView Title="Request" Items="{Binding Requestable}" ItemTemplate="{StaticResource SeerrCard}" />
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

@@ -29,6 +29,9 @@ public sealed partial class SearchViewModel(INavigator navigator) : ViewModelBas
     [ObservableProperty] public partial IReadOnlyList<ItemCard> Artists { get; set; } = [];
     [ObservableProperty] public partial IReadOnlyList<ItemCard> Songs { get; set; } = [];
 
+    /// <summary>With Seerr: films and shows it has for the search that the library hasn't, to request.</summary>
+    [ObservableProperty] public partial IReadOnlyList<SeerrCard> Requestable { get; set; } = [];
+
     public bool HasShows => Shows.Count > 0;
 
     [ObservableProperty]
@@ -55,6 +58,7 @@ public sealed partial class SearchViewModel(INavigator navigator) : ViewModelBas
         if (term.Length == 0)
         {
             Show([]);
+            Requestable = [];
             ShowMessage("Search", "Find movies, TV shows, episodes and music in your library.");
             return;
         }
@@ -63,11 +67,16 @@ public sealed partial class SearchViewModel(INavigator navigator) : ViewModelBas
         {
             await Task.Delay(350, cancel.Token);
             IsSearching = true;
+            // Seerr's alongside, so the library's results needn't wait for it.
+            var requestable = RequestableAsync(term, cancel.Token);
             var results = await navigator.Client.SearchAsync(term, ct: cancel.Token);
             if (cancel.IsCancellationRequested) return;
             Show(results);
-            if (results.Count == 0) ShowMessage("No Results", $"Nothing matched “{term}”.");
+            if (results.Count == 0) ShowMessage("No Results", $"Nothing in the library matched “{term}”.");
             else ShowMessage(null, null);
+            Requestable = await requestable;
+            if (cancel.IsCancellationRequested) return;
+            if (results.Count == 0 && Requestable.Count > 0) ShowMessage("Not in the Library", $"Nothing in the library matched “{term}”. Seerr has these to request.");
         }
         catch (OperationCanceledException) { return; }
         catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException)
@@ -77,6 +86,27 @@ public sealed partial class SearchViewModel(INavigator navigator) : ViewModelBas
             ShowMessage("Couldn't Search", error.Message);
         }
         if (searching == cancel) IsSearching = false;
+    }
+
+    /// <summary>Seerr's films and shows for the search, less what the library has; none without Seerr, or when it fails.</summary>
+    private async Task<IReadOnlyList<SeerrCard>> RequestableAsync(string term, CancellationToken ct)
+    {
+        if (navigator.Seerr.Account is not { } account) return [];
+        try
+        {
+            var found = await Aster.Core.Seerr.SeerrClient.SearchAsync(term, account, ct);
+            return found.Where(t => t.Status != Aster.Core.Seerr.SeerrStatus.Available).DistinctBy(t => t.Key).Take(20)
+                .Select(t => new SeerrCard(navigator, t)).ToList();
+        }
+        catch (Aster.Core.Seerr.SeerrException error) when (error.Failure == Aster.Core.Seerr.SeerrFailure.SignedOut)
+        {
+            navigator.Seerr.SessionEnded();
+            return [];
+        }
+        catch (Exception error) when (error is Aster.Core.Seerr.SeerrException or System.Net.Http.HttpRequestException or OperationCanceledException or System.Text.Json.JsonException)
+        {
+            return [];
+        }
     }
 
     private void ShowMessage(string? title, string? detail)
