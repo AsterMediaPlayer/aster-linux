@@ -13,6 +13,39 @@ public class SeerrTests
     private static T Read<T>(string json) => JsonSerializer.Deserialize<T>(json, SeerrClient.Json)!;
 
     [Fact]
+    public void The4kCopyStandsApart()
+    {
+        // The film's here; its 4K copy isn't asked for. A show's seasons likewise.
+        var info = Read<SeerrMediaInfo>("""{"status": 5, "status4k": 1, "seasons": [{"seasonNumber": 1, "status": 5, "status4k": 2}]}""");
+        Assert.Equal(SeerrStatus.Available, info.Status);
+        var uhd = info.For4k();
+        Assert.Equal(info.Status4k, uhd.Status);
+        Assert.True(uhd.Status!.Value.CanRequest());
+        Assert.Equal(info.Seasons![0].Status4k, uhd.Seasons![0].Status);
+    }
+
+    [Theory]
+    [InlineData(2, true, true)]        // admin
+    [InlineData(1024, false, true)]    // REQUEST_4K
+    [InlineData(2048, true, true)]     // REQUEST_4K_MOVIE, a film
+    [InlineData(2048, false, false)]   // ... not a show
+    [InlineData(4096, false, true)]    // REQUEST_4K_TV, a show
+    [InlineData(32, true, false)]      // REQUEST only
+    public void Who_may_ask_for_4k(int permissions, bool movie, bool may) =>
+        Assert.Equal(may, new SeerrUser { Permissions = permissions }.Requests4k(movie));
+
+    [Fact]
+    public void Makers_are_directors_else_creators()
+    {
+        var film = Read<SeerrDetails>("""{"credits": {"cast": [{"id": 1, "name": "Chris Sarandon", "character": "Jack", "profilePath": "/a.jpg"}], "crew": [{"name": "Henry Selick", "job": "Director"}, {"name": "Danny Elfman", "job": "Original Music Composer"}]}, "releaseDate": "1993-10-09", "productionCompanies": [{"id": 2, "name": "Touchstone Pictures"}]}""");
+        Assert.Equal(["Henry Selick"], film.Makers);
+        Assert.Equal(new DateTime(1993, 10, 9), film.Date);
+        Assert.Equal("Jack", film.Credits!.Cast![0].Character);
+        var show = Read<SeerrDetails>("""{"createdBy": [{"id": 3, "name": "Vince Gilligan"}], "numberOfSeasons": 5}""");
+        Assert.Equal(["Vince Gilligan"], show.Makers);
+    }
+
+    [Fact]
     public void SignInIsOffered()
     {
         var sign = Read<SeerrClient.SignOptions>("""{"mediaServerType": 2, "localLogin": true, "mediaServerLogin": true, "applicationTitle": "Seerr"}""");

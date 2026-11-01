@@ -112,6 +112,9 @@ public static class SeerrClient
         public bool? LocalLogin { get; init; }
         public bool? MediaServerLogin { get; init; }
         public string? ApplicationTitle { get; init; }
+        /// <summary>Whether a 4K Radarr (films) or Sonarr (shows) is set up.</summary>
+        public bool? Movie4kEnabled { get; init; }
+        public bool? Series4kEnabled { get; init; }
 
         public bool SignsInWithPlex => MediaServerType == 1 && MediaServerLogin != false;
         public bool SignsInWithJellyfinOrEmby => MediaServerType is 2 or 3 && MediaServerLogin != false;
@@ -435,10 +438,9 @@ public static class SeerrClient
 
     // ---- Requests ----
 
-    /// <summary>The Sonarr (shows) or Radarr (films) servers, 4K ones left out: Aster asks for the usual copy.</summary>
+    /// <summary>The Sonarr (shows) or Radarr (films) servers, 4K ones too (a request to one asks for the 4K copy).</summary>
     public static async Task<IReadOnlyList<SeerrService>> ServicesAsync(SeerrKind kind, SeerrAccount account, CancellationToken ct = default) =>
-        (await GetAsync<List<SeerrService>>(account, kind == SeerrKind.Tv ? "/service/sonarr" : "/service/radarr", ct).ConfigureAwait(false))
-            .Where(s => s.Is4k != true).ToList();
+        await GetAsync<List<SeerrService>>(account, kind == SeerrKind.Tv ? "/service/sonarr" : "/service/radarr", ct).ConfigureAwait(false);
 
     public static Task<SeerrServiceChoices> ServiceChoicesAsync(SeerrKind kind, int server, SeerrAccount account, CancellationToken ct = default) =>
         GetAsync<SeerrServiceChoices>(account, kind == SeerrKind.Tv ? $"/service/sonarr/{server}" : $"/service/radarr/{server}", ct);

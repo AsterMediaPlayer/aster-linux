@@ -64,12 +64,21 @@ public sealed record SeerrTitle
 public sealed record SeerrMediaInfo
 {
     public SeerrStatus? Status { get; init; }
+    /// <summary>The 4K copy's, kept apart: a film can be available, and its 4K copy not asked for.</summary>
+    public SeerrStatus? Status4k { get; init; }
     public IReadOnlyList<SeerrSeasonStatus>? Seasons { get; init; }
     public string? JellyfinMediaId { get; init; }
     public string? RatingKey { get; init; }
+
+    /// <summary>The same, as the 4K copy stands: its status and its seasons'.</summary>
+    public SeerrMediaInfo For4k() => this with
+    {
+        Status = Status4k,
+        Seasons = Seasons?.Select(s => s with { Status = s.Status4k }).ToList(),
+    };
 }
 
-public sealed record SeerrSeasonStatus(int SeasonNumber, SeerrStatus? Status);
+public sealed record SeerrSeasonStatus(int SeasonNumber, SeerrStatus? Status, SeerrStatus? Status4k = null);
 
 /// <summary>A show's seasons, and where each stands.</summary>
 public sealed record SeerrShow
@@ -136,6 +145,9 @@ public sealed record SeerrUser
 
     /// <summary>Seerr's ADMIN (2) or MANAGE_REQUESTS (16) permission.</summary>
     public bool ManagesRequests => ((Permissions ?? 0) & (2 | 16)) != 0;
+
+    /// <summary>May ask for the 4K copy: ADMIN (2), REQUEST_4K (1024), or REQUEST_4K_MOVIE (2048) / REQUEST_4K_TV (4096).</summary>
+    public bool Requests4k(bool movie) => ((Permissions ?? 0) & (2 | 1024 | (movie ? 2048 : 4096))) != 0;
 }
 
 /// <summary>A request, as Seerr lists them.</summary>
@@ -231,8 +243,29 @@ public sealed record SeerrDetails
     public SeerrMediaInfo? MediaInfo { get; init; }
     public string? OriginalLanguage { get; init; }
     public IReadOnlyList<SeerrNamed>? Keywords { get; init; }
+    public int? NumberOfSeasons { get; init; }
+    public int? NumberOfEpisodes { get; init; }
+    public IReadOnlyList<SeerrNamed>? ProductionCompanies { get; init; }
+    public IReadOnlyList<SeerrNamed>? CreatedBy { get; init; }
+    public SeerrCredits? Credits { get; init; }
 
     public string DisplayTitle => Title ?? Name ?? "";
+    /// <summary>Its own title, in its own language.</summary>
+    public string? Original => OriginalName ?? OriginalTitle;
+
+    /// <summary>When it first came out, or comes out.</summary>
+    public DateTime? Date => DateTime.TryParseExact(ReleaseDate ?? FirstAirDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+        System.Globalization.DateTimeStyles.None, out var date) ? date : null;
+
+    /// <summary>A film's directors, else a show's creators.</summary>
+    public IReadOnlyList<string> Makers
+    {
+        get
+        {
+            var directors = (Credits?.Crew ?? []).Where(c => c.Job == "Director").Select(c => c.Name).Distinct().ToList();
+            return directors.Count > 0 ? directors : (CreatedBy ?? []).Select(c => c.Name).Distinct().ToList();
+        }
+    }
     public string? Year => (ReleaseDate ?? FirstAirDate) is { Length: >= 4 } date ? date[..4] : null;
 
     /// <summary>Japanese animation, or tagged anime on TMDB: as Seerr decides when to use Sonarr's anime folder.</summary>
@@ -245,6 +278,10 @@ public sealed record SeerrDetails
 }
 
 public sealed record SeerrNamed(int Id, string Name);
+
+public sealed record SeerrCredits(IReadOnlyList<SeerrCastPerson>? Cast, IReadOnlyList<SeerrCrew>? Crew);
+public sealed record SeerrCastPerson(int Id, string Name, string? Character, string? ProfilePath);
+public sealed record SeerrCrew(string Name, string? Job);
 
 /// <summary>A video TMDB lists for a title; YouTube's play at youtube.com/watch?v={Key}.</summary>
 public sealed record SeerrVideo(string? Site, string? Key, string? Type, string? Name)
