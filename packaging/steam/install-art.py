@@ -6,7 +6,8 @@ page's banner and the icon, in place of Steam's blank ones.
 Steam keeps a shortcut's artwork in userdata/<account>/config/grid, named by
 the shortcut's app id: <id>p.png (the portrait tile, 600x900), <id>.png (the
 wide tile, 920x430, Home's last played), <id>_hero.png (the game page's
-banner, 1920x620) and <id>_icon.png. Every shortcut that runs Aster gets
+banner, 1920x620), <id>_logo.png (drawn over the banner, in place of
+the name) and <id>_icon.png. Every shortcut that runs Aster gets
 them, in each account on this PC. Steam shows them once it starts again.
 
 The icon in the library's list is the shortcut's own "icon" setting, kept in
@@ -23,7 +24,7 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ART = {"p.png": "capsule.png", ".png": "header.png", "_hero.png": "hero.png", "_icon.png": "icon.png"}
+ART = {"p.png": "capsule.png", ".png": "header.png", "_hero.png": "hero.png", "_logo.png": "logo.png", "_icon.png": "icon.png"}
 STEAM_ROOTS = ["~/.local/share/Steam", "~/.steam/steam", "~/.var/app/com.valvesoftware.Steam/.local/share/Steam"]
 
 
