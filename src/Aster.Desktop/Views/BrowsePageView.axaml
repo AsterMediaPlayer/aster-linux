@@ -66,15 +66,15 @@
 
         <DataTemplate DataType="vm:HeadingRow">
             <Panel>
-                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" Margin="48,20,48,8" IsVisible="{Binding !IsLetter}" />
-                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource Secondary}" Margin="48,16,48,4"
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" Margin="107,20,107,8" IsVisible="{Binding !IsLetter}" />
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource Secondary}" Margin="107,16,107,4"
                            IsVisible="{Binding IsLetter}" />
             </Panel>
         </DataTemplate>
 
         <DataTemplate DataType="vm:CardsRow">
             <Panel>
-                <ItemsControl ItemsSource="{Binding Cards}" Margin="48,6,48,10" IsVisible="{Binding !IsTrack}"
+                <ItemsControl ItemsSource="{Binding Cards}" Margin="107,6,107,10" IsVisible="{Binding !IsTrack}"
                               ItemTemplate="{ReflectionBinding Style, Converter={x:Static c:Converters.CardTemplate}}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -83,14 +83,14 @@
                     </ItemsControl.ItemsPanel>
                 </ItemsControl>
                 <!-- A song: the full width. -->
-                <ItemsControl ItemsSource="{Binding Cards}" Margin="48,3" IsVisible="{Binding IsTrack}"
+                <ItemsControl ItemsSource="{Binding Cards}" Margin="107,3" IsVisible="{Binding IsTrack}"
                               ItemTemplate="{StaticResource TrackCard}" />
             </Panel>
         </DataTemplate>
 
         <!-- Filters over a grid: a switch is a pill, white while on; a list opens its choices. -->
         <DataTemplate DataType="vm:FilterRow">
-            <ItemsControl ItemsSource="{Binding Chips}" Margin="48,0,48,8">
+            <ItemsControl ItemsSource="{Binding Chips}" Margin="107,0,107,8">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <WrapPanel ItemSpacing="10" LineSpacing="10" />
@@ -100,8 +100,8 @@
                     <DataTemplate x:DataType="vm:FilterChip">
                         <Panel>
                             <Button Theme="{StaticResource PillButton}" Classes.selected="{Binding IsOn}" Command="{Binding Toggle}"
-                                    Content="{Binding Title}" MinHeight="36" Padding="16,6" IsVisible="{Binding IsSwitch}" />
-                            <Button Theme="{StaticResource PillButton}" Classes.selected="{Binding IsOn}" MinHeight="36" Padding="16,6"
+                                    Content="{Binding Title}" MinHeight="39" Padding="18,6" FontSize="20" IsVisible="{Binding IsSwitch}" />
+                            <Button Theme="{StaticResource PillButton}" Classes.selected="{Binding IsOn}" MinHeight="39" Padding="18,6" FontSize="20"
                                     IsVisible="{Binding HasChoices}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
@@ -119,15 +119,15 @@
 
         <!-- A day of Upcoming's agenda: the date down the side, as a desk calendar shows it, its episodes beside it, wide. -->
         <DataTemplate DataType="vm:AgendaDayRow">
-            <Grid ColumnDefinitions="190,*" Margin="0,8,0,20">
-                <StackPanel Grid.Column="0" Margin="48,22,0,0" Spacing="0">
-                    <TextBlock Text="{Binding Weekday}" FontSize="15" FontWeight="Bold" LetterSpacing="2" Foreground="#D9FFFFFF" />
-                    <TextBlock Text="{Binding Date}" FontSize="58" FontWeight="Bold" Margin="0,-4,0,-6" />
-                    <TextBlock Text="{Binding Month}" FontSize="18" FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding Relative}" FontSize="14" Foreground="{StaticResource Secondary}" Margin="0,2,0,0" />
+            <Grid ColumnDefinitions="271,*" Margin="0,8,0,20">
+                <StackPanel Grid.Column="0" Margin="107,22,0,0" Spacing="0">
+                    <TextBlock Text="{Binding Weekday}" FontSize="16" FontWeight="Bold" LetterSpacing="2" Foreground="#D9FFFFFF" />
+                    <TextBlock Text="{Binding Date}" FontSize="57" FontWeight="Bold" Margin="0,-4,0,-6" />
+                    <TextBlock Text="{Binding Month}" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Relative}" FontSize="15" Foreground="{StaticResource Secondary}" Margin="0,2,0,0" />
                 </StackPanel>
                 <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
-                    <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource AgendaCard}" Padding="0,12,48,12">
+                    <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource AgendaCard}" Padding="0,12,107,12">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <StackPanel Orientation="Horizontal" Spacing="24" />
@@ -140,7 +140,7 @@
 
         <!-- Segmented controls side by side (Requests' filters). -->
         <DataTemplate DataType="vm:SegmentRow">
-            <ItemsControl ItemsSource="{Binding Groups}" Margin="48,4,48,12">
+            <ItemsControl ItemsSource="{Binding Groups}" Margin="107,4,107,12">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <WrapPanel ItemSpacing="16" LineSpacing="10" />
@@ -169,23 +169,23 @@
 
         <!-- A request: poster, title, what and which seasons, its state in colour, who asked and when. -->
         <DataTemplate DataType="vm:RequestRow">
-            <Button Classes="requestRow" Command="{Binding Open}" Margin="36,4,48,4" AutomationProperties.Name="{Binding Title}">
+            <Button Classes="requestRow" Command="{Binding Open}" Margin="36,4,107,4" AutomationProperties.Name="{Binding Title}">
                 <Grid ColumnDefinitions="Auto,*">
-                    <Border Width="96" Height="144" CornerRadius="10" ClipToBounds="True" Background="{StaticResource CardBackground}">
+                    <Border Width="80" Height="120" CornerRadius="8" ClipToBounds="True" Background="{StaticResource CardBackground}">
                         <c:RemoteImage Url="{Binding Poster}" Stretch="UniformToFill" />
                     </Border>
                     <StackPanel Grid.Column="1" Margin="22,0,0,0" Spacing="4" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Title}" FontSize="26" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Text="{Binding Meta}" FontSize="17" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Text="{Binding State}" FontSize="17" FontWeight="SemiBold" Foreground="{Binding StateColor}" />
-                        <TextBlock Text="{Binding Byline}" FontSize="14" Foreground="{StaticResource Secondary}" />
+                        <TextBlock Text="{Binding Title}" FontSize="30" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Meta}" FontSize="20" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding State}" FontSize="20" FontWeight="SemiBold" Foreground="{Binding StateColor}" />
+                        <TextBlock Text="{Binding Byline}" FontSize="15" Foreground="{StaticResource Secondary}" />
                     </StackPanel>
                 </Grid>
             </Button>
         </DataTemplate>
 
         <DataTemplate DataType="vm:StatusRow">
-            <StackPanel Spacing="10" Margin="48,60" HorizontalAlignment="Center">
+            <StackPanel Spacing="10" Margin="107,60" HorizontalAlignment="Center">
                 <ProgressBar IsIndeterminate="True" Width="200" IsVisible="{Binding IsLoading}" />
                 <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" IsVisible="{Binding !IsLoading}" />
                 <TextBlock Text="{Binding Detail}" Foreground="{StaticResource Secondary}" TextWrapping="Wrap" MaxWidth="600" TextAlignment="Center"
@@ -194,7 +194,7 @@
         </DataTemplate>
 
         <DataTemplate DataType="vm:PersonRow">
-            <Grid ColumnDefinitions="Auto,*" Margin="48,80,48,12">
+            <Grid ColumnDefinitions="Auto,*" Margin="107,80,107,12">
                 <Border Grid.Column="0" Width="160" Height="160" CornerRadius="80" ClipToBounds="True" Background="{StaticResource CardBackground}" VerticalAlignment="Top">
                     <Panel>
                         <TextBlock Text="&#xE77B;" FontFamily="{StaticResource IconFont}" FontSize="48" Opacity="0.35"
@@ -264,7 +264,7 @@
 
     <UserControl.Styles>
         <Style Selector="StackPanel.title">
-            <Setter Property="Margin" Value="48,28,48,12" />
+            <Setter Property="Margin" Value="107,28,107,12" />
         </Style>
         <!-- The segmented control: a dark track, its segments wide, the chosen one white, the focused one lit. -->
         <Style Selector="Border.segments">
@@ -279,8 +279,8 @@
             <Setter Property="Foreground" Value="White" />
             <Setter Property="FontSize" Value="18" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="MinWidth" Value="130" />
-            <Setter Property="Padding" Value="22,10" />
+            <Setter Property="MinWidth" Value="140" />
+            <Setter Property="Padding" Value="24,13" />
             <Setter Property="CornerRadius" Value="26" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="FocusAdorner" Value="{x:Null}" />
@@ -294,9 +294,9 @@
             <Setter Property="Foreground" Value="Black" />
         </Style>
         <Style Selector="Button.segment.small">
-            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontSize" Value="18" />
             <Setter Property="MinWidth" Value="0" />
-            <Setter Property="Padding" Value="18,8" />
+            <Setter Property="Padding" Value="20,9" />
         </Style>
         <Style Selector="Button.requestRow">
             <Setter Property="Background" Value="Transparent" />
@@ -314,10 +314,10 @@
         </Style>
 
         <Style Selector="StackPanel.title.first">
-            <Setter Property="Margin" Value="48,76,48,12" />
+            <Setter Property="Margin" Value="107,76,107,12" />
         </Style>
         <Style Selector="StackPanel.title.pushed">
-            <Setter Property="Margin" Value="48,80,48,12" />
+            <Setter Property="Margin" Value="107,80,107,12" />
         </Style>
         <Style Selector="Button.indexLetter">
             <Setter Property="Background" Value="Transparent" />

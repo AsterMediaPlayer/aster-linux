@@ -12,7 +12,7 @@
     <!-- A saved server's page, over Account: who and where, switching to it, its password and Lock After, and forgetting it. -->
     <Panel>
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Margin="48,76,48,60">
+            <StackPanel Margin="107,76,107,60">
                 <TextBlock Classes="pageTitle" Text="{Binding Name}" />
 
                 <Border Classes="fact">

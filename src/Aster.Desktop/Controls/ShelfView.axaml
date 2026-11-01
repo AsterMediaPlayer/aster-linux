@@ -3,14 +3,14 @@
              x:Class="Aster.Desktop.Controls.ShelfView"
              x:Name="Root">
     <StackPanel Spacing="4">
-        <TextBlock Text="{Binding #Root.Title}" FontSize="20" FontWeight="SemiBold" Margin="{StaticResource ScreenPadding}" />
+        <TextBlock Text="{Binding #Root.Title}" FontSize="29" FontWeight="SemiBold" Margin="{StaticResource ScreenPadding}" />
         <Panel>
             <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
                 <ItemsControl x:Name="Row" ItemsSource="{Binding #Root.Items}" ItemTemplate="{Binding #Root.ItemTemplate}"
                               Margin="{StaticResource ScreenPadding}" Padding="0,12">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal" Spacing="20" />
+                            <StackPanel Orientation="Horizontal" Spacing="24" />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                 </ItemsControl>

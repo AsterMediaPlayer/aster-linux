@@ -4,13 +4,13 @@
                     xmlns:c="using:Aster.Desktop.Controls">
 
     <!-- Sizes, after the Apple app's Lockup, at a desktop window's scale. -->
-    <x:Double x:Key="LandscapeWidth">300</x:Double>
-    <x:Double x:Key="LandscapeHeight">169</x:Double>
-    <x:Double x:Key="PosterWidth">180</x:Double>
-    <x:Double x:Key="PosterHeight">270</x:Double>
+    <x:Double x:Key="LandscapeWidth">365</x:Double>
+    <x:Double x:Key="LandscapeHeight">205</x:Double>
+    <x:Double x:Key="PosterWidth">160</x:Double>
+    <x:Double x:Key="PosterHeight">240</x:Double>
     <x:Double x:Key="PersonPhoto">120</x:Double>
     <x:Double x:Key="PersonWidth">136</x:Double>
-    <Thickness x:Key="ScreenPadding">48,0</Thickness>
+    <Thickness x:Key="ScreenPadding">107,0</Thickness>
     <!-- Segoe on Windows; elsewhere (Linux) the same icons from Fluent UI System Icons, at Segoe's code points (tools/make-icon-font.py). -->
     <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets, avares://Aster.Desktop/Assets/Fonts#Aster Icons, avares://Aster.Desktop/Assets/Fonts#Aster Icons Filled</FontFamily>
     <SolidColorBrush x:Key="Secondary" Color="#B3FFFFFF" />
@@ -151,8 +151,8 @@
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="16" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
                            IsVisible="{Binding Subtitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
             </StackPanel>
         </StackPanel>
@@ -193,7 +193,7 @@
 
     <!-- An episode in Upcoming's agenda: wide, the show's logo (or name) and the episode over its picture. -->
     <DataTemplate x:Key="AgendaCard" x:DataType="vm:AgendaEntry">
-        <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}" Width="420" Height="236"
+        <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}" Width="371" Height="209"
                 AutomationProperties.Name="{Binding AccessibleName}" ToolTip.Tip="{Binding Title}">
             <Panel>
                 <TextBlock Text="&#xE7F4;" FontFamily="{StaticResource IconFont}" FontSize="40" Opacity="0.35"
@@ -210,10 +210,10 @@
                 <StackPanel Spacing="4" Margin="16" VerticalAlignment="Bottom" HorizontalAlignment="Left">
                     <Panel HorizontalAlignment="Left">
                         <c:RemoteImage x:Name="Logo" Url="{Binding Logo}" Stretch="Uniform" MaxWidth="220" MaxHeight="64" HorizontalAlignment="Left" />
-                        <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold" TextTrimming="CharacterEllipsis" MaxWidth="388"
+                        <TextBlock Text="{Binding Title}" FontSize="22" FontWeight="Bold" TextTrimming="CharacterEllipsis" MaxWidth="340"
                                    IsVisible="{Binding !#Logo.HasImage}" />
                     </Panel>
-                    <TextBlock Text="{Binding EpisodeLine}" FontSize="17" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="388" />
+                    <TextBlock Text="{Binding EpisodeLine}" FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="340" />
                 </StackPanel>
                 <Border Background="#A6000000" CornerRadius="12" Padding="10,4" Margin="12"
                         HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="{Binding IsAvailable}">
@@ -252,8 +252,8 @@
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="16" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
             </StackPanel>
         </StackPanel>
     </DataTemplate>
@@ -288,7 +288,7 @@
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
                 <TextBlock Text="{Binding NowTitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
                            IsVisible="{Binding NowTitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
             </StackPanel>
@@ -310,8 +310,8 @@
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="16" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
             </StackPanel>
         </StackPanel>
     </DataTemplate>
@@ -329,8 +329,8 @@
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="16" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
             </StackPanel>
         </StackPanel>
     </DataTemplate>
@@ -363,8 +363,8 @@
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="16" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
                            IsVisible="{Binding Subtitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
             </StackPanel>
         </StackPanel>
@@ -380,15 +380,15 @@
                     <TextBlock Text="&#xE8B2;" FontFamily="{StaticResource IconFont}" FontSize="36" Opacity="0.35"
                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                     <c:RemoteImage Url="{Binding Image}" />
-                    <Border Background="#A6000000" CornerRadius="12" Padding="10,4" Margin="8"
+                    <Border Background="#A6000000" CornerRadius="14" Padding="12,4" Margin="8"
                             HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="{Binding HasBadge}">
-                        <TextBlock Text="{Binding Badge}" FontSize="12" FontWeight="SemiBold" Foreground="White" />
+                        <TextBlock Text="{Binding Badge}" FontSize="16" FontWeight="SemiBold" Foreground="White" />
                     </Border>
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="16" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
                            IsVisible="{Binding Subtitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
             </StackPanel>
         </StackPanel>
@@ -486,8 +486,8 @@
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="16" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
                            IsVisible="{Binding Subtitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
             </StackPanel>
         </StackPanel>
@@ -525,8 +525,8 @@
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="16" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
                            IsVisible="{Binding Subtitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
             </StackPanel>
         </StackPanel>
@@ -553,7 +553,7 @@
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
                 <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" />
             </StackPanel>
         </StackPanel>
@@ -589,7 +589,7 @@
                                HorizontalAlignment="Right" VerticalAlignment="Center" IsVisible="{Binding IsCurrent}" />
                 </Panel>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                    <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
                     <TextBlock Text="{Binding Artist}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
                                IsVisible="{Binding Artist, Converter={x:Static ObjectConverters.IsNotNull}}" />
                 </StackPanel>

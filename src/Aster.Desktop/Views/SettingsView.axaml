@@ -10,7 +10,7 @@
 
     <!-- Settings' pages, as the Apple TV lists them: each opens over the list. -->
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Margin="48,76,48,60">
+        <StackPanel Margin="107,76,107,60">
             <TextBlock Classes="pageTitle" Text="Settings" />
 
             <Button Classes="row" Command="{Binding OpenCommand}" CommandParameter="{x:Static vm:SettingsPage.Playback}">

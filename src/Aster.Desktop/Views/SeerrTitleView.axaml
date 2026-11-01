@@ -36,7 +36,7 @@
         </Border>
 
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="24" Margin="48,96,48,60">
+            <StackPanel Spacing="24" Margin="107,96,107,60">
                 <Grid ColumnDefinitions="Auto,*">
                     <Border Width="220" Height="330" CornerRadius="12" ClipToBounds="True" Background="{StaticResource CardBackground}"
                             BoxShadow="0 12 30 0 #80000000" VerticalAlignment="Top">

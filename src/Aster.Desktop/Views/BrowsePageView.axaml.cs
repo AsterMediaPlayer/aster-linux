@@ -19,7 +19,7 @@ namespace Aster.Desktop.Views;
 /// </summary>
 public partial class BrowsePageView : UserControl
 {
-    private const double PagePadding = 48 * 2;
+    private const double PagePadding = 107 * 2;
     private const double CardSpacing = 24;
     /// <summary>Room on the right for the letter index.</summary>
     private const double IndexRoom = 28;

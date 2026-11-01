@@ -13,7 +13,7 @@
          turns it over; a list's row opens its choices. -->
     <Panel>
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Margin="48,76,48,60" DataContext="{Binding Settings}" x:DataType="vm:SettingsViewModel">
+            <StackPanel Margin="107,76,107,60" DataContext="{Binding Settings}" x:DataType="vm:SettingsViewModel">
                 <TextBlock Classes="pageTitle" Text="{Binding $parent[UserControl].((vm:SettingsPageViewModel)DataContext).Title}" />
 
                 <!-- Playback -->

@@ -83,6 +83,7 @@
         </Style>
         <!-- The collapsed sidebar: the tab's icon and name in a capsule, as on the Apple TV. -->
         <Style Selector="Button.capsule">
+            <Setter Property="FontSize" Value="19" />
             <Setter Property="Background" Value="#B3202020" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="CornerRadius" Value="20" />

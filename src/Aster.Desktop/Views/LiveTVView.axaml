@@ -8,7 +8,7 @@
 
     <!-- The title and sections stay put; the section beneath scrolls on its own. -->
     <DockPanel>
-        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="48,0,48,0">
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="107,0,107,0">
         <StackPanel Spacing="14" Margin="0,76,0,8">
             <TextBlock Text="Live TV" FontSize="32" FontWeight="Bold" />
             <ItemsControl ItemsSource="{Binding Sections}">

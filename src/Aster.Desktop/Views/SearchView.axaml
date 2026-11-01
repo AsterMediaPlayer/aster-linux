@@ -6,7 +6,7 @@
              x:DataType="vm:SearchViewModel">
 
     <DockPanel>
-        <StackPanel DockPanel.Dock="Top" Spacing="16" Margin="48,76,48,8">
+        <StackPanel DockPanel.Dock="Top" Spacing="16" Margin="107,76,107,8">
             <TextBlock Text="Search" FontSize="32" FontWeight="Bold" />
             <!-- As wide as there's room for, up to 720, from the left. -->
             <Grid>
@@ -22,9 +22,9 @@
 
         <ScrollViewer x:Name="Results" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="8" Margin="0,8,0,60">
-                <ProgressBar IsIndeterminate="True" Width="200" HorizontalAlignment="Left" Margin="48,0" IsVisible="{Binding IsSearching}" />
+                <ProgressBar IsIndeterminate="True" Width="200" HorizontalAlignment="Left" Margin="107,0" IsVisible="{Binding IsSearching}" />
 
-                <StackPanel Spacing="10" Margin="48,100" HorizontalAlignment="Center" IsVisible="{Binding HasMessage}">
+                <StackPanel Spacing="10" Margin="107,100" HorizontalAlignment="Center" IsVisible="{Binding HasMessage}">
                     <TextBlock Text="&#xE721;" FontFamily="{StaticResource IconFont}" FontSize="44" Opacity="0.4" HorizontalAlignment="Center" />
                     <TextBlock Text="{Binding MessageTitle}" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />
                     <TextBlock Text="{Binding MessageDetail}" Foreground="{StaticResource Secondary}" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="480" />

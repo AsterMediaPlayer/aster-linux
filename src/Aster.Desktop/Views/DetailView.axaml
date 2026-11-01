@@ -134,7 +134,7 @@
             <StackPanel Spacing="28" Margin="0,0,0,60">
                 <!-- The header: along the bottom of the window's first screen, over the backdrop. -->
                 <Panel x:Name="HeaderHost" MinHeight="520">
-                    <StackPanel Spacing="14" VerticalAlignment="Bottom" Margin="48,0,48,8">
+                    <StackPanel Spacing="14" VerticalAlignment="Bottom" Margin="107,0,107,8">
                         <Panel HorizontalAlignment="Left" IsVisible="{Binding SeriesName, Converter={x:Static ObjectConverters.IsNotNull}}">
                             <c:RemoteImage x:Name="SeriesLogo" Url="{Binding SeriesLogo}" Stretch="Uniform" MaxWidth="260" MaxHeight="80" HorizontalAlignment="Left" />
                             <TextBlock Text="{Binding SeriesName}" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource Secondary}"
@@ -235,7 +235,7 @@
 
                 <StackPanel Spacing="8" IsVisible="{Binding ShowsEpisodes}">
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                        <ItemsControl ItemsSource="{Binding Seasons}" ItemTemplate="{StaticResource ChoiceTemplate}" Margin="48,0,48,8">
+                        <ItemsControl ItemsSource="{Binding Seasons}" ItemTemplate="{StaticResource ChoiceTemplate}" Margin="107,0,107,8">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <StackPanel Orientation="Horizontal" Spacing="10" />

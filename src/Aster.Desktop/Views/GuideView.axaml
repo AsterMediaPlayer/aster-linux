@@ -74,7 +74,7 @@
     </UserControl.Styles>
 
     <Panel>
-        <DockPanel Margin="48,8,48,0" IsVisible="{Binding MessageTitle, Converter={x:Static ObjectConverters.IsNull}}">
+        <DockPanel Margin="107,8,107,0" IsVisible="{Binding MessageTitle, Converter={x:Static ObjectConverters.IsNull}}">
             <!-- What's highlighted (or on now on the first row): its picture, then its title, episode and overview. -->
             <Grid DockPanel.Dock="Top" ColumnDefinitions="5*,7*" Height="150" Margin="0,4,0,16">
                 <Border CornerRadius="10" ClipToBounds="True" HorizontalAlignment="Left" VerticalAlignment="Top">
@@ -231,7 +231,7 @@
         </DockPanel>
 
         <ProgressBar IsIndeterminate="True" Width="200" VerticalAlignment="Top" Margin="0,80" IsVisible="{Binding IsLoading}" />
-        <StackPanel Spacing="10" Margin="48,100" HorizontalAlignment="Center" VerticalAlignment="Top"
+        <StackPanel Spacing="10" Margin="107,100" HorizontalAlignment="Center" VerticalAlignment="Top"
                     IsVisible="{Binding MessageTitle, Converter={x:Static ObjectConverters.IsNotNull}}">
             <TextBlock Text="{Binding MessageTitle}" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />
             <TextBlock Text="{Binding MessageDetail}" Foreground="{StaticResource Secondary}" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="480" />
