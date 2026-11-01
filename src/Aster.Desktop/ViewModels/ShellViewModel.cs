@@ -209,6 +209,8 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
         _ = HasChannels.ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTabs));
         // The settings that follow the user, as their other devices left them.
         if (client is JellyfinClient jellyfin && jellyfin.Can(ServerCapabilities.SettingsSync)) _ = Aster.Core.SettingsSync.PullAsync(jellyfin);
+        // The Seerr sign-in the Apple and Android apps sync through the server (Discover's, and Search's requests).
+        if (client is JellyfinClient synced) _ = LoadSeerrAsync(synced);
     }
 
     public IMediaServer Client { get; }
@@ -479,6 +481,27 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
     public Task SessionExpiredAsync() => signOut(SignOutKind.Expired);
 
     /// <summary>Signing out: the song or book stops, its place saved, and the theme with it.</summary>
+    // ---- Seerr ----
+
+    /// <summary>The Seerr sign-in: synced with the other Aster apps through the server, or made in Settings › Requests.</summary>
+    public Aster.Core.Seerr.SeerrAccounts Seerr { get; } = new();
+
+    private async Task LoadSeerrAsync(JellyfinClient jellyfin)
+    {
+        await Seerr.LoadAsync(jellyfin);
+#if DEBUG
+        await Task.Delay(1500);
+        if (Seerr.Account is { } account)
+        {
+            string check;
+            try { check = $"session good, user {(await Aster.Core.Seerr.SeerrClient.MeAsync(account)).DisplayName}"; }
+            catch (Exception error) { check = $"session check failed: {error.Message}"; }
+            System.Diagnostics.Debug.WriteLine($"Seerr: signed in as {account.Name} at {account.Url} ({check})");
+        }
+        else System.Diagnostics.Debug.WriteLine("Seerr: no account synced from the server");
+#endif
+    }
+
     // ---- The video player, over the pages, full screen or in the mini player ----
 
     /// <summary>The video playing, over every page (full screen) or in the corner (mini); null with none.</summary>
