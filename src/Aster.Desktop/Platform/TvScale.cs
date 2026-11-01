@@ -26,27 +26,51 @@ public static partial class TvScale
         if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AVALONIA_GLOBAL_SCALE_FACTOR"))
             || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AVALONIA_SCREEN_SCALE_FACTORS")))
             return;
+        var (width, desktop) = Screen();
         double scale;
         if (double.TryParse(Environment.GetEnvironmentVariable("ASTER_SCALE"), NumberStyles.Float, CultureInfo.InvariantCulture, out var chosen) && chosen is > 0.5 and < 8)
             scale = chosen;
-        else if (PrimaryWidth() is { } width)
-            // To the nearest quarter, never smaller than the desktop's own size.
-            scale = Math.Max(1, Math.Round(width / LayoutWidth * 4) / 4);
+        else if (width is { } pixels)
+            scale = Math.Max(1, pixels / LayoutWidth);
         else
             return;
-        Environment.SetEnvironmentVariable("AVALONIA_GLOBAL_SCALE_FACTOR", scale.ToString(CultureInfo.InvariantCulture));
-        System.Diagnostics.Trace.WriteLine($"TV scale: {scale}");
+        // Avalonia multiplies its global factor by the desktop's own scale
+        // (Xft.dpi over 96: 1.25 on a KDE set to 125%), so the factor is what's
+        // left of the scale wanted: 1.5 / 1.25 = 1.2. (Given as the factor
+        // alone, it came to 1.875, the pages 1024 units across.)
+        var factor = scale / desktop;
+        Environment.SetEnvironmentVariable("AVALONIA_GLOBAL_SCALE_FACTOR", factor.ToString("0.####", CultureInfo.InvariantCulture));
+        System.Diagnostics.Trace.WriteLine($"TV scale: {scale} (the desktop's {desktop}, so a factor of {factor:0.###})");
     }
 
-    /// <summary>The primary monitor's width in pixels (XRandR's monitors), else the first's; null without X.</summary>
-    private static int? PrimaryWidth()
+    /// <summary>
+    /// The primary monitor's width in pixels (XRandR's monitors, else the
+    /// first's), and the desktop's scale as Avalonia reads it (Xft.dpi over
+    /// 96; 1 without one); no width without X.
+    /// </summary>
+    private static (int? Width, double Desktop) Screen()
     {
-        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"))) return null;
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"))) return (null, 1);
         try
         {
             var display = XOpenDisplay(IntPtr.Zero);
-            if (display == IntPtr.Zero) return null;
+            if (display == IntPtr.Zero) return (null, 1);
             try
+            {
+                var desktop = 1.0;
+                var dpi = XGetDefault(display, "Xft", "dpi");
+                if (dpi != IntPtr.Zero && double.TryParse(Marshal.PtrToStringUTF8(dpi), NumberStyles.Float, CultureInfo.InvariantCulture, out var dots) && dots > 0)
+                    desktop = dots / 96;
+                return (Width(display), desktop);
+            }
+            finally { XCloseDisplay(display); }
+        }
+        catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException) { return (null, 1); }
+    }
+
+    private static int? Width(IntPtr display)
+    {
+        {
             {
                 var monitors = XRRGetMonitors(display, XDefaultRootWindow(display), true, out var count);
                 if (monitors == IntPtr.Zero || count <= 0) return XDisplayWidth(display, XDefaultScreen(display));
@@ -64,9 +88,7 @@ public static partial class TvScale
                 }
                 finally { XRRFreeMonitors(monitors); }
             }
-            finally { XCloseDisplay(display); }
         }
-        catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException) { return null; }
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -85,6 +107,7 @@ public static partial class TvScale
     [LibraryImport("libX11.so.6")] private static partial IntPtr XDefaultRootWindow(IntPtr display);
     [LibraryImport("libX11.so.6")] private static partial int XDefaultScreen(IntPtr display);
     [LibraryImport("libX11.so.6")] private static partial int XDisplayWidth(IntPtr display, int screen);
+    [LibraryImport("libX11.so.6", StringMarshalling = StringMarshalling.Utf8)] private static partial IntPtr XGetDefault(IntPtr display, string program, string option);
     [LibraryImport("libXrandr.so.2")] private static partial IntPtr XRRGetMonitors(IntPtr display, IntPtr window, [MarshalAs(UnmanagedType.Bool)] bool active, out int count);
     [LibraryImport("libXrandr.so.2")] private static partial void XRRFreeMonitors(IntPtr monitors);
 }

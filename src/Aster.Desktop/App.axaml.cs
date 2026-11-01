@@ -68,6 +68,7 @@ public partial class App : Application
             if (Aster.Desktop.Platform.SteamSession.Couch(args)) Aster.Desktop.Controls.FullScreen.Pin(desktop.MainWindow);
             // --full-screen: the window starts full screen (a Steam shortcut's launch option, say), and can leave it.
             else if (System.Array.IndexOf(args, "--full-screen") >= 0) Aster.Desktop.Controls.FullScreen.Toggle(desktop.MainWindow);
+            desktop.MainWindow.Opened += (_, _) => System.Diagnostics.Trace.WriteLine($"Window scaling: {desktop.MainWindow.RenderScaling}, size {desktop.MainWindow.ClientSize}");
             // Game controllers, as the keys.
             var gamepads = Aster.Desktop.Input.Gamepads.Start(desktop.MainWindow);
             desktop.ShutdownRequested += (_, _) =>
