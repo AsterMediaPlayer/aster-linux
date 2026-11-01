@@ -117,6 +117,27 @@
             </ItemsControl>
         </DataTemplate>
 
+        <!-- A day of Upcoming's agenda: the date down the side, as a desk calendar shows it, its episodes beside it, wide. -->
+        <DataTemplate DataType="vm:AgendaDayRow">
+            <Grid ColumnDefinitions="190,*" Margin="0,8,0,20">
+                <StackPanel Grid.Column="0" Margin="48,22,0,0" Spacing="0">
+                    <TextBlock Text="{Binding Weekday}" FontSize="15" FontWeight="Bold" LetterSpacing="2" Foreground="#D9FFFFFF" />
+                    <TextBlock Text="{Binding Date}" FontSize="58" FontWeight="Bold" Margin="0,-4,0,-6" />
+                    <TextBlock Text="{Binding Month}" FontSize="18" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Relative}" FontSize="14" Foreground="{StaticResource Secondary}" Margin="0,2,0,0" />
+                </StackPanel>
+                <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource AgendaCard}" Padding="0,12,48,12">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="24" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </DataTemplate>
+
         <!-- Segmented controls side by side (Requests' filters). -->
         <DataTemplate DataType="vm:SegmentRow">
             <ItemsControl ItemsSource="{Binding Groups}" Margin="48,4,48,12">

@@ -191,6 +191,38 @@
         </Button>
     </DataTemplate>
 
+    <!-- An episode in Upcoming's agenda: wide, the show's logo (or name) and the episode over its picture. -->
+    <DataTemplate x:Key="AgendaCard" x:DataType="vm:UpcomingCard">
+        <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}" Width="420" Height="236"
+                AutomationProperties.Name="{Binding AccessibleName}" ToolTip.Tip="{Binding Title}">
+            <Panel>
+                <TextBlock Text="&#xE7F4;" FontFamily="{StaticResource IconFont}" FontSize="40" Opacity="0.35"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <c:RemoteImage Url="{Binding Image}" Stretch="UniformToFill" />
+                <Border>
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="50%,40%" EndPoint="50%,100%">
+                            <GradientStop Offset="0" Color="#00000000" />
+                            <GradientStop Offset="1" Color="#CC000000" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+                <StackPanel Spacing="4" Margin="16" VerticalAlignment="Bottom" HorizontalAlignment="Left">
+                    <Panel HorizontalAlignment="Left">
+                        <c:RemoteImage x:Name="Logo" Url="{Binding Logo}" Stretch="Uniform" MaxWidth="220" MaxHeight="64" HorizontalAlignment="Left" />
+                        <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold" TextTrimming="CharacterEllipsis" MaxWidth="388"
+                                   IsVisible="{Binding !#Logo.HasImage}" />
+                    </Panel>
+                    <TextBlock Text="{Binding EpisodeLine}" FontSize="17" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="388" />
+                </StackPanel>
+                <Border Background="#A6000000" CornerRadius="12" Padding="10,4" Margin="12"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="{Binding IsAvailable}">
+                    <TextBlock Text="Available" FontSize="12" FontWeight="SemiBold" />
+                </Border>
+            </Panel>
+        </Button>
+    </DataTemplate>
+
     <!-- A Live TV programme that's on: its picture, channel, LIVE and progress, then its title and episode or time. -->
     <DataTemplate x:Key="ProgramCard" x:DataType="vm:ProgramCard">
         <StackPanel Width="{StaticResource LandscapeWidth}" Spacing="8">

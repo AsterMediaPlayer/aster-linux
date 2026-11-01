@@ -79,6 +79,8 @@ public partial class BrowsePageView : UserControl
     protected override void OnGotFocus(FocusChangedEventArgs e)
     {
         base.OnGotFocus(e);
+        // Upcoming's focused show, softly behind the page.
+        if (e.Source is Button { DataContext: UpcomingCard card } && Model is { HasAmbientBackground: true } page) page.Ambient = card.Image;
         if (e.Source is Button { DataContext: FilterChip chip } && Model?.Rows.OfType<FilterRow>().FirstOrDefault() is { } row)
             chipFocus = (-1, row.Chips.ToList().IndexOf(chip), DateTime.UtcNow);
         else if (e.Source is Button { DataContext: Choice choice } && Model?.Rows.OfType<SegmentRow>().FirstOrDefault() is { } segments)

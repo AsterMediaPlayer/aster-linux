@@ -29,33 +29,46 @@ public sealed partial class UpcomingCard(INavigator navigator, BaseItem episode)
 }
 
 /// <summary>
-/// Discover's Upcoming section: episodes of shows in the library that air
-/// soon. The next to air fill the banner with a countdown; below, a row of
-/// cards for each day. A port of the Apple app's UpcomingView.
+/// Discover's Upcoming section as the Apple TV app shows it: an agenda.
+/// Each day down the side (weekday, the date big, the month, how far off),
+/// its episodes beside it as wide pictures; the focused show's picture
+/// softly behind the page; Anime and other shows each switched off at the
+/// top when the library has both. A port of the Apple app's UpcomingAgenda.
 /// </summary>
-public static class UpcomingRows
+public static class UpcomingAgenda
 {
-    /// <summary>The banner Upcoming fills, for a page to keep.</summary>
-    public static HeroModel Hero(INavigator navigator) => new(navigator,
-        open: episode => navigator.Open(UpcomingSchedule.Destination(episode)),
-        play: episode => navigator.Open(UpcomingSchedule.Destination(episode), playOnOpen: UpcomingSchedule.IsAvailable(episode)),
-        tag: episode => UpcomingSchedule.AirDate(episode) is { } date ? UpcomingSchedule.Countdown(date, DateTime.Now) : null,
-        action: episode => UpcomingSchedule.IsAvailable(episode) ? new HeroAction("Watch Now", "\uE768") : new HeroAction("Go to Show", "\uE7F4"));
-
-    /// <summary>The section's rows: the banner, then a row for each day; or a note when nothing's coming.</summary>
-    public static async Task<IReadOnlyList<BrowseRow>> LoadAsync(INavigator navigator, HeroModel hero, BrowsePageViewModel page, BrowseRow heading)
+    public static async Task<IReadOnlyList<BrowseRow>> LoadAsync(INavigator navigator, BrowseRow heading,
+        bool showsAnime, bool showsTV, Action<bool, bool> changed)
     {
         if (navigator.Jellyfin is not { } jellyfin || !jellyfin.Can(ServerCapabilities.Upcoming))
             return [heading, new StatusRow("Nothing coming up", "Upcoming episodes need a Jellyfin or Emby server.")];
-        var days = UpcomingSchedule.Days(await jellyfin.UpcomingAsync());
-        if (days.Count == 0)
-            return [heading, new StatusRow("Nothing coming up", "Episodes of shows in your library that air soon show up here.")];
-        // Every upcoming episode, soonest first; the banner keeps the first 8.
-        hero.Show(days.SelectMany(d => d.Episodes));
+        var catalog = await navigator.Anime;
+        var all = UpcomingSchedule.Days(await jellyfin.UpcomingAsync());
+        var rows = new List<BrowseRow> { heading };
+        // The switches, when the library has both kinds of show (even if this week has only one kind coming).
+        var animeLibraries = catalog.Libraries.Select(l => l.Id).ToHashSet();
+        var hasBoth = animeLibraries.Count > 0 && (await navigator.Libraries).Any(l => l.CollectionType == "tvshows" && !animeLibraries.Contains(l.Id));
+        if (hasBoth)
+            rows.Add(new FilterRow(
+            [
+                new FilterChip(showsAnime ? "✓  Anime" : "Anime", showsAnime, new RelayCommand(() => changed(!showsAnime, showsTV))),
+                new FilterChip(showsTV ? "✓  TV Shows" : "TV Shows", showsTV, new RelayCommand(() => changed(showsAnime, !showsTV))),
+            ]));
         var now = DateTime.Now;
-        var rows = new List<BrowseRow> { heading, new HeroRow(hero, page) };
-        rows.AddRange(days.Select(d => new ShelfRow(UpcomingSchedule.Heading(d.Day, now),
-            d.Episodes.Select(e => (object)new UpcomingCard(navigator, e)).ToList(), CardStyle.Upcoming)));
+        var culture = System.Globalization.CultureInfo.CurrentCulture;
+        foreach (var (day, episodes) in all)
+        {
+            var shown = episodes.Where(e => catalog.ItemIds.Contains(e.SeriesId ?? "") ? showsAnime : showsTV).ToList();
+            if (shown.Count == 0) continue;
+            var away = (day.Date - now.Date).Days;
+            var relative = away switch { 0 => "Today", 1 => "Tomorrow", < 7 => $"In {away} days", _ => $"In {away / 7} week{(away >= 14 ? "s" : "")}" };
+            rows.Add(new AgendaDayRow(day.ToString("ddd", culture).ToUpperInvariant(), day.Day.ToString(culture), day.ToString("MMMM", culture), relative,
+                shown.Select(e => new UpcomingCard(navigator, e)).ToList()));
+        }
+        if (rows.Count == (hasBoth ? 2 : 1))
+            rows.Add(new StatusRow("Nothing coming up", all.Count == 0
+                ? "Episodes of shows in your library that air soon show up here."
+                : !showsAnime && !showsTV ? "Turn on Anime or TV Shows above." : !showsAnime ? "No TV shows have episodes coming." : "No anime has episodes coming."));
         return rows;
     }
 }

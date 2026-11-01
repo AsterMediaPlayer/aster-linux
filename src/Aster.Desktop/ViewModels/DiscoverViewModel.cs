@@ -18,7 +18,6 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
 {
     public enum Section { Discover, Upcoming, Movies, Series, Requests }
 
-    private readonly HeroModel upcomingHero;
     private Section? chosen;
     private IReadOnlyList<object> cards = [];
     /// <summary>The Movies and Series grids' filters, kept as each is left.</summary>
@@ -27,10 +26,11 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
     /// <summary>Requests' filters: which state, and (for whoever manages them) everyone's or one's own.</summary>
     private SeerrRequestFilter requestFilter = SeerrRequestFilter.All;
     private bool onlyMine;
+    /// <summary>Upcoming's switches: anime, and other shows.</summary>
+    private bool upcomingAnime = true, upcomingTV = true;
 
     public DiscoverViewModel(INavigator navigator) : base(navigator)
     {
-        upcomingHero = UpcomingRows.Hero(navigator);
         navigator.Seerr.Changed += () => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             UpdateSections();
@@ -70,7 +70,16 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
         var heading = new TitleRow("Discover", this, Navigator.Seerr.NeedsSignIn
             ? "Seerr ended the session: sign in again in Settings › Requests."
             : null) { Segmented = true };
-        if (Shown == Section.Upcoming) return await UpcomingRows.LoadAsync(Navigator, upcomingHero, this, heading);
+        if (Shown == Section.Upcoming)
+        {
+            Ambient = null;
+            return await UpcomingAgenda.LoadAsync(Navigator, heading, upcomingAnime, upcomingTV, (anime, tv) =>
+            {
+                (upcomingAnime, upcomingTV) = (anime, tv);
+                _ = LoadAsync();
+            });
+        }
+        Ambient = null;
         if (Navigator.Seerr.Account is not { } account) return [heading];
         var section = Shown;
         // A section's cards, only if it's still the one showing when they come.

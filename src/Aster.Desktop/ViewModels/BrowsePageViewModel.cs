@@ -52,6 +52,12 @@ public sealed record CardsRow(IReadOnlyList<object> Cards, CardStyle Style) : Br
 /// <summary>Loading, nothing here, or why it couldn't load.</summary>
 public sealed record StatusRow(string Title, string? Detail = null, bool IsLoading = false) : BrowseRow;
 
+/// <summary>
+/// A day of Upcoming's agenda, as a desk calendar shows it: the weekday,
+/// the date big, the month, how far off; its episodes beside it, wide.
+/// </summary>
+public sealed record AgendaDayRow(string Weekday, string Date, string Month, string Relative, IReadOnlyList<UpcomingCard> Cards) : BrowseRow;
+
 /// <summary>Segmented controls side by side (Requests' state, and whose): each a group of choices, one chosen.</summary>
 public sealed record SegmentRow(IReadOnlyList<IReadOnlyList<Choice>> Groups) : BrowseRow;
 
