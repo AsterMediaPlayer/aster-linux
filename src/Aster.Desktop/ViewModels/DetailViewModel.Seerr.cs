@@ -14,8 +14,8 @@ public partial class DetailViewModel
     /// <summary>
     /// The film or show as Seerr has it, when its 4K copy can be asked for:
     /// the library has it (in HD, say), the one signed in to Seerr may ask
-    /// for 4K, Seerr has a 4K server for it, and the 4K copy isn't there or
-    /// on its way.
+    /// for 4K, Seerr has a 4K server for it, no library has it in 4K, and
+    /// Seerr's 4K copy isn't there or on its way.
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanRequest4k))]
@@ -45,6 +45,12 @@ public partial class DetailViewModel
         {
             var me = await SeerrClient.MeAsync(account);
             if (!me.Requests4k(movie))
+            {
+                Seerr4k = null;
+                return;
+            }
+            // Already in 4K, in this library or another: nothing to ask for.
+            if (await SeerrPages.Has4kCopyAsync(navigator, raw, movie, item.Name ?? ""))
             {
                 Seerr4k = null;
                 return;

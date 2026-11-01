@@ -78,7 +78,7 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
     {
         var kind = title.IsMovie ? SeerrKind.Movie : SeerrKind.Tv;
         if (services.Count == 0)
-            services = (await SeerrClient.ServicesAsync(kind, account)).Where(s => s.Is4k != true || me?.Requests4k(title.IsMovie) == true).ToList();
+            services = (await SeerrClient.ServicesAsync(kind, account)).Where(s => s.Is4k != true || me?.Requests4k(title.IsMovie) == true && !have4k).ToList();
         var server = services.FirstOrDefault(s => s.Id == serverId)
             ?? (prefer4k ? services.FirstOrDefault(s => s.IsDefault == true && s.Is4k == true) ?? services.FirstOrDefault(s => s.Is4k == true) : null)
             ?? services.FirstOrDefault(s => s.IsDefault == true && s.Is4k != true) ?? services.FirstOrDefault(s => s.Is4k != true) ?? services.FirstOrDefault();
@@ -98,6 +98,8 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
     private bool wants4k;
     /// <summary>Whether Seerr has a 4K server for this kind, for one who can't see its servers.</summary>
     private bool offers4k;
+    /// <summary>A library has it in 4K already: no 4K server or choice is offered.</summary>
+    private bool have4k;
 
     /// <summary>The status, seasons and buttons again, for the copy (4K or not) now asked for.</summary>
     private void Show4kChange()
@@ -307,8 +309,11 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
         if (navigator.Seerr.Account is not { } asker || options is not null || RequestOptions.Count > 0) return;
         try
         {
+            if (me?.Requests4k(title.IsMovie) == true)
+                have4k = await SeerrPages.Has4kCopyAsync(navigator, title.Id.ToString(System.Globalization.CultureInfo.InvariantCulture), title.IsMovie, Title);
+            if (have4k) wants4k = false;
             if (me?.ManagesRequests == true) await LoadOptionsAsync(asker);
-            else if (me?.Requests4k(title.IsMovie) == true)
+            else if (me?.Requests4k(title.IsMovie) == true && !have4k)
             {
                 var settings = await SeerrClient.SignInOptionsAsync(asker.Url);
                 offers4k = title.IsMovie ? settings.Movie4kEnabled == true : settings.Series4kEnabled == true;

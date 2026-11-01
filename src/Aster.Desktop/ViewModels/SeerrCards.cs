@@ -67,5 +67,13 @@ public static class SeerrPages
         navigator.Push(new SeerrTitleViewModel(navigator, title));
     }
 
+    /// <summary>Whether any of the Jellyfin server's libraries has it in 4K; false without Jellyfin, or when the server can't say.</summary>
+    public static async Task<bool> Has4kCopyAsync(INavigator navigator, string tmdbId, bool movie, string name)
+    {
+        if (navigator.Jellyfin is not { } jellyfin || name.Length == 0) return false;
+        try { return await jellyfin.Has4kCopyAsync(tmdbId, movie, name); }
+        catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException or TaskCanceledException or System.Text.Json.JsonException) { return false; }
+    }
+
     public static Uri? Url(string? url) => url is null ? null : new Uri(url);
 }

@@ -724,6 +724,46 @@ public sealed class JellyfinClient : IMediaServer, Channels.IChannelServer
             ["sortBy"] = "SortName",
         }, ct).ConfigureAwait(false)).Items;
 
+    /// <summary>
+    /// Whether any library has the film or show (by its TMDB id) in 4K: any
+    /// copy of a film, any version of it, or a few of a show's episodes. A
+    /// separate 4K library counts, Seerr not knowing it. Found by name, then
+    /// matched by id.
+    /// </summary>
+    public async Task<bool> Has4kCopyAsync(string tmdbId, bool movie, string name, CancellationToken ct = default)
+    {
+        var copies = (await JellyfinItemsAsync(new()
+        {
+            ["searchTerm"] = name,
+            ["recursive"] = "true",
+            ["includeItemTypes"] = movie ? "Movie" : "Series",
+            ["fields"] = "ProviderIds,MediaSources,MediaStreams",
+            ["limit"] = "20",
+            ["enableUserData"] = "false",
+        }, ct).ConfigureAwait(false)).Items
+            .Where(i => i.ProviderIds?.FirstOrDefault(p => p.Key.Equals("Tmdb", StringComparison.OrdinalIgnoreCase)).Value == tmdbId).ToList();
+        if (movie) return copies.Any(IsUhd);
+        foreach (var show in copies)
+        {
+            var episodes = (await JellyfinItemsAsync(new()
+            {
+                ["parentId"] = show.Id,
+                ["recursive"] = "true",
+                ["includeItemTypes"] = "Episode",
+                ["isMissing"] = "false",
+                ["fields"] = "MediaSources,MediaStreams",
+                ["limit"] = "3",
+                ["enableUserData"] = "false",
+            }, ct).ConfigureAwait(false)).Items;
+            if (episodes.Any(IsUhd)) return true;
+        }
+        return false;
+    }
+
+    /// <summary>Any of its versions about 4K across (3840, or a little cropped).</summary>
+    private static bool IsUhd(BaseItem item) =>
+        (item.MediaSources?.SelectMany(s => s.MediaStreams ?? []) ?? item.MediaStreams ?? []).Any(s => s.Type == "Video" && (s.Width ?? 0) >= 3200);
+
     // ---- User data ----
 
     public Task SetFavoriteAsync(string id, bool favorite, CancellationToken ct = default)
