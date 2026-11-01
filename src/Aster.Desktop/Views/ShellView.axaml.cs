@@ -150,6 +150,11 @@ public partial class ShellView : UserControl
         var onPage = focused is not null && KeyFocus.IsWithin(focused, Page);
         switch (e.Key)
         {
+            // The sidebar out (the pointer slid it) with the keyboard still behind it: the arrows start on its tab showing.
+            case Key.Up or Key.Down or Key.Left when shell.IsSidebarOpen && !inSidebar && !shell.NowPlaying.IsShown:
+                if (CurrentTabButton() is { } tab) KeyFocus.Move(tab);
+                e.Handled = true;
+                break;
             // The arrows with nothing focused (the page just changed, or the pointer was used): start on the page.
             case Key.Left or Key.Right or Key.Up or Key.Down when !inSidebar && !onPage && !shell.NowPlaying.IsShown:
                 FocusPage();
@@ -174,13 +179,12 @@ public partial class ShellView : UserControl
             case Key.Left when inSidebar:
                 e.Handled = true;
                 break;
-            // Up past the first tab or down past Exit stays in the sidebar, rather than leaving it for the page behind.
+            // Up and down the sidebar, kept to it: the window's own arrows
+            // weigh the page behind it too, and could jump there. Up past
+            // the first tab or down past Exit stays put.
             case Key.Up or Key.Down when inSidebar:
-                var was = focused as InputElement;
-                Dispatcher.UIThread.Post(() =>
-                {
-                    if (was is not null && !HasFocusWithin(Sidebar) && KeyFocus.CanFocus(was)) KeyFocus.Move(was);
-                }, DispatcherPriority.Input);
+                if (NextInSidebar(focused!, e.Key == Key.Down) is { } next) KeyFocus.Move(next);
+                e.Handled = true;
                 break;
             case Key.Escape or Key.BrowserBack when shell.NowPlaying.IsShown:
                 break;
@@ -198,6 +202,28 @@ public partial class ShellView : UserControl
                 e.Handled = true;
                 break;
         }
+    }
+
+    /// <summary>
+    /// The sidebar's next control below (or above) <paramref name="from"/>:
+    /// the nearest whose middle is further that way, the most in line with it
+    /// among those (the audio bar's buttons sit side by side). Null at the end.
+    /// </summary>
+    private InputElement? NextInSidebar(Visual from, bool down)
+    {
+        if (from.TranslatePoint(new Point(from.Bounds.Width / 2, from.Bounds.Height / 2), Sidebar) is not { } middle) return null;
+        InputElement? best = null;
+        (double Ahead, double Beside) bestDistance = (double.MaxValue, double.MaxValue);
+        foreach (var candidate in Sidebar.GetVisualDescendants().OfType<InputElement>())
+        {
+            if (candidate == from || !KeyFocus.CanFocus(candidate) || KeyFocus.IsWithin(candidate, from) || KeyFocus.IsWithin(from, candidate)) continue;
+            if (candidate.TranslatePoint(new Point(candidate.Bounds.Width / 2, candidate.Bounds.Height / 2), Sidebar) is not { } at) continue;
+            var ahead = down ? at.Y - middle.Y : middle.Y - at.Y;
+            if (ahead < 1) continue;
+            var distance = (Math.Round(ahead), Math.Abs(at.X - middle.X));
+            if (distance.CompareTo(bestDistance) < 0) (best, bestDistance) = (candidate, distance);
+        }
+        return best;
     }
 
     /// <summary>Slides the sidebar out with the keyboard on the tab showing, remembering where it was on the page.</summary>
