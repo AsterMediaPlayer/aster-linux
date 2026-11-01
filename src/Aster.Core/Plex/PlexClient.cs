@@ -125,6 +125,10 @@ public sealed partial class PlexClient : IMediaServer, Channels.IChannelServer, 
     {
         var request = new HttpRequestMessage(method ?? HttpMethod.Get, url);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        // The server's headers, its token included, only go to the server: a
+        // picture from elsewhere (Seerr's, from TMDB; AnimeThemes') came
+        // through here too, and carried the Plex token with it.
+        if (!string.Equals(url.Host, BaseUrl.Host, StringComparison.OrdinalIgnoreCase) || url.Port != BaseUrl.Port) return request;
         foreach (var (name, value) in PlexDevice.Headers(AccessToken)) request.Headers.TryAddWithoutValidation(name, value);
         return request;
     }

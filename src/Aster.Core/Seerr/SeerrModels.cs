@@ -206,3 +206,42 @@ public enum SeerrKind
 
 /// <summary>Which requests to list, as Seerr's own filter names them.</summary>
 public enum SeerrRequestFilter { All, Pending, Approved, Processing, Available, Unavailable, Failed }
+
+/// <summary>A film's or show's page from Seerr (/movie/{id}, /tv/{id}): what the request page shows.</summary>
+public sealed record SeerrDetails
+{
+    public int Id { get; init; }
+    public string? Title { get; init; }
+    public string? Name { get; init; }
+    public string? OriginalTitle { get; init; }
+    public string? OriginalName { get; init; }
+    public string? Tagline { get; init; }
+    public string? Overview { get; init; }
+    public string? PosterPath { get; init; }
+    public string? BackdropPath { get; init; }
+    public string? ReleaseDate { get; init; }
+    public string? FirstAirDate { get; init; }
+    public int? Runtime { get; init; }
+    public string? Status { get; init; }
+    public double? VoteAverage { get; init; }
+    public IReadOnlyList<SeerrNamed>? Genres { get; init; }
+    public IReadOnlyList<SeerrNamed>? Networks { get; init; }
+    public IReadOnlyList<SeerrVideo>? RelatedVideos { get; init; }
+    public IReadOnlyList<SeerrSeason>? Seasons { get; init; }
+    public SeerrMediaInfo? MediaInfo { get; init; }
+
+    public string DisplayTitle => Title ?? Name ?? "";
+    public string? Year => (ReleaseDate ?? FirstAirDate) is { Length: >= 4 } date ? date[..4] : null;
+
+    /// <summary>The trailer to show: YouTube's, a trailer before a teaser (new anime often have only that).</summary>
+    public SeerrVideo? Trailer => RelatedVideos?.Where(v => v.Site == "YouTube" && !string.IsNullOrEmpty(v.Key))
+        .OrderBy(v => v.Type == "Trailer" ? 0 : v.Type == "Teaser" ? 1 : 2).FirstOrDefault(v => v.Type is "Trailer" or "Teaser");
+}
+
+public sealed record SeerrNamed(int Id, string Name);
+
+/// <summary>A video TMDB lists for a title; YouTube's play at youtube.com/watch?v={Key}.</summary>
+public sealed record SeerrVideo(string? Site, string? Key, string? Type, string? Name)
+{
+    public string? Url => Site == "YouTube" && !string.IsNullOrEmpty(Key) ? $"https://www.youtube.com/watch?v={Key}" : null;
+}

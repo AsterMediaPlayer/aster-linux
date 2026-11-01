@@ -58,8 +58,36 @@ public partial class BrowsePageView : UserControl
         if (Model is { } page) page.PropertyChanged += (_, change) =>
         {
             if (change.PropertyName == nameof(BrowsePageViewModel.IndexKeys)) UpdateColumns();
+            // A section chosen from its pill (Discover's, Music's): the pills are
+            // made again with the page, and the keyboard would be left on
+            // nothing; it goes back to the pill chosen.
+            if (change.PropertyName == nameof(BrowsePageViewModel.Sections)
+                && KeyFocus.Current(this) is Button { DataContext: Choice } pill && KeyFocus.IsWithin(pill, this))
+                RefocusChosenPill();
         };
         UpdateColumns();
+    }
+
+    /// <summary>The chosen section's pill, once the page has made it again (its rows load after); given up after two seconds, or once the keyboard's moved on.</summary>
+    private void RefocusChosenPill()
+    {
+        var tries = 0;
+        DispatcherTimer? timer = null;
+        timer = new DispatcherTimer(TimeSpan.FromMilliseconds(100), DispatcherPriority.Background, (_, _) =>
+        {
+            var focused = KeyFocus.Current(this);
+            var chosen = this.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.DataContext is Choice { IsSelected: true } && KeyFocus.CanFocus(b));
+            var movedOn = focused is Visual on && KeyFocus.IsWithin(on, this) && focused is not Button { DataContext: Choice { IsSelected: false } };
+            if (++tries > 20 || movedOn)
+            {
+                timer!.Stop();
+                return;
+            }
+            if (chosen is null) return;
+            KeyFocus.Move(chosen);
+            timer!.Stop();
+        });
+        timer.Start();
     }
 
     private void UpdateColumns()
@@ -67,7 +95,7 @@ public partial class BrowsePageView : UserControl
         if (Model is not { } page || Page.Bounds.Width <= 0) return;
         var card = page.GridStyle switch
         {
-            CardStyle.Landscape or CardStyle.Tile or CardStyle.Program or CardStyle.Timer or CardStyle.SeriesRule or CardStyle.Upcoming => 300,
+            CardStyle.Landscape or CardStyle.Tile or CardStyle.Program or CardStyle.Timer or CardStyle.SeriesRule or CardStyle.Upcoming or CardStyle.SeerrTile => 300,
             CardStyle.Channel => 200,
             _ => 180,
         };

@@ -29,6 +29,9 @@ public interface INavigator
     /// <summary>The user's libraries, fetched once per sign-in.</summary>
     Task<IReadOnlyList<BaseItem>> Libraries { get; }
 
+    /// <summary>The Seerr sign-in, for Discover's requests (synced with the other Aster apps).</summary>
+    Aster.Core.Seerr.SeerrAccounts Seerr { get; }
+
     /// <summary>The song or book playing.</summary>
     Aster.Desktop.Audio.AudioSession Audio { get; }
 
@@ -107,7 +110,7 @@ public enum AppTab
     Anime,
     Music,
     Audiobooks,
-    Upcoming,
+    Discover,
     LiveTV,
     Channels,
     Library,
@@ -207,6 +210,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
         _ = Libraries.ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTabs));
         _ = HasUpcoming.ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTabs));
         _ = HasChannels.ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTabs));
+        Seerr.Changed += () => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTabs);
         // The settings that follow the user, as their other devices left them.
         if (client is JellyfinClient jellyfin && jellyfin.Can(ServerCapabilities.SettingsSync)) _ = Aster.Core.SettingsSync.PullAsync(jellyfin);
         // The Seerr sign-in the Apple and Android apps sync through the server (Discover's, and Search's requests).
@@ -286,7 +290,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
             (AppTab.Anime, "Anime", ""),
             (AppTab.Music, "Music", ""),
             (AppTab.Audiobooks, "Audiobooks", ""),
-            (AppTab.Upcoming, "Upcoming", ""),
+            (AppTab.Discover, "Discover", "\uE734"),
             (AppTab.LiveTV, "Live TV", ""),
             (AppTab.Channels, "Channels (Beta)", ""),
             (AppTab.Library, "Library", ""),
@@ -300,7 +304,8 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
                 AppTab.Anime => hasAnime,
                 AppTab.Music => hasMusic,
                 AppTab.Audiobooks => hasBooks,
-                AppTab.Upcoming => HasUpcoming.IsCompletedSuccessfully && HasUpcoming.Result,
+                // Upcoming episodes, and with Seerr its films and shows to request.
+                AppTab.Discover => HasUpcoming.IsCompletedSuccessfully && HasUpcoming.Result || Seerr.Account is not null,
                 AppTab.LiveTV => Client.Can(ServerCapabilities.LiveTV) && libraries.Any(l => l.CollectionType == "livetv"),
                 AppTab.Channels => HasChannels.IsCompletedSuccessfully && HasChannels.Result,
                 _ => true,
@@ -335,7 +340,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
                 AppTab.Anime => new AnimeViewModel(this),
                 AppTab.Music => new MusicViewModel(this),
                 AppTab.Audiobooks => new AudiobooksViewModel(this),
-                AppTab.Upcoming => new UpcomingViewModel(this),
+                AppTab.Discover => new DiscoverViewModel(this),
                 AppTab.LiveTV => new LiveTVViewModel(this),
                 AppTab.Channels => new ChannelsViewModel(this),
                 AppTab.Library => new LibraryViewModel(this),

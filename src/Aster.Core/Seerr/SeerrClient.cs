@@ -171,6 +171,10 @@ public static class SeerrClient
         return page.Results.Where(t => t.MediaType is "movie" or "tv").ToList();
     }
 
+    /// <summary>A film's or show's page: overview, trailer, genres, a show's seasons, and where it stands.</summary>
+    public static Task<SeerrDetails> DetailsAsync(SeerrTitle title, SeerrAccount account, CancellationToken ct = default) =>
+        GetAsync<SeerrDetails>(account, title.IsMovie ? $"/movie/{title.Id}" : $"/tv/{title.Id}", ct);
+
     public static Task<SeerrShow> ShowAsync(int id, SeerrAccount account, CancellationToken ct = default) =>
         GetAsync<SeerrShow>(account, $"/tv/{id}", ct);
 

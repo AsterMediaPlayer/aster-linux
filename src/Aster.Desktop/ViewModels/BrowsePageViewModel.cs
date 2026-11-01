@@ -86,6 +86,12 @@ public enum CardStyle
 
     /// <summary>A series recording rule.</summary>
     SeriesRule,
+
+    /// <summary>A film or show from Seerr, as a poster.</summary>
+    Seerr,
+
+    /// <summary>A Seerr genre, studio or network, wide.</summary>
+    SeerrTile,
 }
 
 /// <summary>A card a grid can tell apart from the others, so unchanged rows are kept as pages arrive.</summary>
@@ -279,20 +285,29 @@ public abstract partial class BrowsePageViewModel : ViewModelBase, IRefreshable
     /// <summary>Loads everything above the grid; returns its rows.</summary>
     protected abstract Task<IReadOnlyList<BrowseRow>> LoadTopAsync();
 
+    /// <summary>Loads begun, so a slower earlier one is dropped.</summary>
+    private int loads;
+
     /// <summary>Loads the page, as when first shown or on a new section.</summary>
     protected async Task LoadAsync()
     {
         started = true;
+        // Only the last load asked for shows: a section chosen while another
+        // was loading (Discover's slow rows) mustn't be overwritten by it.
+        var load = ++loads;
         if (Rows.Count == 0) Rows.Add(new StatusRow("Loading…", IsLoading: true));
+        IReadOnlyList<BrowseRow> loaded;
         try
         {
-            top = await LoadTopAsync();
+            loaded = await LoadTopAsync();
         }
         catch (Exception error) when (error is JellyfinException or HttpRequestException or TimeoutException)
         {
             if (error is JellyfinException { StatusCode: 401 }) await Navigator.SessionExpiredAsync();
-            top = [new StatusRow("Couldn't load", error.Message)];
+            loaded = [new StatusRow("Couldn't load", error.Message)];
         }
+        if (load != loads) return;
+        top = loaded;
         RebuildTop();
         await ReloadGridAsync();
     }

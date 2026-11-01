@@ -338,6 +338,44 @@
         </StackPanel>
     </DataTemplate>
 
+    <!-- A film or show from Seerr: its poster, where it stands (Requested, Available) on it, and its name and year. -->
+    <DataTemplate x:Key="SeerrCard" x:DataType="vm:SeerrCard">
+        <StackPanel Width="{StaticResource PosterWidth}" Spacing="8">
+            <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}"
+                    Width="{StaticResource PosterWidth}" Height="{StaticResource PosterHeight}" ToolTip.Tip="{Binding Title}"
+                    AutomationProperties.Name="{Binding Title}">
+                <Panel>
+                    <TextBlock Text="&#xE8B2;" FontFamily="{StaticResource IconFont}" FontSize="36" Opacity="0.35"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <c:RemoteImage Url="{Binding Image}" />
+                    <Border Background="{DynamicResource SystemAccentColor}" CornerRadius="10" Padding="8,3" Margin="8"
+                            HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="{Binding HasBadge}">
+                        <TextBlock Text="{Binding Badge}" FontSize="11" FontWeight="Bold" />
+                    </Border>
+                </Panel>
+            </Button>
+            <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
+                           IsVisible="{Binding Subtitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            </StackPanel>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- A genre (its picture, its name over it), or a studio or network (its logo, white). -->
+    <DataTemplate x:Key="SeerrTileCard" x:DataType="vm:SeerrTileCard">
+        <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}"
+                Width="{StaticResource LandscapeWidth}" Height="{StaticResource LandscapeHeight}" AutomationProperties.Name="{Binding Name}">
+            <Panel>
+                <c:RemoteImage Url="{Binding Image}" Stretch="UniformToFill" IsVisible="{Binding !HasLogo}" />
+                <Border Background="#73000000" IsVisible="{Binding !HasLogo}" />
+                <TextBlock Text="{Binding Name}" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"
+                           TextWrapping="Wrap" TextAlignment="Center" Margin="12" IsVisible="{Binding !HasLogo}" />
+                <c:RemoteImage Url="{Binding Logo}" Stretch="Uniform" Margin="36,28" IsVisible="{Binding HasLogo}" />
+            </Panel>
+        </Button>
+    </DataTemplate>
+
     <!-- A library as a wide tile, its name over its picture. -->
     <DataTemplate x:Key="TileCard" x:DataType="vm:ItemCard">
         <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}"

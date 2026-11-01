@@ -29,41 +29,33 @@ public sealed partial class UpcomingCard(INavigator navigator, BaseItem episode)
 }
 
 /// <summary>
-/// The Upcoming tab: episodes of shows in the library that air soon. The
-/// next to air fill the banner with a countdown; below, a row of cards for
-/// each day. A port of the Apple app's UpcomingView.
+/// Discover's Upcoming section: episodes of shows in the library that air
+/// soon. The next to air fill the banner with a countdown; below, a row of
+/// cards for each day. A port of the Apple app's UpcomingView.
 /// </summary>
-public sealed class UpcomingViewModel : BrowsePageViewModel
+public static class UpcomingRows
 {
-    private readonly HeroModel hero;
+    /// <summary>The banner Upcoming fills, for a page to keep.</summary>
+    public static HeroModel Hero(INavigator navigator) => new(navigator,
+        open: episode => navigator.Open(UpcomingSchedule.Destination(episode)),
+        play: episode => navigator.Open(UpcomingSchedule.Destination(episode), playOnOpen: UpcomingSchedule.IsAvailable(episode)),
+        tag: episode => UpcomingSchedule.AirDate(episode) is { } date ? UpcomingSchedule.Countdown(date, DateTime.Now) : null,
+        action: episode => UpcomingSchedule.IsAvailable(episode) ? new HeroAction("Watch Now", "\uE768") : new HeroAction("Go to Show", "\uE7F4"));
 
-    public UpcomingViewModel(INavigator navigator) : base(navigator)
+    /// <summary>The section's rows: the banner, then a row for each day; or a note when nothing's coming.</summary>
+    public static async Task<IReadOnlyList<BrowseRow>> LoadAsync(INavigator navigator, HeroModel hero, BrowsePageViewModel page, BrowseRow heading)
     {
-        hero = new HeroModel(navigator,
-            open: episode => navigator.Open(UpcomingSchedule.Destination(episode)),
-            play: episode => navigator.Open(UpcomingSchedule.Destination(episode), playOnOpen: UpcomingSchedule.IsAvailable(episode)),
-            tag: episode => UpcomingSchedule.AirDate(episode) is { } date ? UpcomingSchedule.Countdown(date, DateTime.Now) : null,
-            action: episode => UpcomingSchedule.IsAvailable(episode) ? new HeroAction("Watch Now", "") : new HeroAction("Go to Show", ""));
-        _ = LoadAsync();
-    }
-
-    protected override async Task<IReadOnlyList<BrowseRow>> LoadTopAsync()
-    {
-        var days = UpcomingSchedule.Days(await Navigator.JellyfinOnly.UpcomingAsync());
+        if (navigator.Jellyfin is not { } jellyfin || !jellyfin.Can(ServerCapabilities.Upcoming))
+            return [heading, new StatusRow("Nothing coming up", "Upcoming episodes need a Jellyfin or Emby server.")];
+        var days = UpcomingSchedule.Days(await jellyfin.UpcomingAsync());
         if (days.Count == 0)
-        {
-            return
-            [
-                new TitleRow("Upcoming", this),
-                new StatusRow("Nothing coming up", "Episodes of shows in your library that air soon show up here."),
-            ];
-        }
+            return [heading, new StatusRow("Nothing coming up", "Episodes of shows in your library that air soon show up here.")];
         // Every upcoming episode, soonest first; the banner keeps the first 8.
         hero.Show(days.SelectMany(d => d.Episodes));
         var now = DateTime.Now;
-        var rows = new List<BrowseRow> { new HeroRow(hero, this) };
+        var rows = new List<BrowseRow> { heading, new HeroRow(hero, page) };
         rows.AddRange(days.Select(d => new ShelfRow(UpcomingSchedule.Heading(d.Day, now),
-            d.Episodes.Select(e => (object)new UpcomingCard(Navigator, e)).ToList(), CardStyle.Upcoming)));
+            d.Episodes.Select(e => (object)new UpcomingCard(navigator, e)).ToList(), CardStyle.Upcoming)));
         return rows;
     }
 }
