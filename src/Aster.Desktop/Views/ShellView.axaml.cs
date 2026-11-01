@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using Aster.Desktop.ViewModels;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -98,11 +99,63 @@ public partial class ShellView : UserControl
 
         DataContextChanged += (_, _) =>
         {
-            if (watched is not null) watched.PropertyChanged -= OnShellChanged;
+            if (watched is not null)
+            {
+                watched.PropertyChanged -= OnShellChanged;
+                watched.NowPlaying.PropertyChanged -= OnNowPlayingChanged;
+            }
             watched = Model;
-            if (watched is not null) watched.PropertyChanged += OnShellChanged;
+            if (watched is not null)
+            {
+                watched.PropertyChanged += OnShellChanged;
+                watched.NowPlaying.PropertyChanged += OnNowPlayingChanged;
+            }
             ShowPage();
         };
+    }
+
+    // ---- The Now Playing player ----
+
+    /// <summary>Where the keyboard was as the player opened (a mini player's button), to go back to as it closes.</summary>
+    private WeakReference<InputElement>? beforePlayer;
+
+    /// <summary>
+    /// The player opening takes the keyboard to its play/pause, rather than
+    /// leaving it (and its highlight) on the button behind that opened it;
+    /// closing brings it back there.
+    /// </summary>
+    private void OnNowPlayingChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(NowPlayingViewModel.IsShown) || Model is not { } shell) return;
+        if (shell.NowPlaying.IsShown)
+        {
+            beforePlayer = KeyFocus.Current(this) is InputElement was && !KeyFocus.IsWithin(was, NowPlayingPanel) ? new(was) : null;
+            Dispatcher.UIThread.Post(() => { if (PlayerStart() is { } start) Land(start); }, DispatcherPriority.Loaded);
+        }
+        else
+        {
+            var back = beforePlayer;
+            beforePlayer = null;
+            Dispatcher.UIThread.Post(() =>
+            {
+                // Left for the sidebar: it has the keyboard now.
+                if (Model is { IsSidebarOpen: true }) return;
+                if (back?.TryGetTarget(out var was) == true && KeyFocus.CanFocus(was)) Land(was);
+                else if (keyboardLast) FocusPage();
+            }, DispatcherPriority.Loaded);
+        }
+    }
+
+    /// <summary>The player's play/pause, the song's or the book's, whichever is showing.</summary>
+    private InputElement? PlayerStart() =>
+        NowPlayingPanel.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Classes.Contains("main") && KeyFocus.CanFocus(b))
+        ?? KeyFocus.FirstIn(NowPlayingPanel);
+
+    /// <summary>Focuses <paramref name="element"/>, showing its highlight only if the keyboard (or a controller) brought it there.</summary>
+    private void Land(InputElement element)
+    {
+        if (keyboardLast) KeyFocus.Move(element);
+        else element.Focus();
     }
 
     private ShellViewModel? Model => DataContext as ShellViewModel;
@@ -146,13 +199,53 @@ public partial class ShellView : UserControl
         pointerResting = true;
         if (Model is not { } shell || e.Handled) return;
         var focused = KeyFocus.Current(this) as Visual;
+        // In a menu or a dropdown's list (drawn in the window, so its keys pass
+        // here first): its own, to move through and choose from.
+        if (focused?.FindAncestorOfType<Avalonia.Controls.Primitives.OverlayPopupHost>(includeSelf: true) is not null) return;
         var inSidebar = focused is not null && KeyFocus.IsWithin(focused, Sidebar);
         var onPage = focused is not null && KeyFocus.IsWithin(focused, Page);
+        var inTopBar = focused is not null && KeyFocus.IsWithin(focused, TopBar);
+        var inPlayer = focused is not null && KeyFocus.IsWithin(focused, NowPlayingPanel);
         switch (e.Key)
         {
+            // The Now Playing player, over everything: the arrows stay in it
+            // (they'd find the page and sidebar under it too). A slider keeps
+            // its Left and Right, to seek. Left with nothing further left puts
+            // the player away (what's playing plays on) for the sidebar, as
+            // Left does from a page.
+            case Key.Left or Key.Right or Key.Up or Key.Down when shell.NowPlaying.IsShown:
+                if (!inPlayer) { if (PlayerStart() is { } start) KeyFocus.Move(start); }
+                else if (focused is Slider && e.Key is Key.Left or Key.Right) return;
+                else if (Neighbor(NowPlayingPanel, focused!, e.Key) is { } near) KeyFocus.Move(near);
+                else if (e.Key == Key.Left)
+                {
+                    shell.Audio.IsNowPlayingShown = false;
+                    OpenWithKeyboard(null);
+                }
+                e.Handled = true;
+                break;
+            // A on the tab's capsule: the sidebar, with the keyboard on the tab showing.
+            case Key.Enter or Key.Space when focused == Capsule:
+                OpenWithKeyboard(null);
+                e.Handled = true;
+                break;
             // The sidebar out (the pointer slid it) with the keyboard still behind it: the arrows start on its tab showing.
             case Key.Up or Key.Down or Key.Left when shell.IsSidebarOpen && !inSidebar && !shell.NowPlaying.IsShown:
                 if (CurrentTabButton() is { } tab) KeyFocus.Move(tab);
+                e.Handled = true;
+                break;
+            // Along the top row (the tab's capsule, the song or book playing):
+            // Left past the capsule opens the sidebar; Down goes back to the page.
+            case Key.Left or Key.Right when inTopBar:
+                if (Neighbor(TopBar, focused!, e.Key) is { } along) KeyFocus.Move(along);
+                else if (e.Key == Key.Left) OpenWithKeyboard(null);
+                e.Handled = true;
+                break;
+            case Key.Down when inTopBar:
+                ReturnToPage();
+                e.Handled = true;
+                break;
+            case Key.Up when inTopBar:
                 e.Handled = true;
                 break;
             // The arrows with nothing focused (the page just changed, or the pointer was used): start on the page.
@@ -168,22 +261,35 @@ public partial class ShellView : UserControl
                     if (!e.Handled && KeyFocus.Current(this) == from && Model is { IsSidebarOpen: false }) OpenWithKeyboard(from as InputElement);
                 }, DispatcherPriority.Input);
                 break;
-            // Right from the sidebar, back to the page.
+            // Up with nothing further up: the top row, on the song or book playing (else the capsule).
+            case Key.Up when onPage && e.KeyModifiers == KeyModifiers.None:
+                var below = focused;
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (e.Handled || KeyFocus.Current(this) != below || Model is not { IsSidebarOpen: false } || !TopBar.IsEffectivelyVisible) return;
+                    if (below is InputElement element) beforeSidebar = new WeakReference<InputElement>(element);
+                    if (TopBarStart() is { } top) KeyFocus.Move(top);
+                }, DispatcherPriority.Input);
+                break;
+            // Along the sidebar's rows (the audio bar's buttons side by side);
+            // Right with nothing further right goes back to the page.
             case Key.Right when inSidebar:
-                shell.IsSidebarOpen = false;
+                if (Neighbor(Sidebar, focused!, Key.Right) is { } right) KeyFocus.Move(right);
+                else shell.IsSidebarOpen = false;
                 e.Handled = true;
                 break;
             // Nothing's left of the sidebar. Left there would move to the page
             // behind it, which put it away, and a held Left (a controller's
             // repeat) opened it again: in and out for as long as it was held.
             case Key.Left when inSidebar:
+                if (Neighbor(Sidebar, focused!, Key.Left) is { } left) KeyFocus.Move(left);
                 e.Handled = true;
                 break;
             // Up and down the sidebar, kept to it: the window's own arrows
             // weigh the page behind it too, and could jump there. Up past
-            // the first tab or down past Exit stays put.
+            // the first tab or down past the audio bar stays put.
             case Key.Up or Key.Down when inSidebar:
-                if (NextInSidebar(focused!, e.Key == Key.Down) is { } next) KeyFocus.Move(next);
+                if (Neighbor(Sidebar, focused!, e.Key) is { } next) KeyFocus.Move(next);
                 e.Handled = true;
                 break;
             case Key.Escape or Key.BrowserBack when shell.NowPlaying.IsShown:
@@ -205,26 +311,40 @@ public partial class ShellView : UserControl
     }
 
     /// <summary>
-    /// The sidebar's next control below (or above) <paramref name="from"/>:
-    /// the nearest whose middle is further that way, the most in line with it
-    /// among those (the audio bar's buttons sit side by side). Null at the end.
+    /// The control next to <paramref name="from"/> in <paramref name="container"/>,
+    /// the arrow's way. Up and down: the nearest whose middle is further that
+    /// way, the most in line with it among those. Left and right: only along
+    /// the same row. Null with nothing there.
     /// </summary>
-    private InputElement? NextInSidebar(Visual from, bool down)
+    private static InputElement? Neighbor(Visual container, Visual from, Key direction)
     {
-        if (from.TranslatePoint(new Point(from.Bounds.Width / 2, from.Bounds.Height / 2), Sidebar) is not { } middle) return null;
+        if (from.TranslatePoint(new Point(from.Bounds.Width / 2, from.Bounds.Height / 2), container) is not { } middle) return null;
+        var across = direction is Key.Left or Key.Right;
         InputElement? best = null;
         (double Ahead, double Beside) bestDistance = (double.MaxValue, double.MaxValue);
-        foreach (var candidate in Sidebar.GetVisualDescendants().OfType<InputElement>())
+        foreach (var candidate in container.GetVisualDescendants().OfType<InputElement>())
         {
             if (candidate == from || !KeyFocus.CanFocus(candidate) || KeyFocus.IsWithin(candidate, from) || KeyFocus.IsWithin(from, candidate)) continue;
-            if (candidate.TranslatePoint(new Point(candidate.Bounds.Width / 2, candidate.Bounds.Height / 2), Sidebar) is not { } at) continue;
-            var ahead = down ? at.Y - middle.Y : middle.Y - at.Y;
-            if (ahead < 1) continue;
-            var distance = (Math.Round(ahead), Math.Abs(at.X - middle.X));
+            if (candidate.TranslatePoint(new Point(candidate.Bounds.Width / 2, candidate.Bounds.Height / 2), container) is not { } at) continue;
+            var ahead = direction switch
+            {
+                Key.Down => at.Y - middle.Y,
+                Key.Up => middle.Y - at.Y,
+                Key.Right => at.X - middle.X,
+                _ => middle.X - at.X,
+            };
+            var beside = across ? Math.Abs(at.Y - middle.Y) : Math.Abs(at.X - middle.X);
+            if (ahead < 1 || across && beside > from.Bounds.Height / 2) continue;
+            var distance = (Math.Round(ahead), beside);
             if (distance.CompareTo(bestDistance) < 0) (best, bestDistance) = (candidate, distance);
         }
         return best;
     }
+
+    /// <summary>Where Up from the page lands on the top row: the song or book playing, else the tab's capsule.</summary>
+    private InputElement? TopBarStart() =>
+        TopBar.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => AutomationProperties.GetName(b) == "Now Playing" && KeyFocus.CanFocus(b))
+        ?? (KeyFocus.CanFocus(Capsule) ? Capsule : null);
 
     /// <summary>Slides the sidebar out with the keyboard on the tab showing, remembering where it was on the page.</summary>
     private void OpenWithKeyboard(InputElement? from)

@@ -124,7 +124,7 @@
         <ContentControl x:Name="Page" Content="{Binding CurrentPage}" Classes.deck="{Binding Deck.TakesRoom}" />
 
         <!-- Collapsed: the tab in a capsule (on a tab's own page; a page opened from one has its Back there), and the song or book playing. -->
-        <StackPanel Classes="collapsed" Classes.hidden="{Binding IsSidebarOpen}" Orientation="Horizontal" Spacing="10" Margin="20,16,0,0"
+        <StackPanel x:Name="TopBar" Classes="collapsed" Classes.hidden="{Binding IsSidebarOpen}" Orientation="Horizontal" Spacing="10" Margin="20,16,0,0"
                     HorizontalAlignment="Left" VerticalAlignment="Top" IsVisible="{Binding ShowsCapsule}">
             <Button x:Name="Capsule" Classes="capsule" Command="{Binding OpenSidebarCommand}" AutomationProperties.Name="Show the sidebar"
                     ToolTip.Tip="Tabs">
@@ -134,16 +134,22 @@
                     <TextBlock Text="{Binding CurrentTab.Title}" FontWeight="SemiBold" VerticalAlignment="Center" />
                 </StackPanel>
             </Button>
-            <Border Background="#B3202020" CornerRadius="20" Padding="4,4,8,4" BorderThickness="1" BorderBrush="#1FFFFFFF"
-                    IsVisible="{Binding Audio.IsLoaded}">
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                    <Button Command="{Binding Audio.ShowPlayerCommand}" Background="Transparent" Padding="0" ToolTip.Tip="{Binding Audio.Title}"
-                            AutomationProperties.Name="Now Playing">
-                        <Border Width="30" Height="30" CornerRadius="15" ClipToBounds="True" Background="{StaticResource CardBackground}">
-                            <c:RemoteImage Url="{Binding Audio.Artwork}" />
-                        </Border>
+            <!-- The song or book playing: its artwork and title (opening the full player), and play/pause. Big enough to read and aim at from the couch. -->
+            <Border Background="#B3202020" CornerRadius="28" Padding="6,6,8,6" BorderThickness="1" BorderBrush="#1FFFFFFF"
+                    VerticalAlignment="Center" IsVisible="{Binding Audio.IsLoaded}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Button Command="{Binding Audio.ShowPlayerCommand}" Background="Transparent" Padding="0,0,10,0" CornerRadius="22"
+                            ToolTip.Tip="Open the player" AutomationProperties.Name="Now Playing">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Border Width="44" Height="44" CornerRadius="22" ClipToBounds="True" Background="{StaticResource CardBackground}">
+                                <c:RemoteImage Url="{Binding Audio.Artwork}" />
+                            </Border>
+                            <TextBlock Text="{Binding Audio.Title}" FontSize="15" FontWeight="SemiBold" Foreground="White" MaxWidth="240"
+                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                        </StackPanel>
                     </Button>
-                    <Button Classes="bar" Command="{Binding Audio.ToggleCommand}" AutomationProperties.Name="Play or Pause" ToolTip.Tip="Play/Pause (Space)">
+                    <Button Classes="bar" Command="{Binding Audio.ToggleCommand}" AutomationProperties.Name="Play or Pause" ToolTip.Tip="Play/Pause (Space)"
+                            FontSize="20" Padding="10" CornerRadius="22">
                         <Panel>
                             <TextBlock Text="&#xE769;" IsVisible="{Binding Audio.IsPlaying}" />
                             <TextBlock Text="&#xE768;" IsVisible="{Binding !Audio.IsPlaying}" />
@@ -174,28 +180,29 @@
             </Border.Background>
             <DockPanel>
                 <!-- The song or book playing, whichever page is showing: the rest opens the full player. -->
-                <Border DockPanel.Dock="Bottom" Background="#1FFFFFFF" CornerRadius="20" Padding="8" Margin="0,12,0,0" IsVisible="{Binding Audio.IsLoaded}">
+                <Border DockPanel.Dock="Bottom" Background="#1FFFFFFF" CornerRadius="24" Padding="8" Margin="0,12,0,0" IsVisible="{Binding Audio.IsLoaded}">
                     <Grid ColumnDefinitions="*,Auto,Auto">
-                        <Button Command="{Binding Audio.ShowPlayerCommand}" Background="Transparent" Padding="0" AutomationProperties.Name="Now Playing"
+                        <Button Command="{Binding Audio.ShowPlayerCommand}" Background="Transparent" Padding="0,0,6,0" CornerRadius="12" AutomationProperties.Name="Now Playing"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" ToolTip.Tip="Open the player">
                             <Grid ColumnDefinitions="Auto,*">
-                                <Border Width="40" Height="40" CornerRadius="8" ClipToBounds="True" Background="{StaticResource CardBackground}">
+                                <Border Width="56" Height="56" CornerRadius="10" ClipToBounds="True" Background="{StaticResource CardBackground}">
                                     <c:RemoteImage Url="{Binding Audio.Artwork}" />
                                 </Border>
-                                <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Audio.Title}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Text="{Binding Audio.Detail}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
+                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="{Binding Audio.Title}" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Audio.Detail}" FontSize="13" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
                             </Grid>
                         </Button>
-                        <Button Grid.Column="1" Classes="bar" Command="{Binding Audio.ToggleCommand}" AutomationProperties.Name="Play or Pause" ToolTip.Tip="Play/Pause (Space)">
+                        <Button Grid.Column="1" Classes="bar" Command="{Binding Audio.ToggleCommand}" AutomationProperties.Name="Play or Pause" ToolTip.Tip="Play/Pause (Space)"
+                                FontSize="20" Padding="10" CornerRadius="22">
                             <Panel>
                                 <TextBlock Text="&#xE769;" IsVisible="{Binding Audio.IsPlaying}" />
                                 <TextBlock Text="&#xE768;" IsVisible="{Binding !Audio.IsPlaying}" />
                             </Panel>
                         </Button>
-                        <Button Grid.Column="2" Classes="bar" Command="{Binding Audio.StopCommand}" AutomationProperties.Name="Stop" Content="&#xE711;" FontSize="11"
-                                Foreground="{StaticResource Secondary}" ToolTip.Tip="Stop" />
+                        <Button Grid.Column="2" Classes="bar" Command="{Binding Audio.StopCommand}" AutomationProperties.Name="Stop" Content="&#xE711;" FontSize="14"
+                                Padding="10" CornerRadius="22" Foreground="{StaticResource Secondary}" ToolTip.Tip="Stop" />
                     </Grid>
                 </Border>
                 <!-- Every tab, Settings and Search at the foot; they scroll when a short window has no room for them all. -->
@@ -222,6 +229,6 @@
         </Border>
 
         <!-- The full player, over everything, while it's open. -->
-        <v:NowPlayingView DataContext="{Binding NowPlaying}" IsVisible="{Binding IsShown}" />
+        <v:NowPlayingView x:Name="NowPlayingPanel" DataContext="{Binding NowPlaying}" IsVisible="{Binding IsShown}" />
     </Panel>
 </UserControl>
