@@ -63,10 +63,11 @@ public partial class App : Application
             if (System.Array.IndexOf(args, "--channel") is var ch and >= 0 && ch + 1 < args.Length && int.TryParse(args[ch + 1], out var number)) main.TuneChannelWhenLoaded(number);
 #endif
             desktop.MainWindow = new MainWindow { DataContext = main };
-#if DEBUG
-            // --full-screen: the window starts full screen, as for screenshots.
-            if (System.Array.IndexOf(args, "--full-screen") >= 0) Aster.Desktop.Controls.FullScreen.Toggle(desktop.MainWindow);
-#endif
+            // In gamescope or Steam's Big Picture (or with --couch): full screen from the start, and for good.
+            System.Diagnostics.Trace.WriteLine(Aster.Desktop.Platform.SteamSession.Describe());
+            if (Aster.Desktop.Platform.SteamSession.Couch(args)) Aster.Desktop.Controls.FullScreen.Pin(desktop.MainWindow);
+            // --full-screen: the window starts full screen (a Steam shortcut's launch option, say), and can leave it.
+            else if (System.Array.IndexOf(args, "--full-screen") >= 0) Aster.Desktop.Controls.FullScreen.Toggle(desktop.MainWindow);
             // Game controllers, as the keys.
             var gamepads = Aster.Desktop.Input.Gamepads.Start(desktop.MainWindow);
             desktop.ShutdownRequested += (_, _) =>

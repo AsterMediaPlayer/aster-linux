@@ -289,7 +289,8 @@ public partial class PlayerView : UserControl
             case Key.MediaPreviousTrack:
                 if (!model.SwitchChannel(-1)) model.SeekBy(-30);
                 break;
-            case Key.Escape when Window is { WindowState: WindowState.FullScreen }:
+            // Pinned full screen (a couch session), Esc closes the player as Back does.
+            case Key.Escape when Window is { WindowState: WindowState.FullScreen } && !FullScreen.Pinned:
                 ToggleFullScreen();
                 break;
             case Key.Escape or Key.BrowserBack:

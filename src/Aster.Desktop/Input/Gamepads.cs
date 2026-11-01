@@ -266,7 +266,9 @@ public sealed unsafe class Gamepads : IDisposable
     /// </summary>
     private void Send(Key key) => Dispatcher.UIThread.Post(() =>
     {
-        if (!window.IsActive) return;
+        // A couch session's one window is the screen, so it always hears the
+        // controller, whether or not gamescope says it's focused.
+        if (!window.IsActive && !Aster.Desktop.Controls.FullScreen.Pinned) return;
         var target = window.FocusManager?.GetFocusedElement() as Interactive ?? window;
         target.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = key, KeyDeviceType = KeyDeviceType.Gamepad, Source = target });
         target.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyUpEvent, Key = key, KeyDeviceType = KeyDeviceType.Gamepad, Source = target });
