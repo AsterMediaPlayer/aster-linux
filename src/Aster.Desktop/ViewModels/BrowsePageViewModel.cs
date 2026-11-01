@@ -24,6 +24,16 @@ public sealed record TitleRow(string Title, BrowsePageViewModel Page, string? Su
 {
     /// <summary>The page's first row, with no banner above it: it leaves room for the collapsed sidebar's capsule.</summary>
     public bool IsFirst { get; init; }
+
+    /// <summary>
+    /// The sections as one segmented control, centred, without the title
+    /// over them (the capsule names the tab), as the Apple TV app's Discover.
+    /// </summary>
+    public bool Segmented { get; init; }
+
+    public bool ShowsTitle => !Segmented;
+    public bool ShowsPills => !Segmented && Page.HasSections;
+    public bool ShowsSegments => Segmented && Page.HasSections;
 }
 
 /// <summary>A titled row of cards; <see cref="Style"/> says which kind.</summary>
@@ -41,6 +51,15 @@ public sealed record CardsRow(IReadOnlyList<object> Cards, CardStyle Style) : Br
 
 /// <summary>Loading, nothing here, or why it couldn't load.</summary>
 public sealed record StatusRow(string Title, string? Detail = null, bool IsLoading = false) : BrowseRow;
+
+/// <summary>Segmented controls side by side (Requests' state, and whose): each a group of choices, one chosen.</summary>
+public sealed record SegmentRow(IReadOnlyList<IReadOnlyList<Choice>> Groups) : BrowseRow;
+
+/// <summary>
+/// A request in Requests' list: the poster, the title, "2025 · Series ·
+/// Season 1", the state in its colour, and who asked and when.
+/// </summary>
+public sealed record RequestRow(Uri? Poster, string Title, string Meta, string State, Avalonia.Media.IBrush StateColor, string Byline, CommunityToolkit.Mvvm.Input.IRelayCommand Open) : BrowseRow;
 
 /// <summary>A row of filters over a grid (Discover's Movies and Series): switches, and lists to choose from.</summary>
 public sealed record FilterRow(IReadOnlyList<FilterChip> Chips) : BrowseRow;
@@ -200,6 +219,15 @@ public abstract partial class BrowsePageViewModel : ViewModelBase, IRefreshable
 
     /// <summary>Opened over another page, so it has a back arrow (which its title makes room for).</summary>
     public bool IsPushed { get; set; }
+
+    /// <summary>
+    /// A soft slate gradient behind the page rather than black, as the Apple
+    /// TV app's Discover; <see cref="Ambient"/>, when there's one, blurred and
+    /// darkened behind it (Upcoming's focused show).
+    /// </summary>
+    public virtual bool HasAmbientBackground => false;
+
+    [ObservableProperty] public partial Uri? Ambient { get; set; }
 
     /// <summary>The banner's height: the window's, as on Home.</summary>
     [ObservableProperty] public partial double HeroHeight { get; set; } = 700;

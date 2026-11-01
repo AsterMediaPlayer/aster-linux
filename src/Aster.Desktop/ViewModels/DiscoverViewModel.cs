@@ -24,6 +24,9 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
     /// <summary>The Movies and Series grids' filters, kept as each is left.</summary>
     private SeerrFilter movieFilter = new(SeerrKind.Movie), seriesFilter = new(SeerrKind.Tv);
     private readonly Dictionary<SeerrKind, IReadOnlyList<SeerrGenre>> genres = [];
+    /// <summary>Requests' filters: which state, and (for whoever manages them) everyone's or one's own.</summary>
+    private SeerrRequestFilter requestFilter = SeerrRequestFilter.All;
+    private bool onlyMine;
 
     public DiscoverViewModel(INavigator navigator) : base(navigator)
     {
@@ -54,8 +57,10 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
         })))
         .ToList();
 
-    // Movies, Series and Requests: a grid of Seerr's cards.
-    protected override bool HasGrid => Shown is Section.Movies or Section.Series or Section.Requests;
+    public override bool HasAmbientBackground => true;
+
+    // Movies and Series: a grid of Seerr's cards. (Requests is a list of rows.)
+    protected override bool HasGrid => Shown is Section.Movies or Section.Series;
     public override CardStyle GridStyle => CardStyle.Seerr;
     public override bool ShowsSort => false;
     protected override IReadOnlyList<object>? LocalCards => HasGrid ? cards : null;
@@ -64,7 +69,7 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
     {
         var heading = new TitleRow("Discover", this, Navigator.Seerr.NeedsSignIn
             ? "Seerr ended the session: sign in again in Settings › Requests."
-            : null);
+            : null) { Segmented = true };
         if (Shown == Section.Upcoming) return await UpcomingRows.LoadAsync(Navigator, upcomingHero, this, heading);
         if (Navigator.Seerr.Account is not { } account) return [heading];
         var section = Shown;
@@ -99,11 +104,7 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
                         ? [heading, Filters(kind, filter), new StatusRow("Nothing matches", "Try fewer filters.")]
                         : [heading, Filters(kind, filter)];
                 case Section.Requests:
-                    var requests = await RequestCardsAsync(account);
-                    Show(requests);
-                    return requests.Count == 0
-                        ? [heading, new StatusRow("No requests yet", "Films and shows asked for through Seerr show here.")]
-                        : [heading, new HeadingRow("Requests")];
+                    return [heading, .. await RequestRowsAsync(account)];
                 default:
                     return [heading, .. await DiscoverRowsAsync(account)];
             }
@@ -217,21 +218,85 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
     private void OpenList(string title, string path, SeerrKind kind) =>
         Navigator.Push(new SeerrListViewModel(Navigator, title, path, kind) { IsPushed = true });
 
-    /// <summary>The requests, newest first: everyone's for someone who manages them, else the viewer's own.</summary>
-    private async Task<IReadOnlyList<object>> RequestCardsAsync(SeerrAccount account)
+    private static readonly (SeerrRequestFilter Filter, string Title)[] RequestFilters =
+    [
+        (SeerrRequestFilter.All, "All"), (SeerrRequestFilter.Pending, "Pending"), (SeerrRequestFilter.Approved, "Approved"),
+        (SeerrRequestFilter.Processing, "Processing"), (SeerrRequestFilter.Available, "Available"), (SeerrRequestFilter.Unavailable, "Declined"),
+    ];
+
+    /// <summary>
+    /// Requests as the Apple TV app lists them: the state filters (and
+    /// Everyone's or Mine, for whoever manages them), then a row each,
+    /// newest first: poster, title, which seasons, the state in its colour,
+    /// who asked and when. Three pages, sixty at most.
+    /// </summary>
+    private async Task<IReadOnlyList<BrowseRow>> RequestRowsAsync(SeerrAccount account)
     {
         var me = await SeerrClient.MeAsync(account);
-        var requests = (await SeerrClient.RequestsAsync(SeerrRequestFilter.All, mine: !me.ManagesRequests, account.UserId, 1, account)).Results;
+        var mine = onlyMine || !me.ManagesRequests;
+        void Set(SeerrRequestFilter filter, bool ownOnly)
+        {
+            (requestFilter, onlyMine) = (filter, ownOnly);
+            _ = LoadAsync();
+        }
+        var groups = new List<IReadOnlyList<Choice>>
+        {
+            RequestFilters.Select(f => new Choice(f.Title, f.Filter == requestFilter, new RelayCommand(() => Set(f.Filter, onlyMine)))).ToList(),
+        };
+        if (me.ManagesRequests)
+            groups.Add([new Choice("Everyone's", !onlyMine, new RelayCommand(() => Set(requestFilter, false))), new Choice("Mine", onlyMine, new RelayCommand(() => Set(requestFilter, true)))]);
+        var rows = new List<BrowseRow> { new SegmentRow(groups) };
+
+        var requests = new List<SeerrRequest>();
+        for (var page = 1; page <= 3; page++)
+        {
+            var reply = await SeerrClient.RequestsAsync(requestFilter, mine, account.UserId, page, account);
+            requests.AddRange(reply.Results);
+            if (page >= (reply.TotalPages ?? 1)) break;
+        }
+        if (requests.Count == 0)
+        {
+            rows.Add(new StatusRow("No requests", requestFilter == SeerrRequestFilter.All ? "Films and shows asked for through Seerr show here." : "None in this state."));
+            return rows;
+        }
         // A show asked for more than once (a season at a time) is looked up once.
         var titles = await SeerrClient.TitlesForAsync(requests.Select(r => (r.Media.TmdbId, r.Media.MediaType ?? r.Type ?? "movie")).Distinct().ToList(), account);
         var byKey = titles.GroupBy(t => t.Key).ToDictionary(g => g.Key, g => g.First());
-        return requests
-            .Select(r => byKey.TryGetValue($"{r.Media.MediaType ?? r.Type ?? "movie"}-{r.Media.TmdbId}", out var title)
-                ? (object)new SeerrCard(Navigator, title, r.StateLabel, me.ManagesRequests ? r.RequestedBy?.DisplayName : null, r)
-                : null)
-            .OfType<object>()
-            .ToList();
+        foreach (var request in requests)
+        {
+            if (!byKey.TryGetValue($"{request.Media.MediaType ?? request.Type ?? "movie"}-{request.Media.TmdbId}", out var title)) continue;
+            var seasons = request.Seasons?.Select(s => s.SeasonNumber).Order().ToList() ?? [];
+            var meta = string.Join(" · ", new[]
+            {
+                title.Year, title.IsMovie ? "Film" : "Series",
+                seasons.Count == 0 ? null : seasons.Count == 1 ? $"Season {seasons[0]}" : $"Seasons {string.Join(", ", seasons)}",
+            }.OfType<string>());
+            var byline = string.Join(" · ", new[]
+            {
+                request.RequestedBy?.DisplayName,
+                request.Created?.ToLocalTime().ToString("MMM d, yyyy", System.Globalization.CultureInfo.CurrentCulture),
+            }.OfType<string>());
+            var asked = request;
+            rows.Add(new RequestRow(SeerrPages.Url(SeerrClient.Image(title.PosterPath, "w342")), title.DisplayTitle, meta, request.StateLabel,
+                StateColor(request), byline, new AsyncRelayCommand(() => SeerrPages.OpenAsync(Navigator, title, asked))));
+        }
+        return rows;
     }
+
+    /// <summary>A request's state in the colours Seerr's own list uses: waiting orange, on its way blue, there green, turned down red.</summary>
+    private static Avalonia.Media.IBrush StateColor(SeerrRequest request) => Avalonia.Media.Brush.Parse(request.Status switch
+    {
+        1 => "#FF9F0A",
+        3 or 4 => "#FF453A",
+        _ => request.Media.Status switch
+        {
+            SeerrStatus.Available => "#30D158",
+            SeerrStatus.PartiallyAvailable => "#64D2FF",
+            SeerrStatus.Processing => "#0A84FF",
+            _ => "#E6FFFFFF",
+        },
+    });
+
 }
 
 /// <summary>A genre's, studio's or network's titles from Seerr: a grid, most popular first.</summary>
@@ -250,6 +315,7 @@ public sealed class SeerrListViewModel : BrowsePageViewModel
     protected override bool HasGrid => true;
     public override CardStyle GridStyle => CardStyle.Seerr;
     public override bool ShowsSort => false;
+    public override bool HasAmbientBackground => true;
     protected override IReadOnlyList<object>? LocalCards => cards;
 
     protected override async Task<IReadOnlyList<BrowseRow>> LoadTopAsync()

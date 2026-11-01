@@ -138,7 +138,7 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
     public string Meta => string.Join(" · ", new[]
     {
         details?.Year ?? title.Year,
-        title.IsMovie ? "Movie" : "Series",
+        title.IsMovie ? "Film" : "Series",
         details?.Runtime is > 0 and var minutes ? (minutes >= 60 ? $"{minutes / 60} h {minutes % 60} min" : $"{minutes} min") : null,
         details?.Genres is { Count: > 0 } genres ? string.Join(", ", genres.Take(3).Select(g => g.Name)) : null,
         details?.Networks is { Count: > 0 } networks ? networks[0].Name : null,

@@ -69,14 +69,32 @@ public partial class BrowsePageView : UserControl
         UpdateColumns();
     }
 
-    /// <summary>The filter chip last focused (its place in the row), and when: a filter changed remakes the row.</summary>
-    private (int Index, DateTime At)? chipFocus;
+    /// <summary>
+    /// The filter last focused, by its place (a chip's in its row; a
+    /// segment's group and place in Requests' filters), and when: a filter
+    /// changed remakes the row.
+    /// </summary>
+    private (int Group, int Index, DateTime At)? chipFocus;
 
     protected override void OnGotFocus(FocusChangedEventArgs e)
     {
         base.OnGotFocus(e);
         if (e.Source is Button { DataContext: FilterChip chip } && Model?.Rows.OfType<FilterRow>().FirstOrDefault() is { } row)
-            chipFocus = (row.Chips.ToList().IndexOf(chip), DateTime.UtcNow);
+            chipFocus = (-1, row.Chips.ToList().IndexOf(chip), DateTime.UtcNow);
+        else if (e.Source is Button { DataContext: Choice choice } && Model?.Rows.OfType<SegmentRow>().FirstOrDefault() is { } segments)
+        {
+            for (var group = 0; group < segments.Groups.Count; group++)
+                if (segments.Groups[group].ToList().IndexOf(choice) is >= 0 and var index) chipFocus = (group, index, DateTime.UtcNow);
+        }
+    }
+
+    /// <summary>The filter at the place remembered, in the rows now.</summary>
+    private object? FilterAt((int Group, int Index, DateTime At) place)
+    {
+        if (place.Group < 0)
+            return Model?.Rows.OfType<FilterRow>().FirstOrDefault() is { } row && place.Index < row.Chips.Count ? row.Chips[place.Index] : null;
+        return Model?.Rows.OfType<SegmentRow>().FirstOrDefault() is { } segments && place.Group < segments.Groups.Count
+            && place.Index < segments.Groups[place.Group].Count ? segments.Groups[place.Group][place.Index] : null;
     }
 
     /// <summary>A filter changed (the grid reloads, the chips with it): back on the same chip, once it's there again.</summary>
@@ -88,13 +106,12 @@ public partial class BrowsePageView : UserControl
         timer = new DispatcherTimer(TimeSpan.FromMilliseconds(100), DispatcherPriority.Background, (_, _) =>
         {
             var focused = KeyFocus.Current(this);
-            if (++tries > 30 || focused is Visual on && KeyFocus.IsWithin(on, this) && focused is not Button { DataContext: FilterChip })
+            if (++tries > 30 || focused is Visual on && KeyFocus.IsWithin(on, this) && focused is not Button { DataContext: FilterChip or Choice })
             {
                 timer!.Stop();
                 return;
             }
-            if (Model?.Rows.OfType<FilterRow>().FirstOrDefault() is not { } row || last.Index < 0 || last.Index >= row.Chips.Count) return;
-            var chip = row.Chips[last.Index];
+            if (last.Index < 0 || FilterAt(last) is not { } chip) return;
             var button = this.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => ReferenceEquals(b.DataContext, chip) && KeyFocus.CanFocus(b));
             if (button is null) return;
             if (!ReferenceEquals(focused, button)) KeyFocus.Move(button);

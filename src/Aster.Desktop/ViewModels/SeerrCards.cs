@@ -19,7 +19,7 @@ public sealed partial class SeerrCard(INavigator navigator, SeerrTitle title, st
     public string Key => request is { } asked ? $"request-{asked.Id}" : title.Key;
     public Uri? Image { get; } = SeerrClient.Image(title.PosterPath, "w342") is { } url ? new Uri(url) : null;
     public string Title => title.DisplayTitle;
-    public string? Subtitle { get; } = subtitle ?? string.Join(" · ", new[] { title.Year, title.IsMovie ? "Movie" : "Series" }.OfType<string>());
+    public string? Subtitle { get; } = subtitle ?? string.Join(" · ", new[] { title.Year, title.IsMovie ? "Film" : "Series" }.OfType<string>());
     public string? Badge { get; } = badge ?? title.Status.Label();
     public bool HasBadge => Badge is not null;
     public bool IsAvailable => title.Status == SeerrStatus.Available;
