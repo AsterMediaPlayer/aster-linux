@@ -48,6 +48,9 @@ public sealed partial class MusicPlayer : ObservableObject, IDisposable
     /// <summary>Called as a queue starts, so a book playing steps aside.</summary>
     public event Action? Starting;
 
+    /// <summary>A queue was played, from any page, for the player to open.</summary>
+    public event Action? Played;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Current), nameof(UpNext), nameof(HasNext))]
     public partial IReadOnlyList<BaseItem> Queue { get; private set; } = [];
@@ -121,6 +124,7 @@ public sealed partial class MusicPlayer : ObservableObject, IDisposable
         IsShuffled = shuffled;
         Starting?.Invoke();
         Load();
+        Played?.Invoke();
     }
 
     /// <summary>Jumps to a song already in the queue.</summary>
