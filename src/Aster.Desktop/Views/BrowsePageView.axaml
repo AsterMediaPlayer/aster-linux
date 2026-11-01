@@ -169,12 +169,12 @@
 
         <!-- A request: poster, title, what and which seasons, its state in colour, who asked and when. -->
         <DataTemplate DataType="vm:RequestRow">
-            <Button Classes="requestRow" Command="{Binding Open}" Margin="36,4,107,4" AutomationProperties.Name="{Binding Title}">
+            <Button Classes="requestRow" Command="{Binding Open}" Margin="95,4,107,4" AutomationProperties.Name="{Binding Title}">
                 <Grid ColumnDefinitions="Auto,*">
                     <Border Width="80" Height="120" CornerRadius="8" ClipToBounds="True" Background="{StaticResource CardBackground}">
                         <c:RemoteImage Url="{Binding Poster}" Stretch="UniformToFill" />
                     </Border>
-                    <StackPanel Grid.Column="1" Margin="22,0,0,0" Spacing="4" VerticalAlignment="Center">
+                    <StackPanel Grid.Column="1" Margin="19,0,0,0" Spacing="4" VerticalAlignment="Center">
                         <TextBlock Text="{Binding Title}" FontSize="30" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                         <TextBlock Text="{Binding Meta}" FontSize="20" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
                         <TextBlock Text="{Binding State}" FontSize="20" FontWeight="SemiBold" Foreground="{Binding StateColor}" />
