@@ -40,10 +40,14 @@ public sealed unsafe class MpvRenderContext : IDisposable
                 GetProcAddress = (IntPtr)(delegate* unmanaged<IntPtr, IntPtr, IntPtr>)&GetProcAddress,
                 GetProcAddressContext = GCHandle.ToIntPtr(render.self),
             };
+            // On X11, the display lets mpv hand VA-API's frames to OpenGL
+            // without copying them (given EGL); with none, it copies.
+            var x11 = X11.Display;
             var parameters = stackalloc MpvRenderParam[]
             {
                 new() { Type = MpvRenderParamType.ApiType, Data = apiType },
                 new() { Type = MpvRenderParamType.OpenGlInitParams, Data = (IntPtr)(&init) },
+                new() { Type = x11 == IntPtr.Zero ? MpvRenderParamType.Invalid : MpvRenderParamType.X11Display, Data = x11 },
                 new() { Type = MpvRenderParamType.Invalid },
             };
             IntPtr created;
