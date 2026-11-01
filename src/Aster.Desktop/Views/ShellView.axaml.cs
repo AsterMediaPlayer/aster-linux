@@ -42,6 +42,16 @@ public partial class ShellView : UserControl
     /// <summary>The keyboard (or remote) was used last, rather than the pointer: a page then shows where it starts.</summary>
     private bool keyboardLast;
 
+    /// <summary>
+    /// The pointer hasn't moved since a key was pressed. A pointer left
+    /// resting at the screen's left edge (gamescope parks it there; a couch
+    /// mouse is pushed out of the way) finds itself over the sidebar's edge
+    /// whenever the screen changes under it, and slid the sidebar out, and
+    /// in, against the controller: only a pointer that moves opens or shuts it.
+    /// </summary>
+    private bool pointerResting = true;
+    private Point? pointerAt;
+
     private ShellViewModel? watched;
 
     public ShellView()
@@ -51,14 +61,21 @@ public partial class ShellView : UserControl
         leaveClose.Tick += (_, _) =>
         {
             leaveClose.Stop();
-            if (!Sidebar.IsPointerOver && !HasFocusWithin(Sidebar)) Close();
+            if (!pointerResting && !Sidebar.IsPointerOver && !HasFocusWithin(Sidebar)) Close();
         };
 
-        Edge.PointerEntered += (_, _) => Open();
-        Capsule.PointerEntered += (_, _) => hoverOpen.Start();
+        Edge.PointerEntered += (_, _) => { if (!pointerResting) Open(); };
+        Capsule.PointerEntered += (_, _) => { if (!pointerResting) hoverOpen.Start(); };
         Capsule.PointerExited += (_, _) => hoverOpen.Stop();
         Sidebar.PointerEntered += (_, _) => leaveClose.Stop();
-        Sidebar.PointerExited += (_, _) => leaveClose.Start();
+        Sidebar.PointerExited += (_, _) => { if (!pointerResting) leaveClose.Start(); };
+        AddHandler(PointerMovedEvent, (_, e) =>
+        {
+            // Moved, not just found somewhere new as the screen changed under it.
+            var at = e.GetPosition(this);
+            if (pointerAt is { } was && (Math.Abs(at.X - was.X) > 2 || Math.Abs(at.Y - was.Y) > 2)) pointerResting = false;
+            pointerAt = at;
+        }, RoutingStrategies.Tunnel, handledEventsToo: true);
         Scrim.PointerPressed += (_, e) =>
         {
             Close();
@@ -69,7 +86,7 @@ public partial class ShellView : UserControl
         Sidebar.GotFocus += (_, _) => Open();
         Sidebar.LostFocus += (_, _) => Dispatcher.UIThread.Post(() =>
         {
-            if (!HasFocusWithin(Sidebar) && !Sidebar.IsPointerOver) Close();
+            if (!HasFocusWithin(Sidebar) && (pointerResting || !Sidebar.IsPointerOver)) Close();
         }, DispatcherPriority.Input);
 
         AddHandler(PointerPressedEvent, (_, _) => keyboardLast = false, RoutingStrategies.Tunnel, handledEventsToo: true);
@@ -126,6 +143,7 @@ public partial class ShellView : UserControl
     private void OnKeyDownFirst(object? sender, KeyEventArgs e)
     {
         keyboardLast = true;
+        pointerResting = true;
         if (Model is not { } shell || e.Handled) return;
         var focused = KeyFocus.Current(this) as Visual;
         var inSidebar = focused is not null && KeyFocus.IsWithin(focused, Sidebar);
@@ -149,6 +167,20 @@ public partial class ShellView : UserControl
             case Key.Right when inSidebar:
                 shell.IsSidebarOpen = false;
                 e.Handled = true;
+                break;
+            // Nothing's left of the sidebar. Left there would move to the page
+            // behind it, which put it away, and a held Left (a controller's
+            // repeat) opened it again: in and out for as long as it was held.
+            case Key.Left when inSidebar:
+                e.Handled = true;
+                break;
+            // Up past the first tab or down past Exit stays in the sidebar, rather than leaving it for the page behind.
+            case Key.Up or Key.Down when inSidebar:
+                var was = focused as InputElement;
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (was is not null && !HasFocusWithin(Sidebar) && KeyFocus.CanFocus(was)) KeyFocus.Move(was);
+                }, DispatcherPriority.Input);
                 break;
             case Key.Escape or Key.BrowserBack when shell.NowPlaying.IsShown:
                 break;

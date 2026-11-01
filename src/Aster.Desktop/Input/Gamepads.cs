@@ -253,16 +253,19 @@ public sealed unsafe class Gamepads : IDisposable
     // ASTER_GAMEPAD_SCRIPT, for trying the app without a controller: a
     // pretend one, pressed at times after it starts, as "seconds:button"
     // pairs, e.g. "10:down,12:a,14:b" (a, b, x, y, start, lb, rb, up, down,
-    // left, right, and the right stick pushed: rs-up, rs-down, rs-left,
-    // rs-right; "hold-" before one holds it a second and a half).
+    // left, right, and the sticks pushed: rs-up, rs-down, rs-left, rs-right,
+    // ls-up, ls-down, ls-left, ls-right; "hold-" before one holds it a second
+    // and a half).
     private readonly Queue<(DateTime At, int Button, bool Down)> script = new();
 
-    /// <summary>The right stick's pushes, scripted as buttons past the real ones.</summary>
+    /// <summary>The sticks' pushes, scripted as buttons past the real ones.</summary>
     private const int StickBase = 1000;
     private static readonly (SDL_GamepadAxis Axis, short Value)[] StickPushes =
     [
         (SDL_GamepadAxis.SDL_GAMEPAD_AXIS_RIGHTY, short.MinValue), (SDL_GamepadAxis.SDL_GAMEPAD_AXIS_RIGHTY, short.MaxValue),
         (SDL_GamepadAxis.SDL_GAMEPAD_AXIS_RIGHTX, short.MinValue), (SDL_GamepadAxis.SDL_GAMEPAD_AXIS_RIGHTX, short.MaxValue),
+        (SDL_GamepadAxis.SDL_GAMEPAD_AXIS_LEFTY, short.MinValue), (SDL_GamepadAxis.SDL_GAMEPAD_AXIS_LEFTY, short.MaxValue),
+        (SDL_GamepadAxis.SDL_GAMEPAD_AXIS_LEFTX, short.MinValue), (SDL_GamepadAxis.SDL_GAMEPAD_AXIS_LEFTX, short.MaxValue),
     ];
     private SDL_Joystick* scripted;
 
@@ -285,6 +288,8 @@ public sealed unsafe class Gamepads : IDisposable
             ["left"] = SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_LEFT, ["right"] = SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_RIGHT,
             ["rs-up"] = (SDL_GamepadButton)(StickBase + 0), ["rs-down"] = (SDL_GamepadButton)(StickBase + 1),
             ["rs-left"] = (SDL_GamepadButton)(StickBase + 2), ["rs-right"] = (SDL_GamepadButton)(StickBase + 3),
+            ["ls-up"] = (SDL_GamepadButton)(StickBase + 4), ["ls-down"] = (SDL_GamepadButton)(StickBase + 5),
+            ["ls-left"] = (SDL_GamepadButton)(StickBase + 6), ["ls-right"] = (SDL_GamepadButton)(StickBase + 7),
         };
         var start = DateTime.UtcNow;
         foreach (var step in text.Split(','))
