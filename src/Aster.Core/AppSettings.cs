@@ -29,6 +29,15 @@ public sealed record AppSettings
     /// </summary>
     public bool AudioPassthrough { get; init; }
 
+    /// <summary>
+    /// A video's sound brought to an even, game-like loudness as it plays
+    /// (ffmpeg's loudnorm, about -16 LUFS), so TV mastered near -24 isn't
+    /// far quieter than games and quiet scenes come up. Its channels stay as
+    /// they are (5.1 stays 5.1). Not with passthrough, where the receiver
+    /// decodes the sound. This computer's own setting: not synced.
+    /// </summary>
+    public bool EvenVolume { get; init; }
+
     /// <summary>ASS and SSA subtitles drawn as styled; off, as plain text at the bottom.</summary>
     public bool StyledSubtitles { get; init; } = true;
 

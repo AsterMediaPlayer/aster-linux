@@ -129,6 +129,10 @@ public partial class PlayerViewModel : ViewModelBase
             // Off: ASS and SSA lose their positions, drawings and fonts, as plain text at the bottom.
             ["sub-ass-override"] = settings.StyledSubtitles ? "scale" : "strip",
         };
+        // Shows are mastered near -24 LUFS and games near -16: brought to about a game's
+        // loudness, peaks held under -1.5 dB. loudnorm works at 192 kHz, so back to 48.
+        if (settings.EvenVolume)
+            options["af"] = "lavfi=[loudnorm=I=-16:LRA=11:TP=-1.5,aresample=48000]";
         if (settings.AudioPassthrough)
         {
             // Dolby and DTS go to the receiver untouched, which decodes them (Atmos and DTS:X

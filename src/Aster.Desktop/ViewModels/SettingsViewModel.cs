@@ -95,6 +95,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
             case nameof(OpeningSound): OpeningSound = !OpeningSound; break;
             case nameof(ThemePanel): ThemePanel = !ThemePanel; break;
             case nameof(AudioPassthrough): AudioPassthrough = !AudioPassthrough; break;
+            case nameof(EvenVolume): EvenVolume = !EvenVolume; break;
             case nameof(PreferDiscMenu): PreferDiscMenu = !PreferDiscMenu; break;
             case nameof(DiscMenuSounds): DiscMenuSounds = !DiscMenuSounds; break;
         }
@@ -150,6 +151,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     [ObservableProperty] public partial bool OpeningSound { get; set; }
     [ObservableProperty] public partial bool ThemePanel { get; set; }
     [ObservableProperty] public partial bool AudioPassthrough { get; set; }
+    [ObservableProperty] public partial bool EvenVolume { get; set; }
 
     public IReadOnlyList<SettingOption<ThemeCut>> ThemeCuts { get; } =
         Enum.GetValues<ThemeCut>().Select(cut => new SettingOption<ThemeCut>(cut.SettingTitle, cut)).ToList();
@@ -182,6 +184,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     partial void OnOpeningSoundChanged(bool value) => Change(s => s with { OpeningSound = value });
     partial void OnThemePanelChanged(bool value) => Change(s => s with { ThemePanel = value });
     partial void OnAudioPassthroughChanged(bool value) => Change(s => s with { AudioPassthrough = value });
+    partial void OnEvenVolumeChanged(bool value) => Change(s => s with { EvenVolume = value });
     partial void OnPreferDiscMenuChanged(bool value) => Change(s => s with { PreferDiscMenu = value });
     partial void OnDiscMenuSoundsChanged(bool value) => Change(s => s with { DiscMenuSounds = value });
 
@@ -210,6 +213,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         OpeningSound = settings.OpeningSound;
         ThemePanel = settings.ThemePanel;
         AudioPassthrough = settings.AudioPassthrough;
+        EvenVolume = settings.EvenVolume;
         ThemeCut = ThemeCuts.FirstOrDefault(c => c.Value == settings.ThemeCut) ?? ThemeCuts[0];
         PreferDiscMenu = settings.PreferDiscMenu;
         DiscMenuSounds = settings.DiscMenuSounds;

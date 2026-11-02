@@ -92,6 +92,17 @@
                         </Button.Flyout>
                     </Button>
 
+                    <TextBlock Classes="section" Text="VOLUME" />
+                    <Button Classes="row" Command="{Binding FlipCommand}" CommandParameter="EvenVolume">
+                        <DockPanel>
+                            <TextBlock Classes="value" Text="{Binding EvenVolume, Converter={x:Static c:Converters.OnOff}}" />
+                            <TextBlock Text="Even out volume" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Button>
+                    <Border Classes="note">
+                        <TextBlock Text="Brings a video's sound to an even level as it plays, about as loud as games, so shows and films aren't far quieter than everything else and quiet dialogue comes up. Surround sound stays surround. Starts with the next video you play. Not while surround sound goes to a receiver, which sets its own level." />
+                    </Border>
+
                     <TextBlock Classes="section" Text="SURROUND SOUND" />
                     <Button Classes="row" Command="{Binding FlipCommand}" CommandParameter="AudioPassthrough">
                         <DockPanel>
