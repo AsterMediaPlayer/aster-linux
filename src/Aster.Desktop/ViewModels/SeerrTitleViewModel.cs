@@ -350,11 +350,18 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
         finally { IsBusy = false; }
     }
 
-    /// <summary>The trailer, in the browser (YouTube).</summary>
+    /// <summary>The trailer, in YouTube's player in the app (as the Apple app's); in the browser, without WebKitGTK.</summary>
     [RelayCommand]
     private void Trailer()
     {
+        if (details?.Trailer is { Key: { Length: > 0 } key } && TrailerViewModel.CanPlay)
+        {
+            navigator.Push(new TrailerViewModel(navigator, key, Title));
+            return;
+        }
         if (TrailerUrl is not { } url) return;
+        // Full screen, a browser opens behind: say why it isn't playing here.
+        Message = TrailerViewModel.Missing;
         try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
         catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException) { Message = "Couldn't open a browser for the trailer."; }
     }

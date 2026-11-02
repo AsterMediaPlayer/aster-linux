@@ -60,6 +60,7 @@ public partial class App : Application
                     System.Array.IndexOf(args, "--new-channel") is var nc and >= 0 && nc + 1 < args.Length ? args[nc + 1] : null);
             // --mini <channelId> (with --tab livetv): that channel in the Live TV header's mini player.
             if (System.Array.IndexOf(args, "--mini") is var mi and >= 0 && mi + 1 < args.Length) main.TuneMiniPlayer(args[mi + 1]);
+            if (System.Array.IndexOf(args, "--trailer") is var tr and >= 0 && tr + 1 < args.Length) main.OpenTrailer(args[tr + 1]);
             if (System.Array.IndexOf(args, "--channel") is var ch and >= 0 && ch + 1 < args.Length && int.TryParse(args[ch + 1], out var number)) main.TuneChannelWhenLoaded(number);
 #endif
             desktop.MainWindow = new MainWindow { DataContext = main };

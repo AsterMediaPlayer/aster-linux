@@ -361,6 +361,12 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
     /// channel alone): Edit Channels; with <c>--new-channel</c>, a channel
     /// made from that show as if it were picked.
     /// </summary>
+    /// <summary>For trying it (<c>--trailer &lt;YouTube id&gt;</c>): that trailer's page.</summary>
+    public void OpenTrailer(string youTubeId)
+    {
+        if (shell is { } open) open.Push(new TrailerViewModel(open, youTubeId, "Trailer"));
+    }
+
     public void OpenEditChannels(string? only, string? newChannel = null)
     {
         if (shell is not { } open || open.Client is not Aster.Core.Channels.IChannelServer) return;

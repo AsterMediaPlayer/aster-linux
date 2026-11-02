@@ -19,6 +19,11 @@ sealed class Program
         }
         // A couch app: laid out for about 1280 units across, whatever the screen.
         Aster.Desktop.Platform.TvScale.Apply();
+        // Trailers play in a WebKitGTK window laid over the page: GTK on the
+        // same X server as Avalonia (XWayland, gamescope), where it can be
+        // placed, not on Wayland beside it.
+        if (OperatingSystem.IsLinux() && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GDK_BACKEND")))
+            Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
 #if WINDOWS
         // Before any window, which takes the process's app id.
         WindowsAppIdentity.Apply();
