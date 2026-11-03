@@ -22,6 +22,20 @@ public static class KeyFocus
     public static bool GetIsPreferred(Control control) => control.GetValue(IsPreferredProperty);
     public static void SetIsPreferred(Control control, bool value) => control.SetValue(IsPreferredProperty, value);
 
+    /// <summary>
+    /// A page (the guide) that starts at its preferred control each time it
+    /// opens, rather than where the keyboard was when it was left: the guide
+    /// moves on with the clock, so last visit's programme is stale.
+    /// </summary>
+    public static readonly AttachedProperty<bool> StartsFreshProperty =
+        AvaloniaProperty.RegisterAttached<Control, bool>("StartsFresh", typeof(KeyFocus));
+
+    public static bool GetStartsFresh(Control control) => control.GetValue(StartsFreshProperty);
+    public static void SetStartsFresh(Control control, bool value) => control.SetValue(StartsFreshProperty, value);
+
+    /// <summary>Whether something in <paramref name="root"/> asks to start fresh.</summary>
+    public static bool StartsFresh(Visual root) => root.GetVisualDescendants().OfType<Control>().Any(GetStartsFresh);
+
     /// <summary>The control a page starts on: one marked preferred, else the first that can take focus.</summary>
     public static InputElement? FirstIn(Visual root) => PreferredIn(root) ?? Focusable(root).FirstOrDefault();
 

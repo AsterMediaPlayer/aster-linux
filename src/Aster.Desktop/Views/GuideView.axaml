@@ -3,11 +3,14 @@
              xmlns:vm="using:Aster.Desktop.ViewModels"
              xmlns:c="using:Aster.Desktop.Controls"
              x:Class="Aster.Desktop.Views.GuideView"
-             x:DataType="vm:GuideViewModel">
+             x:DataType="vm:GuideViewModel"
+             c:KeyFocus.StartsFresh="True">
 
     <UserControl.Styles>
-        <!-- Flat cells, lighter while airing, white under the pointer as on the Apple TV. -->
+        <!-- Flat cells, lighter while airing, white under the pointer or the keyboard as on the Apple TV
+             (no focus rectangle: it was drawn over everything, and stayed over a channel once it played). -->
         <Style Selector="Button.cell">
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
             <Setter Property="Background" Value="#292929" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="Padding" Value="0" />
@@ -28,6 +31,12 @@
         <Style Selector="Button.cell:pointerover TextBlock">
             <Setter Property="Foreground" Value="Black" />
         </Style>
+        <Style Selector="Button.cell:focus-visible /template/ ContentPresenter">
+            <Setter Property="Background" Value="White" />
+        </Style>
+        <Style Selector="Button.cell:focus-visible TextBlock">
+            <Setter Property="Foreground" Value="Black" />
+        </Style>
         <Style Selector="TextBlock.cellTitle">
             <Setter Property="FontSize" Value="15" />
             <Setter Property="FontWeight" Value="SemiBold" />
@@ -39,12 +48,17 @@
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
         </Style>
         <Style Selector="Button.day">
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Foreground" Value="{StaticResource Secondary}" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
+        <Style Selector="Button.day:focus-visible /template/ ContentPresenter">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
         <Style Selector="Button.step">
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
             <Setter Property="Background" Value="#26FFFFFF" />
             <Setter Property="CornerRadius" Value="16" />
             <Setter Property="Width" Value="32" />
@@ -54,6 +68,10 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
             <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="Button.step:focus-visible /template/ ContentPresenter">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="Black" />
         </Style>
         <!-- The group picked is tinted with the accent, as the Apple TV's filter is, so the
              keyboard's white pill (focus) always stands apart from it. -->
@@ -206,7 +224,7 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="vm:GuideCell">
-                                                <Button Classes="cell" Classes.airing="{Binding IsAiring}" c:KeyFocus.IsPreferred="{Binding IsAiring}" Width="{Binding Width}" Margin="{Binding Margin}"
+                                                <Button Classes="cell" Classes.airing="{Binding IsAiring}" c:KeyFocus.IsPreferred="{Binding IsStart}" Width="{Binding Width}" Margin="{Binding Margin}"
                                                         Command="{Binding Open}" AutomationProperties.Name="{Binding AccessibleName}" ToolTip.Tip="{Binding Title}">
                                                     <Panel>
                                                         <Border Background="#1FFFFFFF" Width="{Binding AiredWidth}" HorizontalAlignment="Left" />

@@ -506,7 +506,7 @@ public partial class ShellView : UserControl
     /// <summary>Where the keyboard was on this page when it was last left, if that's still there.</summary>
     private InputElement? Restored() =>
         Model?.CurrentPage is { } page && pageFocus.TryGetValue(page, out var saved) && saved.TryGetTarget(out var element)
-            && element.IsEffectivelyVisible && KeyFocus.IsWithin(element, Page) ? element : null;
+            && element.IsEffectivelyVisible && KeyFocus.IsWithin(element, Page) && !KeyFocus.StartsFresh(Page) ? element : null;
 
     /// <summary>Focuses a control on the page: with its focus look for the keyboard's users, without it for the pointer's.</summary>
     private void Place(InputElement target)
