@@ -21,6 +21,13 @@ public sealed class SonosOutput : IAudioOutput
 {
     private static readonly Dictionary<string, Task> Queues = [];
 
+    /// <summary>
+    /// Rooms taken off their TV input for music, with the volume the TV was
+    /// playing at: given back (that volume first, then the TV) when they
+    /// leave, so a soundbar doesn't go back to the TV at the music's level.
+    /// </summary>
+    private static readonly Dictionary<string, int> TvVolumes = [];
+
     private readonly SonosSpeaker coordinator;
     private readonly DispatcherTimer poll = new() { Interval = TimeSpan.FromSeconds(1) };
     private double position, duration;
@@ -51,6 +58,13 @@ public sealed class SonosOutput : IAudioOutput
     /// <summary>The rooms grouped: the first on its own (out of any group it was in), the rest joined to it.</summary>
     public Task GroupAsync() => Enqueue(async () =>
     {
+        foreach (var room in Rooms)
+        {
+            bool known;
+            lock (TvVolumes) known = TvVolumes.ContainsKey(room.Id);
+            if (known || !await Sonos.IsOnTvInputAsync(room.Speaker) || await Sonos.VolumeAsync(room.Speaker) is not { } tvVolume) continue;
+            lock (TvVolumes) TvVolumes[room.Id] = tvVolume;
+        }
         if (Rooms[0].Coordinator != Rooms[0].Id) await Sonos.LeaveGroupAsync(coordinator);
         foreach (var room in Rooms.Skip(1))
         {
@@ -66,6 +80,17 @@ public sealed class SonosOutput : IAudioOutput
     {
         if (!keep.Contains(coordinator.Id)) await Sonos.StopAsync(coordinator);
         foreach (var room in Rooms.Skip(1).Where(r => !keep.Contains(r.Id))) await Sonos.LeaveGroupAsync(room.Speaker);
+        // A soundbar taken from its TV: its TV volume back first, then the TV.
+        foreach (var room in Rooms.Where(r => !keep.Contains(r.Id)))
+        {
+            int tvVolume;
+            lock (TvVolumes)
+            {
+                if (!TvVolumes.Remove(room.Id, out tvVolume)) continue;
+            }
+            await Sonos.SetVolumeAsync(room.Speaker, tvVolume);
+            await Sonos.BackToTvAsync(room.Speaker);
+        }
     });
 
     public void Load(Uri url, double start, bool playing, SonosTrack? track = null)

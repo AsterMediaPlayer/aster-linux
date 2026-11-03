@@ -140,6 +140,15 @@ public static partial class Sonos
         return reply is null ? null : Tag(reply, "CurrentTransportState");
     }
 
+    /// <summary>Back to its own TV input and playing it, as a soundbar was before it was taken for music.</summary>
+    public static async Task<bool> BackToTvAsync(SonosSpeaker speaker, CancellationToken ct = default)
+    {
+        var tv = $"x-sonos-htastream:{speaker.Id}:spdif";
+        var set = await SoapAsync(speaker, "AVTransport", "SetAVTransportURI",
+            $"<InstanceID>0</InstanceID><CurrentURI>{Escape(tv)}</CurrentURI><CurrentURIMetaData></CurrentURIMetaData>", ct);
+        return set is not null && await PlayAsync(speaker, ct);
+    }
+
     /// <summary><paramref name="member"/> joins <paramref name="coordinatorId"/>'s group, to play in sync with it.</summary>
     public static async Task<bool> JoinAsync(SonosSpeaker member, string coordinatorId, CancellationToken ct = default) =>
         await SoapAsync(member, "AVTransport", "SetAVTransportURI",
