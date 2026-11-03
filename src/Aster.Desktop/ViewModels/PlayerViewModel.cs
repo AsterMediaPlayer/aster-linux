@@ -149,7 +149,10 @@ public partial class PlayerViewModel : ViewModelBase
         {
             // Dolby and DTS go to the receiver untouched, which decodes them (Atmos and DTS:X
             // with them); anything else (AAC, Opus, FLAC) still plays as ordinary sound.
-            options["audio-spdif"] = "ac3,eac3,dts,dts-hd,truehd";
+            // Not DTS-HD: a soundbar (a Sonos Arc) takes DTS, not DTS-HD, and a PipeWire output rarely
+            // allows it, so it found nowhere to go and played nothing. Without it, a DTS-HD track's
+            // DTS core goes instead, which every DTS receiver plays.
+            options["audio-spdif"] = "ac3,eac3,dts,truehd";
             if (OperatingSystem.IsWindows())
             {
                 // E-AC-3, TrueHD and DTS-HD fit through HDMI only with the sound device to itself.
@@ -898,13 +901,18 @@ public partial class PlayerViewModel : ViewModelBase
     /// <summary>Opens <paramref name="url"/> paused at <paramref name="start"/> seconds; done once mpv has its tracks.</summary>
     private async Task LoadAsync(Uri url, double start)
     {
-        // A film before fell back to decoded sound: this one tries passthrough again.
-        if (passthrough == PassthroughState.Decoded && settings.AudioPassthrough)
+        // A title before fell back to decoded sound: another tries passthrough again. The same title,
+        // played again from where it was, keeps the decoded sound that worked.
+        if (Item?.Id != decodedItem)
         {
-            try { Player?.SetProperty("audio-spdif", Options()["audio-spdif"]); }
-            catch (MpvException) { }
+            if (passthrough == PassthroughState.Decoded && settings.AudioPassthrough)
+            {
+                try { Player?.SetProperty("audio-spdif", Options()["audio-spdif"]); }
+                catch (MpvException) { }
+            }
+            passthrough = PassthroughState.Normal;
+            decodedItem = null;
         }
-        passthrough = PassthroughState.Normal;
         var player = Player!;
         // The video view gives mpv its surface on its first frame; a file
         // opened before then would have nowhere to draw.
@@ -1400,10 +1408,14 @@ public partial class PlayerViewModel : ViewModelBase
     }
 
     /// <summary>Passthrough's sound decoded here instead, for this film: it shares the device.</summary>
+    /// <summary>The title whose sound fell back to decoded, kept so while it plays.</summary>
+    private string? decodedItem;
+
     private void DecodeSound()
     {
         if (Player is null || passthrough == PassthroughState.Decoded) return;
         passthrough = PassthroughState.Decoded;
+        decodedItem = Item?.Id;
         try
         {
             Player.SetProperty("audio-spdif", "");
