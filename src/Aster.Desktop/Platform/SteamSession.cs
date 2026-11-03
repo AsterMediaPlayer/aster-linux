@@ -35,12 +35,12 @@ public static class SteamSession
     /// Big Picture, so launched by Steam at all counts) and in gamescope;
     /// <c>--couch</c> asks for it anywhere, <c>--desktop</c> turns it off.
     /// </summary>
-    public static bool Couch(string[] args)
-    {
-        if (Array.IndexOf(args, "--desktop") >= 0) return false;
-        if (Array.IndexOf(args, "--couch") >= 0) return true;
-        return LaunchedBySteam || InGamescope || InGamepadUi;
-    }
+    public static bool Couch(string[] args) =>
+        IsCouch = Array.IndexOf(args, "--desktop") < 0
+            && (Array.IndexOf(args, "--couch") >= 0 || LaunchedBySteam || InGamescope || InGamepadUi);
+
+    /// <summary>What <see cref="Couch"/> found at launch: the pages a controller needs (the search keyboard) show.</summary>
+    public static bool IsCouch { get; private set; }
 
     public static string Describe() =>
         $"Steam: launched={LaunchedBySteam} gamescope={InGamescope} gamepadUi={InGamepadUi} deck={OnSteamDeck}";

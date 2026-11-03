@@ -18,6 +18,8 @@
                 <TextBlock Text="&#xE721;" FontFamily="{StaticResource IconFont}" Foreground="{StaticResource Secondary}"
                            Margin="16,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" />
             </Grid>
+            <!-- From the couch, with a controller: the letters on the screen. -->
+            <c:OnScreenKeyboard x:Name="Keys" Text="{Binding Query}" IsVisible="False" />
         </StackPanel>
 
         <ScrollViewer x:Name="Results" HorizontalScrollBarVisibility="Disabled">
