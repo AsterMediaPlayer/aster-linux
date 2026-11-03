@@ -29,5 +29,22 @@
         <Style Selector="Button.track.current">
             <Setter Property="Background" Value="#1FFFFFFF" />
         </Style>
+        <!-- Every slider (a timeline, a chapter's bar, a room's volume): no focus rectangle, which is drawn
+             over everything; the controller's mark is the handle, white and grown, as the Apple TV's. -->
+        <Style Selector="Slider">
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+        </Style>
+        <Style Selector="Slider /template/ Thumb">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Slider:focus-visible /template/ Thumb">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="RenderTransform" Value="scale(1.35)" />
+        </Style>
     </Application.Styles>
 </Application>

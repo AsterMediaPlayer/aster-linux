@@ -90,13 +90,6 @@
         <Style Selector="Button.speaker:focus-visible TextBlock, Button.speaker:focus-visible TextBlock.detail, Button.speaker:focus-visible TextBlock.check">
             <Setter Property="Foreground" Value="Black" />
         </Style>
-        <Style Selector="Slider.roomVolume">
-            <Setter Property="FocusAdorner" Value="{x:Null}" />
-        </Style>
-        <Style Selector="Slider.roomVolume:focus-visible /template/ Thumb">
-            <Setter Property="Background" Value="White" />
-            <Setter Property="RenderTransform" Value="scale(1.3)" />
-        </Style>
         <!-- Where it plays, at the top right: a pill with the speakers' name. -->
         <Style Selector="Button.where">
             <Setter Property="Height" Value="40" />
