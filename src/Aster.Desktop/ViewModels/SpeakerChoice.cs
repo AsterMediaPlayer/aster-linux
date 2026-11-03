@@ -58,7 +58,7 @@ public sealed partial class SpeakerChoice : ObservableObject
     public bool HasVolume { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Mark), nameof(ShowsVolume))]
+    [NotifyPropertyChangedFor(nameof(Mark), nameof(ShowsVolume), nameof(Detail))]
     public partial bool IsSelected { get; set; }
 
     [ObservableProperty]
@@ -76,7 +76,7 @@ public sealed partial class SpeakerChoice : ObservableObject
     public string Label => Name;
 
     /// <summary>Under the name: a room playing its TV, and what choosing it again does.</summary>
-    public string? Detail => IsAsking ? "Playing the TV: choose again to switch it to this" : IsOnTv ? "Playing the TV" : null;
+    public string? Detail => IsAsking ? "Playing the TV: choose again to switch it to this" : IsOnTv && !IsSelected ? "Playing the TV" : null;
 
     public string VolumeLabel => $"{Math.Round(Volume):0}";
 
