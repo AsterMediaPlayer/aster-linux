@@ -43,6 +43,39 @@ public sealed partial class NowPlayingViewModel : ObservableObject
     }
 
     public AudioSession Audio => navigator.Audio;
+
+    /// <summary>"Shop Soundbar volume 52" or "Volume 80%", a moment after the volume's turned.</summary>
+    [ObservableProperty] public partial string? VolumeNotice { get; private set; }
+
+    private readonly Avalonia.Threading.DispatcherTimer noticeTimer = new() { Interval = TimeSpan.FromSeconds(1.5) };
+
+    /// <summary>
+    /// The volume keys (a controller's right stick) for music and audiobooks:
+    /// the confirmed Sonos's own, as the TV's remote turns it, else the
+    /// player's (the book's when there's one, else the music's).
+    /// </summary>
+    public async void ChangeVolume(int direction)
+    {
+        string? notice;
+        if (await SoundbarVolume.ChangeAsync(direction * 2) is var (room, level)) notice = $"{room} volume {level}";
+        else
+        {
+            var own = Books.Book is not null && !Music.IsPlaying ? Books.ChangeVolume(direction * 5) : Music.ChangeVolume(direction * 5);
+            notice = own is { } percent ? $"Volume {percent:0}%" : null;
+        }
+        if (notice is null) return;
+        VolumeNotice = notice;
+        noticeTimer.Stop();
+        noticeTimer.Tick -= HideNotice;
+        noticeTimer.Tick += HideNotice;
+        noticeTimer.Start();
+    }
+
+    private void HideNotice(object? sender, EventArgs e)
+    {
+        noticeTimer.Stop();
+        VolumeNotice = null;
+    }
     public MusicPlayer Music => Audio.Music;
     public AudiobookPlayer Books => Audio.Books;
 

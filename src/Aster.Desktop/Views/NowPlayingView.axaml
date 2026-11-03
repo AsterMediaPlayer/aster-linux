@@ -247,5 +247,10 @@
                 HorizontalAlignment="Left" VerticalAlignment="Top" />
         <Button Classes="corner" Command="{Binding StopCommand}" AutomationProperties.Name="Stop Playing" Content="&#xE711;" ToolTip.Tip="Stop"
                 HorizontalAlignment="Right" VerticalAlignment="Top" />
+        <!-- The volume just turned, the Sonos's or the player's own. -->
+        <Border Background="#D9202020" CornerRadius="16" Padding="18,8" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,24,0,0"
+                IsVisible="{Binding VolumeNotice, Converter={x:Static ObjectConverters.IsNotNull}}" IsHitTestVisible="False">
+            <TextBlock Text="{Binding VolumeNotice}" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+        </Border>
     </Panel>
 </UserControl>

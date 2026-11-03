@@ -286,6 +286,12 @@ public partial class ShellView : UserControl
         var inPlayer = focused is not null && KeyFocus.IsWithin(focused, NowPlayingPanel);
         switch (e.Key)
         {
+            // The volume keys (a controller's right stick) outside the video player: music's and
+            // audiobooks' (the Sonos's, as a TV's remote turns it, or the player's). A trailer's are its own.
+            case Key.VolumeUp or Key.VolumeDown when !TrailerView.IsShowing:
+                shell.NowPlaying.ChangeVolume(e.Key == Key.VolumeUp ? 1 : -1);
+                e.Handled = true;
+                break;
             // The Now Playing player, over every page: the arrows stay in it
             // (they'd find the page under it too). A slider keeps its Left and
             // Right, to seek. Left with nothing further left slides the sidebar

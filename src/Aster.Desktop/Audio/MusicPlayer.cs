@@ -24,6 +24,9 @@ public enum RepeatMode
 public sealed partial class MusicPlayer : ObservableObject, IDisposable
 {
     private readonly AudioEngine engine = new();
+
+    /// <summary>The player's own volume turned by <paramref name="by"/>: the level after.</summary>
+    public double? ChangeVolume(double by) => engine.ChangeVolume(by);
     private readonly DispatcherTimer clock = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private JellyfinClient? client;
 

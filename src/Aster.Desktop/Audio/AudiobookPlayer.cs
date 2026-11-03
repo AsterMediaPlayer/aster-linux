@@ -21,6 +21,9 @@ public sealed partial class AudiobookPlayer : ObservableObject, IDisposable
     public const double SkipForwardSeconds = 30;
 
     private readonly AudioEngine engine = new();
+
+    /// <summary>The player's own volume turned by <paramref name="by"/>: the level after.</summary>
+    public double? ChangeVolume(double by) => engine.ChangeVolume(by);
     private readonly DispatcherTimer clock = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private JellyfinClient? client;
     private string playSessionId = Guid.NewGuid().ToString("N");

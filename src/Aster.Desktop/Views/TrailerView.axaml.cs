@@ -25,6 +25,9 @@ public partial class TrailerView : UserControl
     /// <summary>Whether a trailer's player is up: its window takes the focus, but the controller still drives the page.</summary>
     public static bool IsShowing { get; private set; }
 
+    /// <summary>The trailer up now, to tell when it's closed (its page's DataContext may be gone by then).</summary>
+    private TrailerViewModel? showing;
+
     public TrailerView()
     {
         InitializeComponent();
@@ -54,6 +57,8 @@ public partial class TrailerView : UserControl
         player.NavigationCompleted += (_, _) => Dispatcher.UIThread.Post(() => { FillScreen(); Reclaim(); });
         player.NavigateToString(trailer.Html, TrailerViewModel.Origin);
         IsShowing = true;
+        showing = trailer;
+        trailer.Opened();
         player.Show(top);
         Dispatcher.UIThread.Post(() =>
         {
@@ -69,6 +74,8 @@ public partial class TrailerView : UserControl
         var closing = player;
         player = null;
         IsShowing = false;
+        showing?.Closed();
+        showing = null;
         if (closing is not null)
         {
             closing.Close();
@@ -154,6 +161,12 @@ public partial class TrailerView : UserControl
 
     private void OnKey(object? sender, KeyEventArgs e)
     {
+        if (e.Key is Key.VolumeUp or Key.VolumeDown && player is not null)
+        {
+            e.Handled = true;
+            _ = ChangeVolumeAsync(player, e.Key == Key.VolumeUp ? 1 : -1);
+            return;
+        }
         var script = e.Key switch
         {
             Key.Enter or Key.Space or Key.MediaPlayPause => "asterToggle()",
@@ -164,6 +177,18 @@ public partial class TrailerView : UserControl
         if (script is null || player is null) return;
         e.Handled = true;
         _ = Run(player, script);
+    }
+
+    /// <summary>
+    /// The volume keys: the confirmed Sonos's own, as a TV's remote turns it,
+    /// else YouTube's player's; shown on the player's page, which is over
+    /// everything of Aster's.
+    /// </summary>
+    private static async System.Threading.Tasks.Task ChangeVolumeAsync(NativeWebDialog on, int direction)
+    {
+        if (await Aster.Desktop.Audio.SoundbarVolume.ChangeAsync(direction * 2) is var (room, level))
+            await Run(on, $"asterNotice({System.Text.Json.JsonSerializer.Serialize($"{room} volume {level}")})");
+        else await Run(on, $"asterVolume({direction * 10})");
     }
 
     private static async System.Threading.Tasks.Task Run(NativeWebDialog on, string script)

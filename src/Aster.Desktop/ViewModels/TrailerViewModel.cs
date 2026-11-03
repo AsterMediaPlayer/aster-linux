@@ -14,6 +14,30 @@ namespace Aster.Desktop.ViewModels;
 /// </summary>
 public sealed partial class TrailerViewModel(INavigator navigator, string youTubeId, string title) : ViewModelBase
 {
+    private bool resumeBook, resumeMusic;
+
+    /// <summary>
+    /// Up: Aster's own sound waits, as for a video, since nothing says when
+    /// YouTube's player is sounding. The song or book pauses (remembering
+    /// which was playing) and the page's theme falls silent.
+    /// </summary>
+    public void Opened()
+    {
+        resumeBook = navigator.Audio.Books.IsPlaying;
+        resumeMusic = navigator.Audio.Music.IsPlaying;
+        navigator.Audio.Pause();
+        navigator.Theme.Suspend();
+    }
+
+    /// <summary>Closed: what was playing as it opened carries on, and the page's theme.</summary>
+    public void Closed()
+    {
+        navigator.Theme.Resume();
+        if (resumeBook) navigator.Audio.Books.Resume();
+        else if (resumeMusic) navigator.Audio.Music.Resume();
+        resumeBook = resumeMusic = false;
+    }
+
     public string Title => title;
 
     /// <summary>YouTube wants to know which site embeds it (it refuses to play without), so the page is given Aster's own.</summary>
@@ -51,6 +75,19 @@ public sealed partial class TrailerViewModel(INavigator navigator, string youTub
                 function asterPlay() { send('playVideo'); }
                 function asterToggle() { send(state === 1 ? 'pauseVideo' : 'playVideo'); }
                 function asterSkip(seconds) { time = Math.max(0, time + seconds); send('seekTo', [time, true]); }
+                // The volume: YouTube's player's own (from full), and a moment's note of it.
+                var volume = 100, noticeTimer = 0;
+                function asterVolume(by) { volume = Math.max(0, Math.min(100, volume + by)); send('setVolume', [volume]); if (volume > 0) send('unMute'); asterNotice('Volume ' + volume + '%'); }
+                function asterNotice(text) {
+                  var note = document.getElementById('aster-notice');
+                  if (!note) {
+                    note = document.createElement('div'); note.id = 'aster-notice';
+                    note.style.cssText = 'position:fixed;top:32px;left:50%;transform:translateX(-50%);z-index:9;padding:10px 24px;border-radius:20px;background:rgba(32,32,32,.85);color:#fff;font:600 22px system-ui,sans-serif;pointer-events:none';
+                    document.body.appendChild(note);
+                  }
+                  note.textContent = text; note.style.display = 'block';
+                  clearTimeout(noticeTimer); noticeTimer = setTimeout(function () { note.style.display = 'none'; }, 1500);
+                }
                 // Full screen, the player's window has the keyboard: its keys, as the page's.
                 document.addEventListener('keydown', function (e) {
                   if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'BrowserBack' || (e.altKey && e.key === 'ArrowLeft')) {
