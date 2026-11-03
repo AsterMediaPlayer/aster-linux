@@ -34,19 +34,34 @@ public sealed partial class TrailerViewModel(INavigator navigator, string youTub
                         allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen
                         referrerpolicy="strict-origin-when-cross-origin"></iframe>
                 <script>
-                var state = -1, time = 0, player = document.getElementById('player');
+                var state = -1, time = 0, started = false, player = document.getElementById('player');
                 function send(func, args) { player.contentWindow.postMessage(JSON.stringify({event: 'command', func: func, args: args || []}), '*'); }
                 player.addEventListener('load', function () { player.contentWindow.postMessage(JSON.stringify({event: 'listening'}), '*'); });
                 window.addEventListener('message', function (e) {
                   try {
                     var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
                     var info = data && data.info;
+                    // Ready, Aster's told, to play it: WebKit plays it with its sound only for a
+                    // click, or for a script Aster runs, not for autoplay or the page's own.
+                    if (data && data.event === 'onReady' && !started) { started = true; if (typeof invokeCSharpAction === 'function') invokeCSharpAction('ready'); }
                     if (info && typeof info.playerState === 'number') state = info.playerState;
                     if (info && typeof info.currentTime === 'number') time = info.currentTime;
                   } catch (_) {}
                 });
+                function asterPlay() { send('playVideo'); }
                 function asterToggle() { send(state === 1 ? 'pauseVideo' : 'playVideo'); }
                 function asterSkip(seconds) { time = Math.max(0, time + seconds); send('seekTo', [time, true]); }
+                // Full screen, the player's window has the keyboard: its keys, as the page's.
+                document.addEventListener('keydown', function (e) {
+                  if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'BrowserBack' || (e.altKey && e.key === 'ArrowLeft')) {
+                    if (typeof invokeCSharpAction === 'function') invokeCSharpAction('back');
+                  }
+                  else if (e.key === 'Enter' || e.key === ' ' || e.key === 'k' || e.key === 'MediaPlayPause') asterToggle();
+                  else if (e.key === 'ArrowLeft' || e.key === 'j') asterSkip(-10);
+                  else if (e.key === 'ArrowRight' || e.key === 'l') asterSkip(10);
+                  else return;
+                  e.preventDefault();
+                });
                 </script>
                 </body></html>
                 """;

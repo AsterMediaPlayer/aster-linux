@@ -333,8 +333,9 @@ public sealed unsafe class Gamepads : IDisposable
     private void Send(Key key) => Dispatcher.UIThread.Post(() =>
     {
         // A couch session's one window is the screen, so it always hears the
-        // controller, whether or not gamescope says it's focused.
-        if (!window.IsActive && !Aster.Desktop.Controls.FullScreen.Pinned) return;
+        // controller, whether or not gamescope says it's focused; so does one
+        // with a trailer's player window over it, which takes the focus.
+        if (!window.IsActive && !Aster.Desktop.Controls.FullScreen.Pinned && !Aster.Desktop.Views.TrailerView.IsShowing) return;
         var target = window.FocusManager?.GetFocusedElement() as Interactive ?? window;
         // In a menu (a popup's own, its keys never pass the window), B is
         // Esc, which shuts it, as a menu's Back should.
