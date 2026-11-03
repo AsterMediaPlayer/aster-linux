@@ -12,6 +12,7 @@ anywhere else gets these, with no change to the XAML.
     python make-icon-font.py <folder with FluentSystemIcons-Regular/Filled .ttf and .json>
 
 A new icon in the app needs a line in ICONS, and this run again.
+`python make-icon-font.py --center <font.ttf>...` centres fonts already made.
 """
 
 import json
@@ -77,6 +78,32 @@ FILLED = {
 }
 
 
+def center(font):
+    """Each icon's drawing centred across its advance, as Segoe's are.
+
+    Fluent's drawings sit at the left of their 500-unit advance (pause's ink
+    spans 0..334), and the XAML centres an icon by its advance, so on Linux
+    every icon stood left of where it was put: the Now Playing pause button's
+    by 7.5 screen pixels. Vertical placement is left as it is.
+    """
+    glyf, hmtx = font["glyf"], font["hmtx"]
+    for name in font.getGlyphOrder():
+        glyph = glyf[name]
+        if glyph.numberOfContours == 0:
+            continue
+        glyph.recalcBounds(glyf)
+        advance, _ = hmtx[name]
+        shift = round((advance - (glyph.xMax - glyph.xMin)) / 2 - glyph.xMin)
+        if shift:
+            if glyph.isComposite():
+                for component in glyph.components:
+                    component.x += shift
+            else:
+                glyph.coordinates.translate((shift, 0))
+            glyph.recalcBounds(glyf)
+        hmtx[name] = (advance, glyph.xMin)
+
+
 def build(source, names, style, family, destination):
     font = TTFont(os.path.join(source, f"FluentSystemIcons-{style}.ttf"))
     codes = json.load(open(os.path.join(source, f"FluentSystemIcons-{style}.json"), encoding="utf-8"))
@@ -112,11 +139,19 @@ def build(source, names, style, family, destination):
             record.string = family.replace(" ", "")
         elif record.nameID in (2, 17):
             record.string = "Regular"
+    center(font)
     font.save(destination)
     print(f"{destination}: {len(glyphs)} icons")
 
 
 def main():
+    if sys.argv[1] == "--center":
+        for path in sys.argv[2:]:
+            font = TTFont(path)
+            center(font)
+            font.save(path)
+            print(f"{path}: centred")
+        return
     source = sys.argv[1]
     out = os.path.join(os.path.dirname(__file__), "..", "src", "Aster.Desktop", "Assets", "Fonts")
     os.makedirs(out, exist_ok=True)
