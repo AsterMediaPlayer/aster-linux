@@ -333,6 +333,9 @@
                                     <MenuFlyout ItemsSource="{Binding SubtitleChoices}" ItemContainerTheme="{StaticResource ChoiceItem}" />
                                 </Button.Flyout>
                             </Button>
+                            <!-- Passthrough the TV didn't hand on to its soundbar: playing again from here gets it through. -->
+                            <Button Classes="bar" Content="Restart Audio" Command="{Binding RestartAudioCommand}" IsVisible="{Binding CanRestartAudio}"
+                                    ToolTip.Tip="No sound? Starts the sound again from here" />
                             <Button Classes="bar" Content="Speed" IsVisible="{Binding HasTimeline}">
                                 <Button.Flyout>
                                     <MenuFlyout ItemsSource="{Binding SpeedChoices}" ItemContainerTheme="{StaticResource ChoiceItem}" />

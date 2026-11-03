@@ -30,6 +30,13 @@ public sealed record AppSettings
     public bool AudioPassthrough { get; init; }
 
     /// <summary>
+    /// The Sonos (its RINCON_ id) the volume last went to in passthrough: the
+    /// one chosen again when two are on their TV inputs at once. Found by
+    /// itself, not set by hand. This computer's own: not synced.
+    /// </summary>
+    public string? SonosSpeaker { get; init; }
+
+    /// <summary>
     /// A video's sound brought to an even, game-like loudness as it plays
     /// (ffmpeg's loudnorm, about -16 LUFS), so TV mastered near -24 isn't
     /// far quieter than games and quiet scenes come up. Its channels stay as
