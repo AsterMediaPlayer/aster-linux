@@ -292,7 +292,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
             (AppTab.Audiobooks, "Audiobooks", ""),
             (AppTab.Discover, "Discover", "\uE734"),
             (AppTab.LiveTV, "Live TV", ""),
-            (AppTab.Channels, "Channels (Beta)", ""),
+            (AppTab.Channels, "Channels", ""),
             (AppTab.Library, "Library", ""),
             // At the foot, as on the Apple TV.
             (AppTab.Settings, "Settings", ""),

@@ -97,7 +97,7 @@ public sealed partial class EditChannelsViewModel : ViewModelBase, IRefreshable
         _ = LoadAsync();
     }
 
-    public string Title => only is not null && Channels.FirstOrDefault(c => c.Playlist.Id == only) is { Playlist: not null } channel ? NameOf(channel) : "Channels (Beta)";
+    public string Title => only is not null && Channels.FirstOrDefault(c => c.Playlist.Id == only) is { Playlist: not null } channel ? NameOf(channel) : "Channels";
 
     [ObservableProperty] public partial IReadOnlyList<EditRow> Rows { get; private set; } = [];
     [ObservableProperty] public partial string? Message { get; private set; }

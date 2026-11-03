@@ -45,7 +45,7 @@
                 <DockPanel>
                     <TextBlock Classes="chevron" />
                     <TextBlock Classes="icon" Text="&#xE714;" />
-                    <TextBlock Text="Channels (Beta)" VerticalAlignment="Center" />
+                    <TextBlock Text="Channels" VerticalAlignment="Center" />
                 </DockPanel>
             </Button>
             <Button Classes="row" Command="{Binding OpenRequestsCommand}">

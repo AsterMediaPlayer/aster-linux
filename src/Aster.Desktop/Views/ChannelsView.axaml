@@ -12,7 +12,7 @@
                     <TextBlock Text="Edit Channels" />
                 </StackPanel>
             </Button>
-            <TextBlock Text="Channels (Beta)" FontSize="32" FontWeight="Bold" />
+            <TextBlock Text="Channels" FontSize="32" FontWeight="Bold" />
         </DockPanel>
         <ContentControl Content="{Binding Guide}" />
     </DockPanel>
