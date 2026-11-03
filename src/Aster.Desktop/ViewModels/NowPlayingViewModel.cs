@@ -57,7 +57,14 @@ public sealed partial class NowPlayingViewModel : ObservableObject
     public async void ChangeVolume(int direction)
     {
         string? notice;
-        if (await SoundbarVolume.ChangeAsync(direction * 2) is var (room, level)) notice = $"{room} volume {level}";
+        if (Audio.Speakers is { } speakers)
+        {
+            // Playing on Sonos rooms: the group's volume, as the Sonos app's group slider.
+            notice = await speakers.ChangeGroupVolumeAsync(direction * 2) is { } group ? $"{speakers.Name} volume {group}" : null;
+            // Play On's sliders move with it at once, not at the next reading.
+            if (IsChoosingSpeakers) _ = RefreshSpeakerVolumesAsync();
+        }
+        else if (await SoundbarVolume.ChangeAsync(direction * 2) is var (room, level)) notice = $"{room} volume {level}";
         else
         {
             var own = Books.Book is not null && !Music.IsPlaying ? Books.ChangeVolume(direction * 5) : Music.ChangeVolume(direction * 5);
@@ -75,6 +82,101 @@ public sealed partial class NowPlayingViewModel : ObservableObject
     {
         noticeTimer.Stop();
         VolumeNotice = null;
+    }
+
+    // ---- Where it plays: this computer, or Sonos rooms ----
+
+    [ObservableProperty] public partial System.Collections.Generic.IReadOnlyList<SpeakerChoice> SpeakerChoices { get; private set; } = [];
+
+    [ObservableProperty] public partial bool IsFindingSpeakers { get; private set; }
+
+    [ObservableProperty] public partial string? SpeakersMessage { get; private set; }
+
+    /// <summary>Play On is open over the player.</summary>
+    [ObservableProperty] public partial bool IsChoosingSpeakers { get; private set; }
+
+    [RelayCommand] public void CloseSpeakers() => IsChoosingSpeakers = false;
+
+    /// <summary>While Play On is open: the chosen rooms' volumes read again each second, so its sliders follow every change.</summary>
+    private readonly Avalonia.Threading.DispatcherTimer speakerVolumes = new() { Interval = TimeSpan.FromSeconds(1) };
+    private bool readingVolumes;
+
+    partial void OnIsChoosingSpeakersChanged(bool value)
+    {
+        speakerVolumes.Tick -= ReadSpeakerVolumes;
+        if (!value)
+        {
+            speakerVolumes.Stop();
+            return;
+        }
+        speakerVolumes.Tick += ReadSpeakerVolumes;
+        speakerVolumes.Start();
+    }
+
+    private void ReadSpeakerVolumes(object? sender, EventArgs e) => _ = RefreshSpeakerVolumesAsync();
+
+    /// <summary>The chosen rooms' sliders set to what each speaker says now.</summary>
+    private async System.Threading.Tasks.Task RefreshSpeakerVolumesAsync()
+    {
+        if (readingVolumes || !IsChoosingSpeakers) return;
+        readingVolumes = true;
+        try
+        {
+            var rows = SpeakerChoices.Where(r => r.Room is not null && r.ShowsVolume).ToList();
+            var levels = await System.Threading.Tasks.Task.WhenAll(rows.Select(r => Sonos.VolumeAsync(r.Room!.Speaker)));
+            for (var i = 0; i < rows.Count; i++)
+            {
+                if (levels[i] is { } level) rows[i].ShowVolume(level);
+            }
+        }
+        finally { readingVolumes = false; }
+    }
+
+    /// <summary>The picker opened: this computer and each Sonos room, with what's chosen ticked, which rooms are playing their TV, and each room's volume.</summary>
+    [RelayCommand]
+    private async System.Threading.Tasks.Task OpenSpeakers()
+    {
+        IsChoosingSpeakers = true;
+        IsFindingSpeakers = true;
+        SpeakersMessage = null;
+        var rooms = await Sonos.RoomsAsync();
+        var chosen = Audio.Speakers?.Rooms.Select(r => r.Id).ToHashSet() ?? [];
+        var details = await System.Threading.Tasks.Task.WhenAll(rooms.Select(async room =>
+            (Room: room, OnTv: await Sonos.IsOnTvInputAsync(room.Speaker), Volume: await Sonos.VolumeAsync(room.Speaker))));
+        var choices = new System.Collections.Generic.List<SpeakerChoice> { new("This computer", null, chosen.Count == 0, false, null, SpeakerToggled) };
+        choices.AddRange(details.Select(d => new SpeakerChoice(d.Room.Name, d.Room, chosen.Contains(d.Room.Id), d.OnTv && !chosen.Contains(d.Room.Id), d.Volume, SpeakerToggled)));
+        SpeakerChoices = choices;
+        SpeakersMessage = rooms.Count == 0 ? "No Sonos speakers found on this network." : null;
+        IsFindingSpeakers = false;
+    }
+
+    /// <summary>
+    /// A row chosen: this computer on its own, or a room ticked or unticked
+    /// (one playing its TV asks first). The group follows at once, leading
+    /// with the room that led before, so what's playing doesn't move needlessly.
+    /// </summary>
+    private async void SpeakerToggled(SpeakerChoice choice)
+    {
+        if (choice.Room is null)
+        {
+            foreach (var row in SpeakerChoices) row.IsSelected = row.Room is null;
+        }
+        else
+        {
+            if (!choice.IsSelected && choice.IsOnTv && !choice.IsAsking)
+            {
+                choice.IsAsking = true;
+                return;
+            }
+            choice.IsAsking = false;
+            choice.IsSelected = !choice.IsSelected;
+            var anyRoom = SpeakerChoices.Any(r => r.Room is not null && r.IsSelected);
+            foreach (var row in SpeakerChoices.Where(r => r.Room is null)) row.IsSelected = !anyRoom;
+        }
+        var before = Audio.Speakers?.Rooms.Select(r => r.Id).ToList() ?? [];
+        var rooms = SpeakerChoices.Where(r => r.Room is not null && r.IsSelected).Select(r => r.Room!)
+            .OrderBy(r => before.IndexOf(r.Id) is var at && at >= 0 ? at : int.MaxValue).ToList();
+        await Audio.UseSpeakersAsync(rooms);
     }
     public MusicPlayer Music => Audio.Music;
     public AudiobookPlayer Books => Audio.Books;

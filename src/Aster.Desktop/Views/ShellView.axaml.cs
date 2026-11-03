@@ -297,6 +297,25 @@ public partial class ShellView : UserControl
             // Right, to seek. Left with nothing further left slides the sidebar
             // out over the player, as over a page; Right or Back from the
             // sidebar comes back to it, a tab chosen there puts it away.
+            // Play On open over the player: the arrows stay in it (a volume bar keeps Left and Right),
+            // B closes it; Y opens it from anywhere in the player.
+            case Key.Left or Key.Right or Key.Up or Key.Down when shell.NowPlaying.IsShown && shell.NowPlaying.IsChoosingSpeakers:
+                if (NowPlayingPanel.GetVisualDescendants().OfType<Control>().FirstOrDefault(c => c.Name == "SpeakerSheet") is { } sheet)
+                {
+                    if (focused is null || !KeyFocus.IsWithin(focused, sheet)) { if (KeyFocus.FirstIn(sheet) is { } first) KeyFocus.Move(first); }
+                    else if (focused is Slider && e.Key is Key.Left or Key.Right) return;
+                    else if (Neighbor(sheet, focused, e.Key) is { } near) KeyFocus.Move(near);
+                }
+                e.Handled = true;
+                break;
+            case Key.Escape or Key.BrowserBack when shell.NowPlaying.IsShown && shell.NowPlaying.IsChoosingSpeakers:
+                shell.NowPlaying.CloseSpeakers();
+                e.Handled = true;
+                break;
+            case Key.MediaMenu when shell.NowPlaying.IsShown && !shell.NowPlaying.IsChoosingSpeakers:
+                shell.NowPlaying.OpenSpeakersCommand.Execute(null);
+                e.Handled = true;
+                break;
             case Key.Left or Key.Right or Key.Up or Key.Down when shell.NowPlaying.IsShown && !shell.IsSidebarOpen:
                 if (!inPlayer) { if (PlayerStart() is { } start) KeyFocus.Move(start); }
                 else if (focused is Slider && e.Key is Key.Left or Key.Right) return;

@@ -22,9 +22,25 @@ public sealed partial class AudioSession : ObservableObject, IDisposable
     public AudioSession(IMediaServer client)
     {
         this.client = client;
-        // Starting one stops the other.
-        Music.Starting += () => Books.Stop();
-        Books.Starting += () => Music.Stop();
+        // Starting one stops the other; the one starting takes the chosen speakers.
+        Music.Starting += () =>
+        {
+            Books.Stop();
+            if (Speakers is not null)
+            {
+                Books.UseOutput(null, carryOn: false);
+                Music.UseOutput(Speakers, carryOn: false);
+            }
+        };
+        Books.Starting += () =>
+        {
+            Music.Stop();
+            if (Speakers is not null)
+            {
+                Music.UseOutput(null, carryOn: false);
+                Books.UseOutput(Speakers, carryOn: false);
+            }
+        };
         // Playing a book or songs opens the player, whichever page they were played from.
         Books.Played += () => IsNowPlayingShown = IsLoaded;
         Music.Played += () => IsNowPlayingShown = IsLoaded;
@@ -35,6 +51,40 @@ public sealed partial class AudioSession : ObservableObject, IDisposable
 
     /// <summary>Pauses the song or book after a while, or at the end of the song or chapter.</summary>
     public SleepTimer Sleep { get; }
+
+    // ---- Sonos rooms ----
+
+    /// <summary>The Sonos rooms songs and books play on, grouped; null for this computer.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsOnSpeakers), nameof(SpeakersName))]
+    public partial SonosOutput? Speakers { get; private set; }
+
+    public bool IsOnSpeakers => Speakers is not null;
+
+    /// <summary>"This computer", "Kitchen", or "Kitchen + 2".</summary>
+    public string SpeakersName => Speakers?.Name ?? "This computer";
+
+    /// <summary>
+    /// Plays on <paramref name="rooms"/> from now on (none: this computer),
+    /// the first leading the group. What's playing carries on there from where
+    /// it was. Rooms no longer chosen leave the group; the old group's music
+    /// stops unless its lead plays on in the new one.
+    /// </summary>
+    public async System.Threading.Tasks.Task UseSpeakersAsync(System.Collections.Generic.IReadOnlyList<Aster.Core.Audio.SonosRoom> rooms)
+    {
+        var previous = Speakers;
+        var next = rooms.Count == 0 ? null : new SonosOutput(rooms);
+        if (next is not null) await next.GroupAsync();
+        Speakers = next;
+        var book = Books.Book is not null;
+        Books.UseOutput(book ? next : null);
+        Music.UseOutput(book ? null : next);
+        if (previous is not null)
+        {
+            await previous.ReleaseAsync(rooms.Select(r => r.Id).ToHashSet());
+            previous.Dispose();
+        }
+    }
 
     // ---- The system's media controls ----
 

@@ -1053,6 +1053,17 @@ public sealed class JellyfinClient : IMediaServer, Channels.IChannelServer
             ["enableRemoteMedia"] = "false",
         });
 
+    /// <summary>
+    /// A stream a Sonos speaker fetches and plays itself: the file as it is,
+    /// at an address ending in an extension Sonos knows (it refuses one it
+    /// can't place, as /universal), for a format Sonos plays; else an MP3.
+    /// The token's in the address, as the speaker can't sign in.
+    /// </summary>
+    public Uri SonosAudioUrl(string itemId, string? container) =>
+        Aster.Core.Audio.Sonos.Extension(container) is { } extension
+            ? TokenUrl($"/Audio/{itemId}/stream.{extension}", new() { ["static"] = "true" })
+            : TokenUrl($"/Audio/{itemId}/stream.mp3", new() { ["audioCodec"] = "mp3", ["audioBitRate"] = "320000" });
+
     /// <summary>A path the server gave (a transcode playlist, say) made absolute on this server.</summary>
     public Uri? AbsoluteUrl(string serverRelative)
     {

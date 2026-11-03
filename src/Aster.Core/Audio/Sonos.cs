@@ -15,6 +15,15 @@ namespace Aster.Core.Audio;
 /// <summary>A Sonos speaker on the network: its id (RINCON_…), its room, and where to reach it.</summary>
 public sealed record SonosSpeaker(string Id, string Room, IPAddress Address);
 
+/// <summary>What a track is, for a speaker's display and the Sonos app's.</summary>
+public sealed record SonosTrack(string Title, string? Artist, string? Album, Uri? Art, bool IsBook = false);
+
+/// <summary>A room as Sonos groups them: its speaker (a home theatre's soundbar, not its surrounds) and the group it's in.</summary>
+public sealed record SonosRoom(string Id, string Name, IPAddress Address, string Coordinator)
+{
+    public SonosSpeaker Speaker => new(Id, Name, Address);
+}
+
 /// <summary>
 /// A Sonos home-theatre speaker's volume, for passthrough: a Dolby or DTS
 /// stream sent untouched can't be turned down by the player, only by the
@@ -57,6 +66,171 @@ public static partial class Sonos
             $"<InstanceID>0</InstanceID><Channel>Master</Channel><Adjustment>{by.ToString(CultureInfo.InvariantCulture)}</Adjustment>", ct);
         return reply is not null && Tag(reply, "NewVolume") is { } level && int.TryParse(level, out var volume) ? volume : null;
     }
+
+    // ---- Rooms, groups and playing (Sonos's UPnP, as the Sonos app uses) ----
+
+    /// <summary>Every room, from the first speaker that answers (each knows the whole system), by name.</summary>
+    public static async Task<IReadOnlyList<SonosRoom>> RoomsAsync(CancellationToken ct = default)
+    {
+        foreach (var speaker in await DiscoverAsync(TimeSpan.FromSeconds(2), ct))
+        {
+            var reply = await SoapAsync(speaker, "ZoneGroupTopology", "GetZoneGroupState", "", ct, "/ZoneGroupTopology/Control");
+            if (reply is not null && Tag(reply, "ZoneGroupState") is { } state) return Rooms(WebUtility.HtmlDecode(state));
+        }
+        return [];
+    }
+
+    /// <summary>
+    /// The rooms in a ZoneGroupState: each visible ZoneGroupMember (a bonded
+    /// surround or sub is a Satellite, and hidden members are Invisible),
+    /// with its group's coordinator.
+    /// </summary>
+    internal static IReadOnlyList<SonosRoom> Rooms(string zoneGroupState)
+    {
+        var rooms = new List<SonosRoom>();
+        foreach (Match group in ZoneGroup().Matches(zoneGroupState))
+        {
+            var coordinator = group.Groups[1].Value;
+            foreach (Match member in ZoneGroupMember().Matches(group.Groups[2].Value))
+            {
+                var attributes = new Dictionary<string, string>();
+                foreach (Match attribute in Attribute().Matches(member.Groups[1].Value)) attributes[attribute.Groups[1].Value] = WebUtility.HtmlDecode(attribute.Groups[2].Value);
+                if (attributes.GetValueOrDefault("Invisible") == "1") continue;
+                if (attributes.GetValueOrDefault("UUID") is not { } id || attributes.GetValueOrDefault("ZoneName") is not { } name) continue;
+                if (!Uri.TryCreate(attributes.GetValueOrDefault("Location"), UriKind.Absolute, out var location) || !IPAddress.TryParse(location.Host, out var address)) continue;
+                rooms.Add(new SonosRoom(id, name, address, coordinator));
+            }
+        }
+        return [.. rooms.OrderBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase)];
+    }
+
+    /// <summary>Whether <paramref name="speaker"/> is playing its own TV input (a soundbar the TV is sounding through).</summary>
+    public static async Task<bool> IsOnTvInputAsync(SonosSpeaker speaker, CancellationToken ct = default) =>
+        IsOwnTvInput(await CurrentUriAsync(speaker, ct), speaker.Id);
+
+    /// <summary>Hands <paramref name="uri"/> to <paramref name="coordinator"/>'s group, with what it is for the speakers' own display.</summary>
+    public static async Task<bool> PlayUriAsync(SonosSpeaker coordinator, Uri uri, SonosTrack track, CancellationToken ct = default) =>
+        await SoapAsync(coordinator, "AVTransport", "SetAVTransportURI",
+            $"<InstanceID>0</InstanceID><CurrentURI>{Escape(uri.AbsoluteUri)}</CurrentURI><CurrentURIMetaData>{Escape(Didl(uri, track))}</CurrentURIMetaData>", ct) is not null;
+
+    public static async Task<bool> PlayAsync(SonosSpeaker coordinator, CancellationToken ct = default) =>
+        await SoapAsync(coordinator, "AVTransport", "Play", "<InstanceID>0</InstanceID><Speed>1</Speed>", ct) is not null;
+
+    public static async Task<bool> PauseAsync(SonosSpeaker coordinator, CancellationToken ct = default) =>
+        await SoapAsync(coordinator, "AVTransport", "Pause", "<InstanceID>0</InstanceID>", ct) is not null;
+
+    public static async Task<bool> StopAsync(SonosSpeaker coordinator, CancellationToken ct = default) =>
+        await SoapAsync(coordinator, "AVTransport", "Stop", "<InstanceID>0</InstanceID>", ct) is not null;
+
+    public static async Task<bool> SeekAsync(SonosSpeaker coordinator, double seconds, CancellationToken ct = default) =>
+        await SoapAsync(coordinator, "AVTransport", "Seek", $"<InstanceID>0</InstanceID><Unit>REL_TIME</Unit><Target>{Time(seconds)}</Target>", ct) is not null;
+
+    /// <summary>Where the group's track has got to and its length, in seconds (the length 0 when it doesn't say).</summary>
+    public static async Task<(double Position, double Duration)?> PositionAsync(SonosSpeaker coordinator, CancellationToken ct = default)
+    {
+        var reply = await SoapAsync(coordinator, "AVTransport", "GetPositionInfo", "<InstanceID>0</InstanceID>", ct);
+        if (reply is null || Seconds(Tag(reply, "RelTime")) is not { } position) return null;
+        return (position, Seconds(Tag(reply, "TrackDuration")) ?? 0);
+    }
+
+    /// <summary>PLAYING, PAUSED_PLAYBACK, STOPPED, TRANSITIONING or NO_MEDIA_PRESENT; null when it didn't answer.</summary>
+    public static async Task<string?> TransportStateAsync(SonosSpeaker coordinator, CancellationToken ct = default)
+    {
+        var reply = await SoapAsync(coordinator, "AVTransport", "GetTransportInfo", "<InstanceID>0</InstanceID>", ct);
+        return reply is null ? null : Tag(reply, "CurrentTransportState");
+    }
+
+    /// <summary><paramref name="member"/> joins <paramref name="coordinatorId"/>'s group, to play in sync with it.</summary>
+    public static async Task<bool> JoinAsync(SonosSpeaker member, string coordinatorId, CancellationToken ct = default) =>
+        await SoapAsync(member, "AVTransport", "SetAVTransportURI",
+            $"<InstanceID>0</InstanceID><CurrentURI>x-rincon:{Escape(coordinatorId)}</CurrentURI><CurrentURIMetaData></CurrentURIMetaData>", ct) is not null;
+
+    /// <summary><paramref name="member"/> leaves its group, a room on its own again.</summary>
+    public static async Task<bool> LeaveGroupAsync(SonosSpeaker member, CancellationToken ct = default) =>
+        await SoapAsync(member, "AVTransport", "BecomeCoordinatorOfStandaloneGroup", "<InstanceID>0</InstanceID>", ct) is not null;
+
+    /// <summary>The whole group's volume turned by <paramref name="by"/>, as the Sonos app's group slider: the group's level after.</summary>
+    public static async Task<int?> ChangeGroupVolumeAsync(SonosSpeaker coordinator, int by, CancellationToken ct = default)
+    {
+        var reply = await SoapAsync(coordinator, "GroupRenderingControl", "SetRelativeGroupVolume",
+            $"<InstanceID>0</InstanceID><Adjustment>{by.ToString(CultureInfo.InvariantCulture)}</Adjustment>", ct);
+        return reply is not null && Tag(reply, "NewVolume") is { } level && int.TryParse(level, out var volume) ? volume : null;
+    }
+
+    /// <summary>A room's own volume (0 to 100), or null when it didn't answer.</summary>
+    public static async Task<int?> VolumeAsync(SonosSpeaker speaker, CancellationToken ct = default)
+    {
+        var reply = await SoapAsync(speaker, "RenderingControl", "GetVolume", "<InstanceID>0</InstanceID><Channel>Master</Channel>", ct);
+        return reply is not null && Tag(reply, "CurrentVolume") is { } level && int.TryParse(level, out var volume) ? volume : null;
+    }
+
+    public static async Task<bool> SetVolumeAsync(SonosSpeaker speaker, int level, CancellationToken ct = default) =>
+        await SoapAsync(speaker, "RenderingControl", "SetVolume",
+            $"<InstanceID>0</InstanceID><Channel>Master</Channel><DesiredVolume>{Math.Clamp(level, 0, 100).ToString(CultureInfo.InvariantCulture)}</DesiredVolume>", ct) is not null;
+
+    /// <summary>
+    /// The extension a Sonos speaker knows a file by, for a container as the
+    /// server names it (sometimes a list: "mov,mp4,m4a,3gp,3g2,mj2"): a
+    /// speaker tells what it's handed from its address, and refuses one it
+    /// can't place (UPnP error 714). Null for a format Sonos doesn't play.
+    /// </summary>
+    public static string? Extension(string? container)
+    {
+        if (container is null) return null;
+        var names = container.ToLowerInvariant().Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (names.Contains("flac")) return "flac";
+        if (names.Contains("mp3")) return "mp3";
+        if (names.Intersect(["m4a", "m4b", "mp4", "aac", "alac"]).Any()) return "m4a";
+        if (names.Intersect(["ogg", "oga"]).Any()) return "ogg";
+        if (names.Contains("wav")) return "wav";
+        if (names.Intersect(["aiff", "aif"]).Any()) return "aiff";
+        return null;
+    }
+
+    /// <summary>h:mm:ss, as Sonos's times are written.</summary>
+    internal static string Time(double seconds)
+    {
+        var whole = (long)Math.Max(0, Math.Round(seconds));
+        return $"{whole / 3600}:{whole / 60 % 60:00}:{whole % 60:00}";
+    }
+
+    /// <summary>Seconds from Sonos's h:mm:ss, or null for NOT_IMPLEMENTED and the like.</summary>
+    internal static double? Seconds(string? time)
+    {
+        if (time is null) return null;
+        var parts = time.Split(':');
+        if (parts.Length != 3 || !int.TryParse(parts[0], out var h) || !int.TryParse(parts[1], out var m)
+            || !double.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var s)) return null;
+        return h * 3600 + m * 60 + s;
+    }
+
+    /// <summary>The DIDL-Lite a speaker shows (and the Sonos app) for a track it's handed.</summary>
+    internal static string Didl(Uri uri, SonosTrack track)
+    {
+        var item = new StringBuilder();
+        item.Append("<DIDL-Lite xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" ");
+        item.Append("xmlns:r=\"urn:schemas-rinconnetworks-com:metadata-1-0/\" xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\">");
+        item.Append("<item id=\"-1\" parentID=\"-1\" restricted=\"true\">");
+        item.Append($"<res protocolInfo=\"http-get:*:*:*\">{Escape(uri.AbsoluteUri)}</res>");
+        item.Append($"<dc:title>{Escape(track.Title)}</dc:title>");
+        item.Append($"<upnp:class>{(track.IsBook ? "object.item.audioItem.audioBook" : "object.item.audioItem.musicTrack")}</upnp:class>");
+        if (track.Artist is { } artist) item.Append($"<dc:creator>{Escape(artist)}</dc:creator>");
+        if (track.Album is { } album) item.Append($"<upnp:album>{Escape(album)}</upnp:album>");
+        if (track.Art is { } art) item.Append($"<upnp:albumArtURI>{Escape(art.AbsoluteUri)}</upnp:albumArtURI>");
+        item.Append("</item></DIDL-Lite>");
+        return item.ToString();
+    }
+
+    private static string Escape(string text) => System.Security.SecurityElement.Escape(text) ?? "";
+
+    [GeneratedRegex(@"<ZoneGroup Coordinator=""([^""]+)""[^>]*>(.*?)</ZoneGroup>", RegexOptions.Singleline)]
+    private static partial Regex ZoneGroup();
+
+    [GeneratedRegex(@"<ZoneGroupMember ([^>]*?)/?>")]
+    private static partial Regex ZoneGroupMember();
+
+    [GeneratedRegex(@"(\w+)=""([^""]*)""")]
+    private static partial Regex Attribute();
 
     /// <summary>
     /// Whether sound is coming in on <paramref name="speaker"/>'s TV input:
