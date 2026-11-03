@@ -303,7 +303,7 @@ public partial class ShellView : UserControl
                 if (NowPlayingPanel.GetVisualDescendants().OfType<Control>().FirstOrDefault(c => c.Name == "SpeakerSheet") is { } sheet)
                 {
                     if (focused is null || !KeyFocus.IsWithin(focused, sheet)) { if (KeyFocus.FirstIn(sheet) is { } first) KeyFocus.Move(first); }
-                    else if (focused is Slider && e.Key is Key.Left or Key.Right) return;
+                    else if (focused is Slider bar && e.Key is Key.Left or Key.Right) Slide(bar, e.Key == Key.Right ? 1 : -1);
                     else if (Neighbor(sheet, focused, e.Key) is { } near) KeyFocus.Move(near);
                 }
                 e.Handled = true;
@@ -318,7 +318,7 @@ public partial class ShellView : UserControl
                 break;
             case Key.Left or Key.Right or Key.Up or Key.Down when shell.NowPlaying.IsShown && !shell.IsSidebarOpen:
                 if (!inPlayer) { if (PlayerStart() is { } start) KeyFocus.Move(start); }
-                else if (focused is Slider && e.Key is Key.Left or Key.Right) return;
+                else if (focused is Slider bar && e.Key is Key.Left or Key.Right) Slide(bar, e.Key == Key.Right ? 1 : -1);
                 else if (Neighbor(NowPlayingPanel, focused!, e.Key) is { } near) KeyFocus.Move(near);
                 else if (e.Key == Key.Left) OpenWithKeyboard(focused as InputElement);
                 e.Handled = true;
@@ -538,6 +538,17 @@ public partial class ShellView : UserControl
     {
         if (keyboardLast) KeyFocus.Move(target);
         else target.Focus(NavigationMethod.Unspecified);
+    }
+
+    /// <summary>
+    /// Left or Right on a slider: it slides, a fiftieth of its range a press
+    /// (a song's timeline about five seconds, a volume two), not Avalonia's
+    /// one unit, which barely shows. Up and Down still move off it.
+    /// </summary>
+    private static void Slide(Slider bar, int direction)
+    {
+        var step = Math.Max(bar.SmallChange, (bar.Maximum - bar.Minimum) / 50);
+        bar.Value = Math.Clamp(bar.Value + direction * step, bar.Minimum, bar.Maximum);
     }
 
     /// <summary>Focuses the page: where it was left, else its main action or first control.</summary>
