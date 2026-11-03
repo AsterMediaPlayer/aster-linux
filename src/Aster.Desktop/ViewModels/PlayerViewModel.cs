@@ -1290,7 +1290,15 @@ public partial class PlayerViewModel : ViewModelBase
             if (sonosQuestion is { } asked)
             {
                 sonosQuestion = null;
-                Use(by > 0 ? asked[0] : asked[1]);
+                // Two to choose between: up the first, down the second. One offered in place of the
+                // one used before: up takes it, down leaves things as they were.
+                var answer = by > 0 ? asked[0] : asked.Count > 1 ? asked[1] : null;
+                if (answer is null)
+                {
+                    ShowToast("Volume: set it on your receiver or soundbar");
+                    return;
+                }
+                Use(answer);
                 ShowToast($"Volume goes to {sonos!.Room}");
                 return;
             }
@@ -1303,6 +1311,13 @@ public partial class PlayerViewModel : ViewModelBase
                 {
                     sonosQuestion = onTv;
                     ShowToast($"Which Sonos? Volume up: {onTv[0].Room} · Volume down: {onTv[1].Room}");
+                    return;
+                }
+                else if (onTv.Count == 1)
+                {
+                    // The one used before isn't on its TV: this one's asked about, not taken.
+                    sonosQuestion = onTv;
+                    ShowToast($"Use {onTv[0].Room} for volume? Volume up: yes · Volume down: no");
                     return;
                 }
                 else

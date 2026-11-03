@@ -52,12 +52,15 @@ public static partial class Sonos
     }
 
     /// <summary>
-    /// The one to use of those on TV input: the only one, or the one used
-    /// before. Null with several and none used before: two TVs are on, and
-    /// nothing a speaker says tells which this computer is plugged into.
+    /// The one to use of those on TV input: the one used before, when it's
+    /// among them; with none used before, the only one. Null otherwise: two
+    /// TVs are on, and nothing a speaker says tells which this computer is
+    /// plugged into; or the one used before isn't on its TV (taken for music,
+    /// say), and another that is mustn't take its place unasked (the
+    /// bedroom's did once, so the shop's volume keys turned the bedroom).
     /// </summary>
     public static SonosSpeaker? Choose(IReadOnlyList<SonosSpeaker> onTv, string? preferred) =>
-        onTv.FirstOrDefault(s => s.Id == preferred) ?? (onTv.Count == 1 ? onTv[0] : null);
+        preferred is not null ? onTv.FirstOrDefault(s => s.Id == preferred) : onTv.Count == 1 ? onTv[0] : null;
 
     /// <summary>Turns <paramref name="speaker"/> up or down by <paramref name="by"/> (of 100): its volume after, or null when it didn't answer.</summary>
     public static async Task<int?> ChangeVolumeAsync(SonosSpeaker speaker, int by, CancellationToken ct = default)

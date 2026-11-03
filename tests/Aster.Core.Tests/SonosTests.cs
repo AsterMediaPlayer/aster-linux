@@ -105,5 +105,7 @@ public class SonosTests
         Assert.Null(Sonos.Choose([bedroom, shop], "RINCON_GONE"));
         Assert.Equal(shop, Sonos.Choose([shop], null));
         Assert.Null(Sonos.Choose([], "RINCON_B"));
+        // The one used before off its TV: another on its TV doesn't take its place unasked.
+        Assert.Null(Sonos.Choose([bedroom], "RINCON_A"));
     }
 }
