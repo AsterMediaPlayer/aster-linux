@@ -38,6 +38,15 @@ public sealed record AppSettings
     /// </summary>
     public bool EvenVolume { get; init; }
 
+    /// <summary>
+    /// A video's surround sound folded to stereo, the dialogue (the centre)
+    /// at full level in both speakers and the surrounds at -3 dB: clearer and
+    /// louder on a soundbar or TV without rear speakers, as games' stereo is.
+    /// With <see cref="EvenVolume"/>, evened out after the fold, and louder
+    /// (about -13 LUFS) than surround can be. Not with passthrough.
+    /// </summary>
+    public bool StereoMix { get; init; }
+
     /// <summary>ASS and SSA subtitles drawn as styled; off, as plain text at the bottom.</summary>
     public bool StyledSubtitles { get; init; } = true;
 

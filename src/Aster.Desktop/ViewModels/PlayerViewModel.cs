@@ -131,8 +131,16 @@ public partial class PlayerViewModel : ViewModelBase
         };
         // Shows are mastered near -24 LUFS and games near -16: brought to about a game's
         // loudness, peaks held under -1.5 dB. loudnorm works at 192 kHz, so back to 48.
+        // Folded to stereo first (the centre's dialogue at full level in both, the
+        // surrounds at -3 dB), the centre's peaks no longer hold it back: about -13.
+        const string Fold = "aresample=ochl=stereo:clev=1:slev=0.707";
         if (settings.EvenVolume)
-            options["af"] = "lavfi=[loudnorm=I=-16:LRA=11:TP=-1.5,aresample=48000]";
+            options["af"] = settings.StereoMix
+                ? $"lavfi=[{Fold},loudnorm=I=-12:LRA=7:TP=-1,aresample=48000]"
+                : "lavfi=[loudnorm=I=-16:LRA=11:TP=-1.5,aresample=48000]";
+        else if (settings.StereoMix)
+            // The centre at full level can sum past full scale: held just under it.
+            options["af"] = $"lavfi=[{Fold},alimiter=limit=0.89:level=false]";
         if (settings.AudioPassthrough)
         {
             // Dolby and DTS go to the receiver untouched, which decodes them (Atmos and DTS:X

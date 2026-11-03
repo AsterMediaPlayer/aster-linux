@@ -102,6 +102,15 @@
                     <Border Classes="note">
                         <TextBlock Text="Brings a video's sound to an even level as it plays, about as loud as games, so shows and films aren't far quieter than everything else and quiet dialogue comes up. Surround sound stays surround. Starts with the next video you play. Not while surround sound goes to a receiver, which sets its own level." />
                     </Border>
+                    <Button Classes="row" Command="{Binding FlipCommand}" CommandParameter="StereoMix">
+                        <DockPanel>
+                            <TextBlock Classes="value" Text="{Binding StereoMix, Converter={x:Static c:Converters.OnOff}}" />
+                            <TextBlock Text="Mix surround to stereo" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Button>
+                    <Border Classes="note">
+                        <TextBlock Text="Folds a video's surround sound into two channels with the dialogue at full level in both, as games play: clearer and louder on a soundbar or TV without rear speakers. With Even out volume, louder still. Leave it off with rear speakers, which it would leave silent. Starts with the next video you play." />
+                    </Border>
 
                     <TextBlock Classes="section" Text="SURROUND SOUND" />
                     <Button Classes="row" Command="{Binding FlipCommand}" CommandParameter="AudioPassthrough">
