@@ -122,6 +122,19 @@
                     <Border Classes="note">
                         <TextBlock Text="A video's Dolby (including Dolby Atmos) and DTS sound goes over HDMI to your receiver or TV as it is, for it to decode. Use it only when this computer is connected by HDMI to one that decodes them; otherwise there may be no sound. While a video plays, Aster has the sound device to itself on Windows, so other apps go quiet, and the receiver's volume control sets the level. Music and audiobooks aren't affected. On Linux, the HDMI output must allow passthrough (in PipeWire, its Passthrough formats)." />
                     </Border>
+                    <Button Classes="row" AutomationProperties.Name="Sonos for volume">
+                        <DockPanel>
+                            <TextBlock Classes="chevron" />
+                            <TextBlock Classes="value" Text="{Binding SonosName}" />
+                            <TextBlock Text="Sonos for volume" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedRight" ItemsSource="{Binding SonosChoices}" ItemContainerTheme="{StaticResource SettingChoice}" />
+                        </Button.Flyout>
+                    </Button>
+                    <Border Classes="note">
+                        <TextBlock Text="The Sonos soundbar this computer's TV plays through. With surround sound sent to it, the controller's volume turns it, as does music's and audiobooks' while they play here. Found by itself the first time; choose it here if the volume turns the wrong room." />
+                    </Border>
 
                     <TextBlock Classes="section" Text="SUBTITLES" IsVisible="{Binding KeepsLanguages}" />
                     <Button Classes="row" IsEnabled="{Binding HasConfiguration}" IsVisible="{Binding KeepsLanguages}" AutomationProperties.Name="Preferred subtitle language">

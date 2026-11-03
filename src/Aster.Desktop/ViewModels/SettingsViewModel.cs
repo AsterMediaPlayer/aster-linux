@@ -221,7 +221,48 @@ public sealed partial class SettingsViewModel : ViewModelBase
         ThemeCut = ThemeCuts.FirstOrDefault(c => c.Value == settings.ThemeCut) ?? ThemeCuts[0];
         PreferDiscMenu = settings.PreferDiscMenu;
         DiscMenuSounds = settings.DiscMenuSounds;
+        SonosSpeaker = settings.SonosSpeaker;
         showing = false;
+        _ = FindSonosAsync();
+    }
+
+    // ---- The Sonos this computer's TV plays through ----
+
+    /// <summary>The rooms on the network, found as Settings opens.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SonosChoices), nameof(SonosName))]
+    public partial IReadOnlyList<Aster.Core.Audio.SonosRoom> SonosRooms { get; private set; } = [];
+
+    /// <summary>The chosen one's id (RINCON_…), or null for none.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SonosChoices), nameof(SonosName))]
+    public partial string? SonosSpeaker { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SonosName))]
+    public partial bool IsFindingSonos { get; private set; }
+
+    public string SonosName => SonosSpeaker is null ? "None"
+        : SonosRooms.FirstOrDefault(r => r.Id == SonosSpeaker)?.Name ?? (IsFindingSonos ? "Finding…" : "Not found");
+
+    public IReadOnlyList<TrackChoice> SonosChoices =>
+    [
+        new(0, "None", SonosSpeaker is null, new RelayCommand(() => PickSonos(null))),
+        .. SonosRooms.Select((room, i) => new TrackChoice(i + 1, room.Name, room.Id == SonosSpeaker, new RelayCommand(() => PickSonos(room.Id)))),
+    ];
+
+    /// <summary>Chosen here: this computer's own (not synced), as it's this computer's TV.</summary>
+    private void PickSonos(string? id)
+    {
+        SonosSpeaker = id;
+        AppSettings.Save(AppSettings.Current with { SonosSpeaker = id });
+    }
+
+    private async System.Threading.Tasks.Task FindSonosAsync()
+    {
+        IsFindingSonos = true;
+        SonosRooms = await Aster.Core.Audio.Sonos.RoomsAsync();
+        IsFindingSonos = false;
     }
 
     // ---- Audio & Subtitles ----
