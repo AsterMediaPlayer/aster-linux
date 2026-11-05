@@ -13,12 +13,13 @@ namespace Aster.Desktop.ViewModels;
 /// Available…) on it, or for a request, the request's state and who asked.
 /// Opens its request page; one the library has opens the library's page.
 /// </summary>
-public sealed partial class SeerrCard(INavigator navigator, SeerrTitle title, string? badge = null, string? subtitle = null, SeerrRequest? request = null) : ICard
+/// <remarks><paramref name="poster"/>: a picture from elsewhere (a tracking site's), for a title known only by its TMDB id.</remarks>
+public sealed partial class SeerrCard(INavigator navigator, SeerrTitle title, string? badge = null, string? subtitle = null, SeerrRequest? request = null, Uri? poster = null) : ICard
 {
     public SeerrTitle Item => title;
     public SeerrRequest? Request => request;
     public string Key => request is { } asked ? $"request-{asked.Id}" : title.Key;
-    public Uri? Image { get; } = SeerrClient.Image(title.PosterPath, "w342") is { } url ? new Uri(url) : null;
+    public Uri? Image { get; } = poster ?? (SeerrClient.Image(title.PosterPath, "w342") is { } url ? new Uri(url) : null);
     public string Title => title.DisplayTitle;
     public string? Subtitle { get; } = subtitle ?? string.Join(" · ", new[] { title.Year, title.IsMovie ? "Film" : "Series" }.OfType<string>());
     public string? Badge { get; } = badge ?? title.Status.Label();

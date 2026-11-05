@@ -22,7 +22,26 @@ public sealed class SeerrAccounts
     private JsonObject secrets = [];
 
     /// <summary>The account, or null: not signed in, or Seerr ended the session (<see cref="NeedsSignIn"/>).</summary>
-    public SeerrAccount? Account => NeedsSignIn || Stored is not { } stored ? null : reached is { } url ? stored with { Url = url } : stored;
+    public SeerrAccount? Account => !Allowed || NeedsSignIn || Stored is not { } stored ? null : reached is { } url ? stored with { Url = url } : stored;
+
+    /// <summary>
+    /// Whether the server lets Aster's Seerr features show: the Aster Tracking plugin's switch, so a server turns
+    /// them on. Without the plugin they stay off.
+    /// </summary>
+    public bool Allowed { get; private set; } = true;
+
+    /// <summary>Seerr's address as the server's plugin gives it, to start Settings › Requests with.</summary>
+    public Uri? Suggested { get; private set; }
+
+    /// <summary>Takes the server's Aster Tracking switch (null: no plugin, so off).</summary>
+    public void UsePlugin(Aster.Core.Tracking.TrackingFeatures? features)
+    {
+        var allowed = features?.Seerr.Enabled == true;
+        Suggested = features?.Seerr.Url is { } url ? SeerrClient.Address(url) : null;
+        if (allowed == Allowed) return;
+        Allowed = allowed;
+        Changed?.Invoke();
+    }
 
     /// <summary>
     /// Where this computer reaches Seerr, when the synced address won't do:

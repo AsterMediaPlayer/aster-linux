@@ -25,7 +25,7 @@ public sealed partial class SeerrSettingsViewModel : ViewModelBase
     public SeerrSettingsViewModel(INavigator navigator)
     {
         this.navigator = navigator;
-        Address = navigator.Seerr.Stored?.Url.ToString().TrimEnd('/') ?? "";
+        Address = (navigator.Seerr.Stored?.Url ?? navigator.Seerr.Suggested)?.ToString().TrimEnd('/') ?? "";
         navigator.Seerr.Changed += () => Avalonia.Threading.Dispatcher.UIThread.Post(() => OnPropertyChanged(string.Empty));
     }
 

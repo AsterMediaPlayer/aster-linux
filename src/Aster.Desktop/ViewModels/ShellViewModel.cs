@@ -493,6 +493,8 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
 
     private async Task LoadSeerrAsync(JellyfinClient jellyfin)
     {
+        // The server's Aster Tracking plugin decides whether Seerr shows at all.
+        Seerr.UsePlugin(await Aster.Core.Tracking.AsterTracking.FeaturesAsync(jellyfin));
         await Seerr.LoadAsync(jellyfin);
 #if DEBUG
         await Task.Delay(1500);
