@@ -25,14 +25,15 @@ public sealed partial class SeerrSettingsViewModel : ViewModelBase
     public SeerrSettingsViewModel(INavigator navigator)
     {
         this.navigator = navigator;
-        Address = (navigator.Seerr.Stored?.Url ?? navigator.Seerr.Suggested)?.ToString().TrimEnd('/') ?? "";
+        // The server's address first: it's the one used (see SeerrAccounts.Account).
+        Address = (navigator.Seerr.Suggested ?? navigator.Seerr.Stored?.Url)?.ToString().TrimEnd('/') ?? "";
         navigator.Seerr.Changed += () => Avalonia.Threading.Dispatcher.UIThread.Post(() => OnPropertyChanged(string.Empty));
     }
 
     public bool IsSignedIn => navigator.Seerr.Account is not null;
     public bool NeedsSignIn => navigator.Seerr.NeedsSignIn;
     public bool ShowsSignIn => !IsSignedIn;
-    public string SignedInLine => navigator.Seerr.Stored is { } account ? $"Signed in as {account.Name} at {account.Url.Host}{(account.Url.IsDefaultPort ? "" : $":{account.Url.Port}")}" : "";
+    public string SignedInLine => (navigator.Seerr.Account ?? navigator.Seerr.Stored) is { } account ? $"Signed in as {account.Name} at {account.Url.Host}{(account.Url.IsDefaultPort ? "" : $":{account.Url.Port}")}" : "";
 
     [ObservableProperty] public partial string Address { get; set; } = "";
     [ObservableProperty] public partial string UserName { get; set; } = "";

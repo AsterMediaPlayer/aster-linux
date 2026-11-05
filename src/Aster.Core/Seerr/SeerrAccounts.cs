@@ -22,7 +22,14 @@ public sealed class SeerrAccounts
     private JsonObject secrets = [];
 
     /// <summary>The account, or null: not signed in, or Seerr ended the session (<see cref="NeedsSignIn"/>).</summary>
-    public SeerrAccount? Account => !Allowed || NeedsSignIn || Stored is not { } stored ? null : reached is { } url ? stored with { Url = url } : stored;
+    /// <remarks>
+    /// The address is the server's (its Aster Tracking plugin's Seerr address) when it gives one: the server's admin
+    /// knows where Seerr is reached, and a sign-in synced from another device can carry an address this computer can't
+    /// reach (a Tailscale name, say). The Seerr session goes with the sign-in, so it holds at either address.
+    /// </remarks>
+    public SeerrAccount? Account => !Allowed || NeedsSignIn || Stored is not { } stored ? null
+        : Suggested is { } server ? stored with { Url = server }
+        : reached is { } url ? stored with { Url = url } : stored;
 
     /// <summary>
     /// Whether the server lets Aster's Seerr features show: the Aster Tracking plugin's switch, so a server turns
