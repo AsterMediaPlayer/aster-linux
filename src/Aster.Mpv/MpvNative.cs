@@ -53,6 +53,7 @@ internal enum MpvRenderParamType
     OpenGlInitParams = 2,
     OpenGlFbo = 3,
     FlipY = 4,
+    X11Display = 8,
 }
 
 [StructLayout(LayoutKind.Sequential)]

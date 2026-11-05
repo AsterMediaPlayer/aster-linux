@@ -24,6 +24,18 @@ public sealed record TitleRow(string Title, BrowsePageViewModel Page, string? Su
 {
     /// <summary>The page's first row, with no banner above it: it leaves room for the collapsed sidebar's capsule.</summary>
     public bool IsFirst { get; init; }
+
+    /// <summary>
+    /// The sections as one segmented control, centred, without the title
+    /// over them (the capsule names the tab), as the Apple TV app's Discover.
+    /// </summary>
+    public bool Segmented { get; init; }
+
+    /// <summary>Segmented: asked for, or any page with sections (Music's, Audiobooks'), as the Apple TV app's.</summary>
+    private bool IsSegmented => Segmented || Page.HasSections;
+    public bool ShowsTitle => !IsSegmented;
+    public bool ShowsPills => false;
+    public bool ShowsSegments => IsSegmented && Page.HasSections;
 }
 
 /// <summary>A titled row of cards; <see cref="Style"/> says which kind.</summary>
@@ -35,12 +47,41 @@ public sealed record HeadingRow(string Title, bool IsLetter = false) : BrowseRow
 /// <summary>One row of a grid; <see cref="Style"/> says which kind of card.</summary>
 public sealed record CardsRow(IReadOnlyList<object> Cards, CardStyle Style) : BrowseRow
 {
+    /// <summary>Columns across: the cards spread over the page's width, each centred in its column, as the Apple TV app's grids.</summary>
+    public int Columns { get; init; } = 1;
+
     /// <summary>A song, one to a row and the row's full width.</summary>
     public bool IsTrack => Style == CardStyle.Track;
 }
 
 /// <summary>Loading, nothing here, or why it couldn't load.</summary>
 public sealed record StatusRow(string Title, string? Detail = null, bool IsLoading = false) : BrowseRow;
+
+/// <summary>
+/// A day of Upcoming's agenda, as a desk calendar shows it: the weekday,
+/// the date big, the month, how far off; its episodes beside it, wide.
+/// </summary>
+public sealed record AgendaDayRow(string Weekday, string Date, string Month, string Relative, IReadOnlyList<AgendaEntry> Cards) : BrowseRow;
+
+/// <summary>Segmented controls side by side (Requests' state, and whose): each a group of choices, one chosen.</summary>
+public sealed record SegmentRow(IReadOnlyList<IReadOnlyList<Choice>> Groups) : BrowseRow;
+
+/// <summary>
+/// A request in Requests' list: the poster, the title, "2025 · Series ·
+/// Season 1", the state in its colour, and who asked and when.
+/// </summary>
+public sealed record RequestRow(Uri? Poster, string Title, string Meta, string State, Avalonia.Media.IBrush StateColor, string Byline, CommunityToolkit.Mvvm.Input.IRelayCommand Open) : BrowseRow;
+
+/// <summary>A row of filters over a grid (Discover's Movies and Series): switches, and lists to choose from.</summary>
+public sealed record FilterRow(IReadOnlyList<FilterChip> Chips) : BrowseRow;
+
+/// <summary>A filter: a switch (<paramref name="Toggle"/>), or a list whose chosen one it names (<paramref name="Choices"/>).</summary>
+public sealed record FilterChip(string Title, bool IsOn, CommunityToolkit.Mvvm.Input.IRelayCommand? Toggle = null, IReadOnlyList<TrackChoice>? Choices = null, string? Icon = null)
+{
+    public bool HasIcon => Icon is not null;
+    public bool HasChoices => Choices is not null;
+    public bool IsSwitch => Choices is null;
+}
 
 /// <summary>A person's photo, name and biography.</summary>
 public sealed record PersonRow(string Name, Uri? Photo, string? Overview) : BrowseRow;
@@ -86,6 +127,12 @@ public enum CardStyle
 
     /// <summary>A series recording rule.</summary>
     SeriesRule,
+
+    /// <summary>A film or show from Seerr, as a poster.</summary>
+    Seerr,
+
+    /// <summary>A Seerr genre, studio or network, wide.</summary>
+    SeerrTile,
 }
 
 /// <summary>A card a grid can tell apart from the others, so unchanged rows are kept as pages arrive.</summary>
@@ -185,6 +232,15 @@ public abstract partial class BrowsePageViewModel : ViewModelBase, IRefreshable
     /// <summary>Opened over another page, so it has a back arrow (which its title makes room for).</summary>
     public bool IsPushed { get; set; }
 
+    /// <summary>
+    /// A soft slate gradient behind the page rather than black, as the Apple
+    /// TV app's Discover; <see cref="Ambient"/>, when there's one, blurred and
+    /// darkened behind it (Upcoming's focused show).
+    /// </summary>
+    public virtual bool HasAmbientBackground => true;
+
+    [ObservableProperty] public partial Uri? Ambient { get; set; }
+
     /// <summary>The banner's height: the window's, as on Home.</summary>
     [ObservableProperty] public partial double HeroHeight { get; set; } = 700;
 
@@ -279,22 +335,36 @@ public abstract partial class BrowsePageViewModel : ViewModelBase, IRefreshable
     /// <summary>Loads everything above the grid; returns its rows.</summary>
     protected abstract Task<IReadOnlyList<BrowseRow>> LoadTopAsync();
 
+    /// <summary>Loads begun, so a slower earlier one is dropped.</summary>
+    private int loads;
+
+    /// <summary>The page (or a section of it) is loading, its rows not in yet.</summary>
+    public bool IsLoadingPage { get; private set; }
+
     /// <summary>Loads the page, as when first shown or on a new section.</summary>
     protected async Task LoadAsync()
     {
         started = true;
+        // Only the last load asked for shows: a section chosen while another
+        // was loading (Discover's slow rows) mustn't be overwritten by it.
+        var load = ++loads;
+        IsLoadingPage = true;
         if (Rows.Count == 0) Rows.Add(new StatusRow("Loading…", IsLoading: true));
+        IReadOnlyList<BrowseRow> loaded;
         try
         {
-            top = await LoadTopAsync();
+            loaded = await LoadTopAsync();
         }
         catch (Exception error) when (error is JellyfinException or HttpRequestException or TimeoutException)
         {
             if (error is JellyfinException { StatusCode: 401 }) await Navigator.SessionExpiredAsync();
-            top = [new StatusRow("Couldn't load", error.Message)];
+            loaded = [new StatusRow("Couldn't load", error.Message)];
         }
+        if (load != loads) return;
+        top = loaded;
         RebuildTop();
         await ReloadGridAsync();
+        if (load == loads) IsLoadingPage = false;
     }
 
     public virtual void Refresh() => _ = RefreshTopAsync();
@@ -430,7 +500,7 @@ public abstract partial class BrowsePageViewModel : ViewModelBase, IRefreshable
 
     /// <summary>Cards in rows of as many as fit; songs one to a row.</summary>
     private IEnumerable<BrowseRow> CardRows(IEnumerable<object> cards) =>
-        cards.Chunk(GridStyle == CardStyle.Track ? 1 : columns).Select(chunk => new CardsRow(chunk, GridStyle));
+        cards.Chunk(GridStyle == CardStyle.Track ? 1 : columns).Select(chunk => new CardsRow(chunk, GridStyle) { Columns = columns });
 
     protected ShelfRow? Shelf(string title, IEnumerable<object> cards, CardStyle style)
     {

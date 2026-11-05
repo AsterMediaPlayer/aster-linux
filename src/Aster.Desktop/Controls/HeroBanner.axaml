@@ -74,7 +74,7 @@
                                     </LinearGradientBrush>
                                 </Border.Background>
                             </Border>
-                            <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Bottom" Margin="48,0,48,72">
+                            <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Bottom" Margin="107,0,107,72">
                                 <Border Width="200" Height="200" CornerRadius="14" ClipToBounds="True" Background="#262626" BoxShadow="0 12 30 0 #80000000"
                                         Margin="0,0,40,0" VerticalAlignment="Bottom" IsVisible="{Binding HasCover}">
                                     <c:RemoteImage Url="{Binding Cover}" />

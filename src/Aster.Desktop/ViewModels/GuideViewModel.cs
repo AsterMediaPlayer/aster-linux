@@ -25,6 +25,7 @@ public sealed record GuideCell(
     double Width,
     Thickness Inset,
     bool IsAiring,
+    bool IsStart,
     bool IsRecording,
     double AiredWidth,
     string AccessibleName,
@@ -158,6 +159,8 @@ public sealed partial class GuideRowViewModel(GuideViewModel guide, IGuideSource
         var perMinute = GuideViewModel.PixelsPerMinute;
         var now = DateTimeOffset.UtcNow;
         var cells = new List<GuideCell>();
+        // What's on now on the top channel is where the guide starts, not the first airing cell the tree happens to list.
+        var top = guide.Rows.FirstOrDefault() == this;
         foreach (var program in programs)
         {
             var (start, end) = LiveGuide.Slot(program, guide.GuideStart);
@@ -177,6 +180,7 @@ public sealed partial class GuideRowViewModel(GuideViewModel guide, IGuideSource
                 width,
                 new Thickness(14 + inset, 10, 14, 10),
                 airing,
+                airing && top,
                 program.TimerId is not null || program.SeriesTimerId is not null,
                 aired,
                 string.Join(", ", new[] { program.Name, program.EpisodeTitle, LiveTVFormat.TimeRange(program.Start, program.End) }.OfType<string>()),

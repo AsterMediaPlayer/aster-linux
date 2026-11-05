@@ -12,15 +12,38 @@
 
         <DataTemplate DataType="vm:TitleRow">
             <StackPanel Classes="title" Classes.pushed="{Binding Page.IsPushed}" Classes.first="{Binding IsFirst}" Spacing="12">
-                <DockPanel>
+                <DockPanel IsVisible="{Binding ShowsTitle}">
                     <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding Page.SortTitles}" SelectedIndex="{Binding Page.SortIndex}"
                               IsVisible="{Binding Page.ShowsSort}" MinWidth="170" VerticalAlignment="Center" ToolTip.Tip="Sort by" />
                     <TextBlock Text="{Binding Title}" FontSize="32" FontWeight="Bold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                 </DockPanel>
-                <TextBlock Text="{Binding Subtitle}" Foreground="{StaticResource Secondary}"
-                           IsVisible="{Binding Subtitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                <!-- The sections as one segmented control, centred (Discover's): a dark track, the chosen segment white. -->
+                <Border Classes="segments" IsVisible="{Binding ShowsSegments}" HorizontalAlignment="Center">
+                    <ItemsControl ItemsSource="{Binding Page.Sections}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="4" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:Choice">
+                                <Button Classes="segment" Classes.selected="{Binding IsSelected}" Command="{Binding Select}" Content="{Binding Title}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+                <TextBlock Text="{Binding Subtitle}" Foreground="{StaticResource Secondary}" HorizontalAlignment="Center"
+                           IsVisible="{Binding Segmented}" />
+                <TextBlock Text="{Binding Subtitle}" Foreground="{StaticResource Secondary}">
+                    <TextBlock.IsVisible>
+                        <MultiBinding Converter="{x:Static BoolConverters.And}">
+                            <Binding Path="Subtitle" Converter="{x:Static ObjectConverters.IsNotNull}" />
+                            <Binding Path="ShowsTitle" />
+                        </MultiBinding>
+                    </TextBlock.IsVisible>
+                </TextBlock>
                 <!-- Albums / Artists / Playlists / Songs, or Books / Authors / Series. -->
-                <ItemsControl ItemsSource="{Binding Page.Sections}" IsVisible="{Binding Page.HasSections}">
+                <ItemsControl ItemsSource="{Binding Page.Sections}" IsVisible="{Binding ShowsPills}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Orientation="Horizontal" Spacing="10" />
@@ -43,30 +66,135 @@
 
         <DataTemplate DataType="vm:HeadingRow">
             <Panel>
-                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" Margin="48,20,48,8" IsVisible="{Binding !IsLetter}" />
-                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource Secondary}" Margin="48,16,48,4"
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" Margin="107,20,107,8" IsVisible="{Binding !IsLetter}" />
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource Secondary}" Margin="107,16,107,4"
                            IsVisible="{Binding IsLetter}" />
             </Panel>
         </DataTemplate>
 
         <DataTemplate DataType="vm:CardsRow">
             <Panel>
-                <ItemsControl ItemsSource="{Binding Cards}" Margin="48,6,48,10" IsVisible="{Binding !IsTrack}"
+                <!-- Spread over the page, each card centred in its column (a last, short row keeps the columns). -->
+                <ItemsControl ItemsSource="{Binding Cards}" Margin="107,10,107,14" IsVisible="{Binding !IsTrack}"
                               ItemTemplate="{ReflectionBinding Style, Converter={x:Static c:Converters.CardTemplate}}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal" Spacing="24" />
+                            <UniformGrid Columns="{ReflectionBinding Columns}" />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                 </ItemsControl>
                 <!-- A song: the full width. -->
-                <ItemsControl ItemsSource="{Binding Cards}" Margin="48,3" IsVisible="{Binding IsTrack}"
+                <ItemsControl ItemsSource="{Binding Cards}" Margin="107,3" IsVisible="{Binding IsTrack}"
                               ItemTemplate="{StaticResource TrackCard}" />
             </Panel>
         </DataTemplate>
 
+        <!-- Filters over a grid: a switch is a pill, white while on; a list opens its choices. -->
+        <DataTemplate DataType="vm:FilterRow">
+            <!-- One line, running on past the edge as the Apple TV app's: a switch white while on; a list opens its choices. -->
+            <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,10">
+                <ItemsControl ItemsSource="{Binding Chips}" Margin="107,4,107,4">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="14" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:FilterChip">
+                            <Panel>
+                                <Button Theme="{StaticResource PillButton}" Classes="chip" Classes.selected="{Binding IsOn}" Command="{Binding Toggle}"
+                                        MinHeight="37" Padding="18,6" FontSize="19" IsVisible="{Binding IsSwitch}">
+                                    <StackPanel Orientation="Horizontal" Spacing="9">
+                                        <TextBlock Text="{Binding Icon}" VerticalAlignment="Center" IsVisible="{Binding HasIcon}" />
+                                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Theme="{StaticResource PillButton}" Classes="chip" Classes.selected="{Binding IsOn}" MinHeight="37" Padding="18,6" FontSize="19"
+                                        IsVisible="{Binding HasChoices}">
+                                    <StackPanel Orientation="Horizontal" Spacing="9">
+                                        <TextBlock Text="{Binding Icon}" VerticalAlignment="Center" IsVisible="{Binding HasIcon}" />
+                                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <Button.Flyout>
+                                        <MenuFlyout ItemsSource="{Binding Choices}" ItemContainerTheme="{StaticResource MenuChoice}" />
+                                    </Button.Flyout>
+                                </Button>
+                            </Panel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </DataTemplate>
+
+        <!-- A day of Upcoming's agenda: the date down the side, as a desk calendar shows it, its episodes beside it, wide. -->
+        <DataTemplate DataType="vm:AgendaDayRow">
+            <Grid ColumnDefinitions="271,*" Margin="0,8,0,20">
+                <StackPanel Grid.Column="0" Margin="107,22,0,0" Spacing="0">
+                    <TextBlock Text="{Binding Weekday}" FontSize="16" FontWeight="Bold" LetterSpacing="2" Foreground="#D9FFFFFF" />
+                    <TextBlock Text="{Binding Date}" FontSize="57" FontWeight="Bold" Margin="0,-4,0,-6" />
+                    <TextBlock Text="{Binding Month}" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Relative}" FontSize="15" Foreground="{StaticResource Secondary}" Margin="0,2,0,0" />
+                </StackPanel>
+                <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource AgendaCard}" Padding="0,12,107,12">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="24" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </DataTemplate>
+
+        <!-- Segmented controls side by side (Requests' filters). -->
+        <DataTemplate DataType="vm:SegmentRow">
+            <ItemsControl ItemsSource="{Binding Groups}" Margin="107,4,107,12">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel ItemSpacing="16" LineSpacing="10" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Classes="segments">
+                            <ItemsControl ItemsSource="{Binding}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="2" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:Choice">
+                                        <Button Classes="segment small" Classes.selected="{Binding IsSelected}" Command="{Binding Select}" Content="{Binding Title}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </DataTemplate>
+
+        <!-- A request: poster, title, what and which seasons, its state in colour, who asked and when. -->
+        <DataTemplate DataType="vm:RequestRow">
+            <Button Classes="requestRow" Command="{Binding Open}" Margin="95,4,107,4" AutomationProperties.Name="{Binding Title}">
+                <Grid ColumnDefinitions="Auto,*">
+                    <Border Width="80" Height="120" CornerRadius="8" ClipToBounds="True" Background="{StaticResource CardBackground}">
+                        <c:RemoteImage Url="{Binding Poster}" Stretch="UniformToFill" />
+                    </Border>
+                    <StackPanel Grid.Column="1" Margin="19,0,0,0" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Title}" FontSize="30" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Meta}" FontSize="20" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding State}" FontSize="20" FontWeight="SemiBold" Foreground="{Binding StateColor}" />
+                        <TextBlock Text="{Binding Byline}" FontSize="15" Foreground="{StaticResource Secondary}" />
+                    </StackPanel>
+                </Grid>
+            </Button>
+        </DataTemplate>
+
         <DataTemplate DataType="vm:StatusRow">
-            <StackPanel Spacing="10" Margin="48,60" HorizontalAlignment="Center">
+            <StackPanel Spacing="10" Margin="107,60" HorizontalAlignment="Center">
                 <ProgressBar IsIndeterminate="True" Width="200" IsVisible="{Binding IsLoading}" />
                 <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" IsVisible="{Binding !IsLoading}" />
                 <TextBlock Text="{Binding Detail}" Foreground="{StaticResource Secondary}" TextWrapping="Wrap" MaxWidth="600" TextAlignment="Center"
@@ -75,7 +203,7 @@
         </DataTemplate>
 
         <DataTemplate DataType="vm:PersonRow">
-            <Grid ColumnDefinitions="Auto,*" Margin="48,80,48,12">
+            <Grid ColumnDefinitions="Auto,*" Margin="107,80,107,12">
                 <Border Grid.Column="0" Width="160" Height="160" CornerRadius="80" ClipToBounds="True" Background="{StaticResource CardBackground}" VerticalAlignment="Top">
                     <Panel>
                         <TextBlock Text="&#xE77B;" FontFamily="{StaticResource IconFont}" FontSize="48" Opacity="0.35"
@@ -92,6 +220,29 @@
     </UserControl.DataTemplates>
 
     <Panel>
+        <!-- A soft slate gradient (Discover's), the focused show's picture blurred behind it when there's one. -->
+        <Panel IsVisible="{Binding HasAmbientBackground}" IsHitTestVisible="False">
+            <Border>
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#FF2B3138" />
+                        <GradientStop Offset="0.55" Color="#FF20242A" />
+                        <GradientStop Offset="1" Color="#FF2A2620" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+            <c:RemoteImage Url="{Binding Ambient}" Stretch="UniformToFill" Opacity="0.45">
+                <c:RemoteImage.Effect>
+                    <BlurEffect Radius="80" />
+                </c:RemoteImage.Effect>
+                <c:RemoteImage.Transitions>
+                    <Transitions>
+                        <DoubleTransition Property="Opacity" Duration="0:0:0.4" />
+                    </Transitions>
+                </c:RemoteImage.Transitions>
+            </c:RemoteImage>
+            <Border Background="#73141820" IsVisible="{Binding Ambient, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        </Panel>
         <ScrollViewer x:Name="Page" HorizontalScrollBarVisibility="Disabled">
             <ItemsControl x:Name="List" ItemsSource="{Binding Rows}" Padding="0,0,0,60">
                 <ItemsControl.ItemsPanel>
@@ -114,21 +265,75 @@
             </ItemsControl>
         </Border>
 
-        <Button x:Name="BackButton" ToolTip.Tip="Back (Alt+←)" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
+        <Button Theme="{StaticResource BackButton}" x:Name="BackButton" ToolTip.Tip="Back (Alt+←)" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
                 Width="44" Height="44" CornerRadius="22" Background="#B3000000" Foreground="White" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Padding="0">
             <TextBlock Text="&#xE72B;" FontFamily="{StaticResource IconFont}" />
         </Button>
     </Panel>
 
     <UserControl.Styles>
-        <Style Selector="StackPanel.title">
-            <Setter Property="Margin" Value="48,28,48,12" />
+        <!-- Filter chips, measured from the Apple TV app's: regular weight, a fill a little lighter than the page. -->
+        <Style Selector="Button.chip">
+            <Setter Property="FontWeight" Value="Normal" />
         </Style>
+        <Style Selector="Button.chip:not(.selected)">
+            <Setter Property="Background" Value="#26FFFFFF" />
+        </Style>
+        <Style Selector="StackPanel.title">
+            <Setter Property="Margin" Value="107,28,107,12" />
+        </Style>
+        <!-- The segmented control: a dark track, its segments wide, the chosen one white, the focused one lit. -->
+        <Style Selector="Border.segments">
+            <Setter Property="Background" Value="#33000000" />
+            <Setter Property="BorderBrush" Value="#1AFFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="32" />
+            <Setter Property="Padding" Value="5" />
+        </Style>
+        <Style Selector="Button.segment">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="MinWidth" Value="140" />
+            <Setter Property="Padding" Value="24,13" />
+            <Setter Property="CornerRadius" Value="26" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+        </Style>
+        <Style Selector="Button.segment:pointerover /template/ ContentPresenter, Button.segment:focus-visible /template/ ContentPresenter">
+            <Setter Property="Background" Value="#40FFFFFF" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.segment.selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#F2FFFFFF" />
+            <Setter Property="Foreground" Value="Black" />
+        </Style>
+        <Style Selector="Button.segment.small">
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="Padding" Value="20,9" />
+        </Style>
+        <Style Selector="Button.requestRow">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+        </Style>
+        <Style Selector="Button.requestRow:pointerover /template/ ContentPresenter, Button.requestRow:focus-visible /template/ ContentPresenter">
+            <Setter Property="Background" Value="#26FFFFFF" />
+        </Style>
+        <Style Selector="Button.segment.selected:focus-visible">
+            <Setter Property="RenderTransform" Value="scale(1.05)" />
+        </Style>
+
         <Style Selector="StackPanel.title.first">
-            <Setter Property="Margin" Value="48,76,48,12" />
+            <Setter Property="Margin" Value="107,76,107,12" />
         </Style>
         <Style Selector="StackPanel.title.pushed">
-            <Setter Property="Margin" Value="48,80,48,12" />
+            <Setter Property="Margin" Value="107,80,107,12" />
         </Style>
         <Style Selector="Button.indexLetter">
             <Setter Property="Background" Value="Transparent" />

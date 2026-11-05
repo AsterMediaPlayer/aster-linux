@@ -23,7 +23,55 @@ public enum RepeatMode
 
 public sealed partial class MusicPlayer : ObservableObject, IDisposable
 {
-    private readonly AudioEngine engine = new();
+    /// <summary>This computer's own player, used whenever no speakers are chosen.</summary>
+    private readonly AudioEngine local = new();
+
+    /// <summary>Where the songs play: <see cref="local"/>, or Sonos rooms.</summary>
+    private IAudioOutput engine;
+
+    /// <summary>The player's own volume turned by <paramref name="by"/>: the level after.</summary>
+    public double? ChangeVolume(double by) => engine.ChangeVolume(by);
+
+    /// <summary>
+    /// Plays through <paramref name="output"/> from now on (null: this
+    /// computer), carrying on with the song where it was when
+    /// <paramref name="carryOn"/>.
+    /// </summary>
+    public void UseOutput(IAudioOutput? output, bool carryOn = true)
+    {
+        var next = output ?? local;
+        if (ReferenceEquals(next, engine)) return;
+        var at = engine.Position ?? CurrentTime;
+        var wasPlaying = IsPlaying;
+        FinishCurrent();
+        engine.Stop();
+        Hook(engine, on: false);
+        engine = next;
+        Hook(engine, on: true);
+        if (carryOn && Current is not null && client is not null) Load(at, wasPlaying);
+    }
+
+    private void Hook(IAudioOutput output, bool on)
+    {
+        if (on)
+        {
+            output.Loaded += Started;
+            output.Ended += TrackEnded;
+            output.Failed += Fail;
+        }
+        else
+        {
+            output.Loaded -= Started;
+            output.Ended -= TrackEnded;
+            output.Failed -= Fail;
+        }
+    }
+
+    private void Fail(string message)
+    {
+        ErrorMessage = message;
+        IsPlaying = false;
+    }
     private readonly DispatcherTimer clock = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private JellyfinClient? client;
 
@@ -35,18 +83,16 @@ public sealed partial class MusicPlayer : ObservableObject, IDisposable
 
     public MusicPlayer()
     {
-        engine.Loaded += Started;
-        engine.Ended += TrackEnded;
-        engine.Failed += message =>
-        {
-            ErrorMessage = message;
-            IsPlaying = false;
-        };
+        engine = local;
+        Hook(engine, on: true);
         clock.Tick += (_, _) => Tick();
     }
 
     /// <summary>Called as a queue starts, so a book playing steps aside.</summary>
     public event Action? Starting;
+
+    /// <summary>A queue was played, from any page, for the player to open.</summary>
+    public event Action? Played;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Current), nameof(UpNext), nameof(HasNext))]
@@ -121,6 +167,7 @@ public sealed partial class MusicPlayer : ObservableObject, IDisposable
         IsShuffled = shuffled;
         Starting?.Invoke();
         Load();
+        Played?.Invoke();
     }
 
     /// <summary>Jumps to a song already in the queue.</summary>
@@ -232,7 +279,7 @@ public sealed partial class MusicPlayer : ObservableObject, IDisposable
 
     // ---- Loading ----
 
-    private void Load()
+    private void Load(double start = 0, bool playing = true)
     {
         if (client is null || Current is not { } track)
         {
@@ -241,13 +288,30 @@ public sealed partial class MusicPlayer : ObservableObject, IDisposable
         }
         playSessionId = Guid.NewGuid().ToString("N");
         hasStarted = false;
-        CurrentTime = 0;
+        CurrentTime = start;
         Duration = (track.RunTimeTicks ?? 0) / 10_000_000.0;
         ErrorMessage = null;
-        engine.Load(client.UniversalAudioUrl(track.Id, playSessionId, AppSettings.Current.MaxBitrate), 0, playing: true);
-        IsPlaying = true;
+        var about = new Aster.Core.Audio.SonosTrack(track.Name ?? "", track.AlbumArtist ?? track.Artists?.FirstOrDefault(), track.Album,
+            client.ImageUrl(track.AlbumId ?? track.Id, ImageKind.Primary, track.AlbumId is null ? null : track.AlbumPrimaryImageTag, maxWidth: 600));
+        if (engine.IsRemote) _ = LoadOnSpeakersAsync(engine, client, track, start, playing, about);
+        else engine.Load(client.UniversalAudioUrl(track.Id, playSessionId, AppSettings.Current.MaxBitrate), start, playing, about);
+        IsPlaying = playing;
         clock.Start();
         _ = FetchLyricsAsync(track, client);
+    }
+
+    /// <summary>The song handed to the speakers as its own file, its format looked up first when the list didn't say.</summary>
+    private async Task LoadOnSpeakersAsync(IAudioOutput speakers, JellyfinClient from, BaseItem track, double start, bool playing, Aster.Core.Audio.SonosTrack about)
+    {
+        var container = track.Container ?? track.MediaSources?.FirstOrDefault()?.Container;
+        if (container is null)
+        {
+            try { container = (await from.ItemAsync(track.Id)) is { } detail ? detail.Container ?? detail.MediaSources?.FirstOrDefault()?.Container : null; }
+            catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException) { }
+        }
+        // Moved on meanwhile: another song, or back to this computer.
+        if (Current?.Id != track.Id || !ReferenceEquals(engine, speakers)) return;
+        speakers.Load(from.SonosAudioUrl(track.Id, container), start, playing, about);
     }
 
     private async Task FetchLyricsAsync(BaseItem track, JellyfinClient from)
@@ -323,6 +387,6 @@ public sealed partial class MusicPlayer : ObservableObject, IDisposable
     public void Dispose()
     {
         Stop();
-        engine.Dispose();
+        local.Dispose();
     }
 }

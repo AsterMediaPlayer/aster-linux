@@ -19,7 +19,7 @@ namespace Aster.Desktop.Views;
 /// </summary>
 public partial class BrowsePageView : UserControl
 {
-    private const double PagePadding = 48 * 2;
+    private const double PagePadding = 107 * 2;
     private const double CardSpacing = 24;
     /// <summary>Room on the right for the letter index.</summary>
     private const double IndexRoom = 28;
@@ -58,8 +58,103 @@ public partial class BrowsePageView : UserControl
         if (Model is { } page) page.PropertyChanged += (_, change) =>
         {
             if (change.PropertyName == nameof(BrowsePageViewModel.IndexKeys)) UpdateColumns();
+            // A section chosen from its pill (Discover's, Music's): the pills are
+            // made again with the page, and the keyboard would be left on
+            // nothing; it goes back to the pill chosen.
+            if (change.PropertyName == nameof(BrowsePageViewModel.Sections)
+                && KeyFocus.Current(this) is Button { DataContext: Choice } pill && KeyFocus.IsWithin(pill, this))
+                RefocusChosenPill();
         };
+        if (Model is { } rows) rows.Rows.CollectionChanged += (_, _) => RefocusFilterChip();
         UpdateColumns();
+    }
+
+    /// <summary>
+    /// The filter last focused, by its place (a chip's in its row; a
+    /// segment's group and place in Requests' filters), and when: a filter
+    /// changed remakes the row.
+    /// </summary>
+    private (int Group, int Index, DateTime At)? chipFocus;
+
+    protected override void OnGotFocus(FocusChangedEventArgs e)
+    {
+        base.OnGotFocus(e);
+        // Upcoming's focused show, softly behind the page.
+        if (e.Source is Button { DataContext: AgendaEntry card } && Model is { HasAmbientBackground: true } page) page.Ambient = card.Image;
+        if (e.Source is Button { DataContext: FilterChip chip } && Model?.Rows.OfType<FilterRow>().FirstOrDefault() is { } row)
+            chipFocus = (-1, row.Chips.ToList().IndexOf(chip), DateTime.UtcNow);
+        else if (e.Source is Button { DataContext: Choice choice } && Model?.Rows.OfType<SegmentRow>().FirstOrDefault() is { } segments)
+        {
+            for (var group = 0; group < segments.Groups.Count; group++)
+                if (segments.Groups[group].ToList().IndexOf(choice) is >= 0 and var index) chipFocus = (group, index, DateTime.UtcNow);
+        }
+    }
+
+    /// <summary>The filter at the place remembered, in the rows now.</summary>
+    private object? FilterAt((int Group, int Index, DateTime At) place)
+    {
+        if (place.Group < 0)
+            return Model?.Rows.OfType<FilterRow>().FirstOrDefault() is { } row && place.Index < row.Chips.Count ? row.Chips[place.Index] : null;
+        return Model?.Rows.OfType<SegmentRow>().FirstOrDefault() is { } segments && place.Group < segments.Groups.Count
+            && place.Index < segments.Groups[place.Group].Count ? segments.Groups[place.Group][place.Index] : null;
+    }
+
+    /// <summary>A filter changed (the grid reloads, the chips with it): back on the same chip, once it's there again.</summary>
+    private void RefocusFilterChip()
+    {
+        if (chipFocus is not { } last || DateTime.UtcNow - last.At > TimeSpan.FromSeconds(10)) return;
+        var tries = 0;
+        DispatcherTimer? timer = null;
+        timer = new DispatcherTimer(TimeSpan.FromMilliseconds(100), DispatcherPriority.Background, (_, _) =>
+        {
+            var focused = KeyFocus.Current(this);
+            if (++tries > 30 || focused is Visual on && KeyFocus.IsWithin(on, this) && focused is not Button { DataContext: FilterChip or Choice })
+            {
+                timer!.Stop();
+                return;
+            }
+            if (last.Index < 0 || FilterAt(last) is not { } chip) return;
+            var button = this.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => ReferenceEquals(b.DataContext, chip) && KeyFocus.CanFocus(b));
+            if (button is null) return;
+            if (!ReferenceEquals(focused, button)) KeyFocus.Move(button);
+            timer!.Stop();
+        });
+        timer.Start();
+    }
+
+    /// <summary>
+    /// The chosen section's pill, kept focused while the section loads: its rows come after, and each time the row
+    /// with the pills is made again the keyboard would fall back to the first pill (Discover). Let go once the
+    /// section has loaded and the pill has stayed put for half a second, after 15 seconds, or as soon as the keyboard
+    /// moves on to anything but a pill.
+    /// </summary>
+    private void RefocusChosenPill()
+    {
+        var tries = 0;
+        var settled = 0;
+        DispatcherTimer? timer = null;
+        timer = new DispatcherTimer(TimeSpan.FromMilliseconds(100), DispatcherPriority.Background, (_, _) =>
+        {
+            var focused = KeyFocus.Current(this);
+            var chosen = this.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.DataContext is Choice { IsSelected: true } && KeyFocus.CanFocus(b));
+            var movedOn = focused is Visual on && KeyFocus.IsWithin(on, this) && focused is not Button { DataContext: Choice };
+            if (++tries > 150 || movedOn)
+            {
+                timer!.Stop();
+                return;
+            }
+            if (chosen is null) return;
+            if (!ReferenceEquals(focused, chosen))
+            {
+                KeyFocus.Move(chosen);
+                settled = 0;
+            }
+            else if (Model is { IsLoadingPage: false } && ++settled >= 5)
+            {
+                timer!.Stop();
+            }
+        });
+        timer.Start();
     }
 
     private void UpdateColumns()
@@ -67,9 +162,9 @@ public partial class BrowsePageView : UserControl
         if (Model is not { } page || Page.Bounds.Width <= 0) return;
         var card = page.GridStyle switch
         {
-            CardStyle.Landscape or CardStyle.Tile or CardStyle.Program or CardStyle.Timer or CardStyle.SeriesRule or CardStyle.Upcoming => 300,
+            CardStyle.Landscape or CardStyle.Tile or CardStyle.Program or CardStyle.Timer or CardStyle.SeriesRule or CardStyle.Upcoming or CardStyle.SeerrTile => 300,
             CardStyle.Channel => 200,
-            _ => 180,
+            _ => 160,
         };
         var room = Page.Bounds.Width - PagePadding - (page.IndexKeys.Count > 0 ? IndexRoom : 0);
         page.SetColumns((int)Math.Floor((room + CardSpacing) / (card + CardSpacing)));

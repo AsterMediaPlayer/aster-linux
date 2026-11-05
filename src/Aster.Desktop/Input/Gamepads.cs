@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using SDL;
 using static SDL.SDL3;
 
@@ -21,7 +23,11 @@ namespace Aster.Desktop.Input;
 /// <item>A (the bottom button): Enter, to choose;</item>
 /// <item>B (the right button): Back, which goes back, or opens the sidebar;</item>
 /// <item>X or Start: play/pause;</item>
-/// <item>the shoulder buttons: previous and next (the song, the book's chapter, the channel).</item>
+/// <item>Y (the top button): a video to the mini player, or back full screen from it;</item>
+/// <item>the shoulder buttons: previous and next (the song, the book's chapter, the channel);</item>
+/// <item>the right stick: up and down the volume (the volume keys), left and
+/// right back and forward 10 seconds (the player's J and L), repeating more
+/// slowly than the arrows while held.</item>
 /// </list>
 ///
 /// It only acts while the app's window is in front, so a controller used in
@@ -49,6 +55,12 @@ public sealed unsafe class Gamepads : IDisposable
     private short stickX, stickY;
     private Key? held;
     private DateTime nextRepeat;
+
+    /// <summary>The right stick, apart from the arrows: volume and seeking, a step at a time.</summary>
+    private static readonly TimeSpan RightRepeatInterval = TimeSpan.FromMilliseconds(220);
+    private short rightX, rightY;
+    private Key? right;
+    private DateTime nextRightRepeat;
 
     private Gamepads(Window window)
     {
@@ -119,6 +131,10 @@ public sealed unsafe class Gamepads : IDisposable
             // Those plugged in when it starts come as added too.
             case SDL_EventType.SDL_EVENT_GAMEPAD_ADDED:
                 var id = e.gdevice.which;
+#if DEBUG
+                // A scripted run hears only its pretend controller, not one someone's holding.
+                if (Environment.GetEnvironmentVariable("ASTER_GAMEPAD_SCRIPT") is { Length: > 0 } && !SDL_IsJoystickVirtual(id)) break;
+#endif
                 if (!open.ContainsKey(id) && SDL_OpenGamepad(id) is var gamepad && gamepad != null)
                 {
                     open[id] = (IntPtr)gamepad;
@@ -131,7 +147,7 @@ public sealed unsafe class Gamepads : IDisposable
                     SDL_CloseGamepad((SDL_Gamepad*)removed);
                     Trace.WriteLine("Gamepads: a controller disconnected");
                 }
-                dpad = stick = null;
+                dpad = stick = right = null;
                 Held();
                 break;
             case SDL_EventType.SDL_EVENT_GAMEPAD_BUTTON_DOWN:
@@ -169,6 +185,8 @@ public sealed unsafe class Gamepads : IDisposable
             SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH => Key.Enter,
             SDL_GamepadButton.SDL_GAMEPAD_BUTTON_EAST => Key.BrowserBack,
             SDL_GamepadButton.SDL_GAMEPAD_BUTTON_WEST or SDL_GamepadButton.SDL_GAMEPAD_BUTTON_START => Key.MediaPlayPause,
+            // The mini player: a video to it, or back full screen from it.
+            SDL_GamepadButton.SDL_GAMEPAD_BUTTON_NORTH => Key.MediaMenu,
             SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_SHOULDER => Key.MediaPreviousTrack,
             SDL_GamepadButton.SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER => Key.MediaNextTrack,
             _ => null,
@@ -176,11 +194,13 @@ public sealed unsafe class Gamepads : IDisposable
         if (key is { } pressed) Send(pressed);
     }
 
-    /// <summary>The left stick, as the D-pad: whichever way it's pushed furthest.</summary>
+    /// <summary>The left stick, as the D-pad: whichever way it's pushed furthest. The right, apart.</summary>
     private void Axis(SDL_GamepadAxis axis, short value)
     {
         if (axis == SDL_GamepadAxis.SDL_GAMEPAD_AXIS_LEFTX) stickX = value;
         else if (axis == SDL_GamepadAxis.SDL_GAMEPAD_AXIS_LEFTY) stickY = value;
+        else if (axis == SDL_GamepadAxis.SDL_GAMEPAD_AXIS_RIGHTX) { rightX = value; RightStick(); return; }
+        else if (axis == SDL_GamepadAxis.SDL_GAMEPAD_AXIS_RIGHTY) { rightY = value; RightStick(); return; }
         else return;
         var x = Math.Abs((int)stickX);
         var y = Math.Abs((int)stickY);
@@ -204,8 +224,33 @@ public sealed unsafe class Gamepads : IDisposable
         nextRepeat = DateTime.UtcNow + RepeatDelay;
     }
 
+    /// <summary>
+    /// The right stick: up and down the volume, left and right seek
+    /// (J and L, the player's back and forward 10 seconds), whichever way
+    /// it's pushed furthest; a step now, then steadily while held.
+    /// </summary>
+    private void RightStick()
+    {
+        var x = Math.Abs((int)rightX);
+        var y = Math.Abs((int)rightY);
+        var limit = right is null ? StickPress : StickRelease;
+        Key? now = Math.Max(x, y) < limit ? null
+            : x > y ? (rightX < 0 ? Key.J : Key.L)
+            : (rightY < 0 ? Key.VolumeUp : Key.VolumeDown);
+        if (now == right) return;
+        right = now;
+        if (now is not { } key) return;
+        Send(key);
+        nextRightRepeat = DateTime.UtcNow + RepeatDelay;
+    }
+
     private void Repeat()
     {
+        if (right is { } step && DateTime.UtcNow >= nextRightRepeat)
+        {
+            Send(step);
+            nextRightRepeat = DateTime.UtcNow + RightRepeatInterval;
+        }
         if (held is not { } key || DateTime.UtcNow < nextRepeat) return;
         Send(key);
         nextRepeat = DateTime.UtcNow + RepeatInterval;
@@ -215,8 +260,20 @@ public sealed unsafe class Gamepads : IDisposable
     // ASTER_GAMEPAD_SCRIPT, for trying the app without a controller: a
     // pretend one, pressed at times after it starts, as "seconds:button"
     // pairs, e.g. "10:down,12:a,14:b" (a, b, x, y, start, lb, rb, up, down,
-    // left, right; "hold-" before one holds it a second and a half).
+    // left, right, and the sticks pushed: rs-up, rs-down, rs-left, rs-right,
+    // ls-up, ls-down, ls-left, ls-right; "hold-" before one holds it a second
+    // and a half).
     private readonly Queue<(DateTime At, int Button, bool Down)> script = new();
+
+    /// <summary>The sticks' pushes, scripted as buttons past the real ones.</summary>
+    private const int StickBase = 1000;
+    private static readonly (SDL_GamepadAxis Axis, short Value)[] StickPushes =
+    [
+        (SDL_GamepadAxis.SDL_GAMEPAD_AXIS_RIGHTY, short.MinValue), (SDL_GamepadAxis.SDL_GAMEPAD_AXIS_RIGHTY, short.MaxValue),
+        (SDL_GamepadAxis.SDL_GAMEPAD_AXIS_RIGHTX, short.MinValue), (SDL_GamepadAxis.SDL_GAMEPAD_AXIS_RIGHTX, short.MaxValue),
+        (SDL_GamepadAxis.SDL_GAMEPAD_AXIS_LEFTY, short.MinValue), (SDL_GamepadAxis.SDL_GAMEPAD_AXIS_LEFTY, short.MaxValue),
+        (SDL_GamepadAxis.SDL_GAMEPAD_AXIS_LEFTX, short.MinValue), (SDL_GamepadAxis.SDL_GAMEPAD_AXIS_LEFTX, short.MaxValue),
+    ];
     private SDL_Joystick* scripted;
 
     private void StartScript()
@@ -236,6 +293,10 @@ public sealed unsafe class Gamepads : IDisposable
             ["lb"] = SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, ["rb"] = SDL_GamepadButton.SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER,
             ["up"] = SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_UP, ["down"] = SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_DOWN,
             ["left"] = SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_LEFT, ["right"] = SDL_GamepadButton.SDL_GAMEPAD_BUTTON_DPAD_RIGHT,
+            ["rs-up"] = (SDL_GamepadButton)(StickBase + 0), ["rs-down"] = (SDL_GamepadButton)(StickBase + 1),
+            ["rs-left"] = (SDL_GamepadButton)(StickBase + 2), ["rs-right"] = (SDL_GamepadButton)(StickBase + 3),
+            ["ls-up"] = (SDL_GamepadButton)(StickBase + 4), ["ls-down"] = (SDL_GamepadButton)(StickBase + 5),
+            ["ls-left"] = (SDL_GamepadButton)(StickBase + 6), ["ls-right"] = (SDL_GamepadButton)(StickBase + 7),
         };
         var start = DateTime.UtcNow;
         foreach (var step in text.Split(','))
@@ -254,7 +315,12 @@ public sealed unsafe class Gamepads : IDisposable
         while (scripted != null && script.TryPeek(out var next) && next.At <= DateTime.UtcNow)
         {
             script.Dequeue();
-            SDL_SetJoystickVirtualButton(scripted, next.Button, next.Down);
+            if (next.Button >= StickBase)
+            {
+                var (axis, value) = StickPushes[next.Button - StickBase];
+                SDL_SetJoystickVirtualAxis(scripted, (int)axis, next.Down ? value : (short)0);
+            }
+            else SDL_SetJoystickVirtualButton(scripted, next.Button, next.Down);
         }
     }
 #endif
@@ -266,8 +332,16 @@ public sealed unsafe class Gamepads : IDisposable
     /// </summary>
     private void Send(Key key) => Dispatcher.UIThread.Post(() =>
     {
-        if (!window.IsActive) return;
+        // A couch session's one window is the screen, so it always hears the
+        // controller, whether or not gamescope says it's focused; so does one
+        // with a trailer's player window over it, which takes the focus.
+        if (!window.IsActive && !Aster.Desktop.Controls.FullScreen.Pinned && !Aster.Desktop.Views.TrailerView.IsShowing) return;
         var target = window.FocusManager?.GetFocusedElement() as Interactive ?? window;
+        // In a menu (a popup's own, its keys never pass the window), B is
+        // Esc, which shuts it, as a menu's Back should.
+        if (key == Key.BrowserBack && target is Visual visual
+            && (TopLevel.GetTopLevel(visual) is Avalonia.Controls.Primitives.PopupRoot ||visual.FindAncestorOfType<Avalonia.Controls.Primitives.OverlayPopupHost>() is not null))
+            key = Key.Escape;
         target.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = key, KeyDeviceType = KeyDeviceType.Gamepad, Source = target });
         target.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyUpEvent, Key = key, KeyDeviceType = KeyDeviceType.Gamepad, Source = target });
     });

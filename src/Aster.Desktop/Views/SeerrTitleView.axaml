@@ -1,0 +1,249 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             xmlns:c="using:Aster.Desktop.Controls"
+             x:Class="Aster.Desktop.Views.SeerrTitleView"
+             x:DataType="vm:SeerrTitleViewModel"
+             Background="#141414">
+
+    <!--
+    A film or show to request, from Seerr, as the Apple TV app's page
+    (sizes measured from its 4K screenshot, at 1280 units across): the
+    backdrop full bleed and still, the name, tagline, details and overview
+    low on the first screen with Request and the trailer under them, then
+    the seasons, the Details and the cast as the page scrolls.
+    -->
+    <UserControl.Styles>
+        <!-- A season picked: white, as a chosen pill is. -->
+        <Style Selector="ToggleButton.season:checked /template/ ContentPresenter">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="Black" />
+        </Style>
+        <Style Selector="ToggleButton.season:disabled">
+            <Setter Property="Opacity" Value="0.55" />
+        </Style>
+        <Style Selector="TextBlock.factLabel">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="LetterSpacing" Value="1" />
+            <Setter Property="Foreground" Value="#8CFFFFFF" />
+        </Style>
+        <Style Selector="TextBlock.heading">
+            <Setter Property="FontSize" Value="30" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <!-- A cast member: their photo ringed white and lifted when the remote is on it. -->
+        <Style Selector="Button.person">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+        </Style>
+        <Style Selector="Button.person /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.person:focus-visible Border.photo">
+            <Setter Property="BorderBrush" Value="White" />
+            <Setter Property="RenderTransform" Value="scale(1.12)" />
+        </Style>
+    </UserControl.Styles>
+
+    <Panel>
+        <!-- The backdrop, still behind the page; with none, the poster blurred. -->
+        <c:RemoteImage Url="{Binding Backdrop}" Stretch="UniformToFill" IsVisible="{Binding !PosterOnly}" />
+        <c:RemoteImage Url="{Binding Poster}" Stretch="UniformToFill" IsVisible="{Binding PosterOnly}" Opacity="0.85">
+            <c:RemoteImage.Effect>
+                <BlurEffect Radius="60" />
+            </c:RemoteImage.Effect>
+        </c:RemoteImage>
+        <Border IsHitTestVisible="False">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="50%,0%" EndPoint="50%,100%">
+                    <GradientStop Offset="0" Color="#1A000000" />
+                    <GradientStop Offset="0.5" Color="#8C000000" />
+                    <GradientStop Offset="1" Color="#F7000000" />
+                </LinearGradientBrush>
+            </Border.Background>
+        </Border>
+        <Border IsHitTestVisible="False">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0%,50%" EndPoint="50%,50%">
+                    <GradientStop Offset="0" Color="#B3000000" />
+                    <GradientStop Offset="1" Color="#00000000" />
+                </LinearGradientBrush>
+            </Border.Background>
+        </Border>
+
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="24" Margin="0,0,0,54">
+                <!-- The first screen: what it is, low on it, over the backdrop. -->
+                <Grid ColumnDefinitions="Auto,*" MinHeight="600" Margin="53,80,53,0">
+                    <Border Width="200" Height="300" CornerRadius="10" ClipToBounds="True" Margin="0,0,21,0" VerticalAlignment="Bottom"
+                            BoxShadow="0 10 20 0 #99000000" IsVisible="{Binding PosterOnly}">
+                        <c:RemoteImage Url="{Binding Poster}" Stretch="UniformToFill" />
+                    </Border>
+                    <StackPanel Grid.Column="1" Spacing="9" VerticalAlignment="Bottom">
+                        <TextBlock Text="{Binding Title}" FontSize="51" FontWeight="Bold" TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Tagline}" FontSize="31" FontStyle="Italic" FontWeight="SemiBold" Foreground="#8CFFFFFF" TextWrapping="Wrap"
+                                   IsVisible="{Binding Tagline, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                        <TextBlock Text="{Binding Meta}" FontSize="21" Foreground="#8CFFFFFF" TextWrapping="Wrap" />
+                        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding PremiereLine, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <TextBlock Text="&#xE823;" FontFamily="{StaticResource IconFont}" FontSize="19" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding PremiereLine}" FontSize="21" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding Overview}" FontSize="19" LineHeight="24" TextWrapping="Wrap" MaxLines="5" TextTrimming="CharacterEllipsis"
+                                   MaxWidth="733" HorizontalAlignment="Left"
+                                   IsVisible="{Binding Overview, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+                        <!-- Request (or where it stands), Open in Library, the trailer. -->
+                        <StackPanel Orientation="Horizontal" Spacing="24" Margin="-8,6,0,0">
+                            <Button Theme="{StaticResource PillButton}" Classes="prominent" c:KeyFocus.IsPreferred="True" MinHeight="56" Padding="22,0"
+                                    CornerRadius="28" FontSize="25" Command="{Binding RequestCommand}" IsVisible="{Binding CanRequest}" IsEnabled="{Binding CanSend}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="+" FontSize="36" FontWeight="Light" VerticalAlignment="Center" Margin="0,-4,0,0" />
+                                    <TextBlock Text="{Binding RequestLabel}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <StackPanel Orientation="Horizontal" Spacing="10" Margin="8,0,0,0" VerticalAlignment="Center" IsVisible="{Binding HasStatus}">
+                                <TextBlock Text="&#xE930;" FontFamily="{StaticResource IconFont}" FontSize="24" VerticalAlignment="Center" IsVisible="{Binding IsAvailable}" />
+                                <TextBlock Text="&#xE823;" FontFamily="{StaticResource IconFont}" FontSize="24" VerticalAlignment="Center" IsVisible="{Binding !IsAvailable}" />
+                                <TextBlock Text="{Binding StatusLabel}" FontSize="25" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <Button Theme="{StaticResource PillButton}" MinHeight="56" Padding="22,0" CornerRadius="28" FontSize="25"
+                                    Command="{Binding OpenInLibraryCommand}" IsVisible="{Binding InLibrary}" Content="Open in Library" />
+                            <Button Theme="{StaticResource PillButton}" Width="56" Height="56" MinHeight="56" Padding="0" CornerRadius="28"
+                                    HorizontalContentAlignment="Center" Command="{Binding TrailerCommand}" IsVisible="{Binding HasTrailer}"
+                                    ToolTip.Tip="Trailer" AutomationProperties.Name="Trailer">
+                                <TextBlock Text="&#xE768;" FontFamily="{StaticResource IconFont}" FontSize="24" />
+                            </Button>
+                        </StackPanel>
+
+                        <!-- Where the request goes: Server (a 4K one too), Quality, Folder, Language; or Standard or 4K. -->
+                        <ItemsControl ItemsSource="{Binding RequestOptions}" IsVisible="{Binding HasRequestOptions}" Margin="-8,4,0,0">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel ItemSpacing="14" LineSpacing="12" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:FilterChip">
+                                    <Button Theme="{StaticResource PillButton}" MinHeight="37" Padding="18,6" FontSize="19" FontWeight="Normal" Background="#26FFFFFF">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" MaxWidth="320" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="&#xE70D;" FontFamily="{StaticResource IconFont}" FontSize="12" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                        <Button.Flyout>
+                                            <MenuFlyout ItemsSource="{Binding Choices}" ItemContainerTheme="{StaticResource MenuChoice}" />
+                                        </Button.Flyout>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- A request waiting: who asked, and Approve or Decline (for whoever manages them), or Cancel (one's own). -->
+                        <StackPanel Spacing="10" IsVisible="{Binding HasRequestLine}">
+                            <TextBlock Text="{Binding RequestLine}" FontSize="19" FontWeight="SemiBold" />
+                            <WrapPanel ItemSpacing="14" LineSpacing="12" Margin="-8,0,0,0">
+                                <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding ApproveCommand}" Content="Approve"
+                                        IsVisible="{Binding CanDecide}" IsEnabled="{Binding !IsBusy}" />
+                                <Button Theme="{StaticResource PillButton}" Command="{Binding DeclineCommand}" Content="Decline"
+                                        IsVisible="{Binding CanDecide}" IsEnabled="{Binding !IsBusy}" />
+                                <Button Theme="{StaticResource PillButton}" Command="{Binding CancelRequestCommand}" Content="Cancel Request"
+                                        IsVisible="{Binding CanCancel}" IsEnabled="{Binding !IsBusy}" />
+                            </WrapPanel>
+                        </StackPanel>
+                        <TextBlock Text="{Binding Message}" FontSize="19" Foreground="#B3FFFFFF" TextWrapping="Wrap"
+                                   IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- A show's seasons: the open ones picked to start; the rest say why not. -->
+                <StackPanel Spacing="8" IsVisible="{Binding HasSeasons}">
+                    <TextBlock Classes="heading" Text="Seasons" Margin="53,0" />
+                    <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding Seasons}" Margin="53,8">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="14" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:SeerrSeasonChoice">
+                                    <ToggleButton Theme="{StaticResource PillButton}" Classes="season" IsChecked="{Binding IsChecked}" IsEnabled="{Binding CanRequest}"
+                                                  Background="#26FFFFFF" Padding="22,8" CornerRadius="22">
+                                        <StackPanel Spacing="1" HorizontalAlignment="Center">
+                                            <TextBlock Text="{Binding Title}" FontSize="19" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                            <TextBlock Text="{Binding Detail}" FontSize="14" FontWeight="Normal" Opacity="0.75" HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                    </ToggleButton>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </StackPanel>
+
+                <!-- Details: TMDB's score, then the facts in columns. -->
+                <StackPanel Spacing="12" Margin="53,0" IsVisible="{Binding HasDetails}">
+                    <TextBlock Classes="heading" Text="Details" />
+                    <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasScore}">
+                        <TextBlock Text="TMDB" FontSize="15" FontWeight="Black" Foreground="#04D1B0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Score}" FontSize="21" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding Facts}" Margin="0,4,0,0">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel ItemWidth="298" LineSpacing="12" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:SeerrFact">
+                                <StackPanel Spacing="3" Margin="0,0,19,0">
+                                    <TextBlock Classes="factLabel" Text="{Binding Label, Converter={x:Static c:Converters.Upper}}" />
+                                    <TextBlock Text="{Binding Value}" FontSize="19" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- The cast, in circles. -->
+                <StackPanel Spacing="8" IsVisible="{Binding HasCast}">
+                    <TextBlock Classes="heading" Text="Cast" Margin="53,0" />
+                    <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding Cast}" Margin="53,10">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="16" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:SeerrCastMember">
+                                    <Button Classes="person" Width="123" AutomationProperties.Name="{Binding Name}">
+                                        <StackPanel Spacing="5" Width="123">
+                                            <Border Classes="photo" Width="107" Height="107" CornerRadius="54" ClipToBounds="True" BorderThickness="3" BorderBrush="Transparent"
+                                                    Background="{StaticResource CardBackground}" HorizontalAlignment="Center" RenderTransformOrigin="50%,50%">
+                                                <Border.Transitions>
+                                                    <Transitions>
+                                                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+                                                    </Transitions>
+                                                </Border.Transitions>
+                                                <c:RemoteImage Url="{Binding Photo}" Stretch="UniformToFill" />
+                                            </Border>
+                                            <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding Character}" FontSize="14" Foreground="#8CFFFFFF" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                       IsVisible="{Binding HasCharacter}" />
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Theme="{StaticResource BackButton}" Command="{Binding BackCommand}" ToolTip.Tip="Back (Esc)" AutomationProperties.Name="Back" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
+                Width="44" Height="44" CornerRadius="22" Background="#B3000000" Foreground="White" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Padding="0">
+            <TextBlock Text="&#xE72B;" FontFamily="{StaticResource IconFont}" />
+        </Button>
+    </Panel>
+</UserControl>

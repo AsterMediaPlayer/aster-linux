@@ -4,7 +4,7 @@
              xmlns:c="using:Aster.Desktop.Controls"
              x:Class="Aster.Desktop.Views.VideoPlaylistView"
              x:DataType="vm:VideoPlaylistViewModel"
-             Background="#141414">
+             Background="{StaticResource SlateBackground}">
 
     <!-- A video playlist: Play All, Shuffle, and its entries; right-click one to move or remove it. -->
     <Panel>
@@ -80,7 +80,7 @@
             </StackPanel>
         </ScrollViewer>
 
-        <Button Command="{Binding BackCommand}" ToolTip.Tip="Back (Alt+←)" AutomationProperties.Name="Back" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
+        <Button Theme="{StaticResource BackButton}" Command="{Binding BackCommand}" ToolTip.Tip="Back (Alt+←)" AutomationProperties.Name="Back" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
                 Width="40" Height="40" CornerRadius="20" Padding="0" Background="#80000000"
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
             <TextBlock Text="&#xE72B;" FontFamily="{StaticResource IconFont}" />

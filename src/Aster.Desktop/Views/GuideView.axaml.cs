@@ -1,4 +1,6 @@
+using System;
 using System.Linq;
+using Aster.Core.LiveTV;
 using Aster.Desktop.ViewModels;
 using Avalonia;
 using Avalonia.Controls;
@@ -29,6 +31,7 @@ public partial class GuideView : UserControl
         RowList.AddHandler(PointerMovedEvent, (_, e) => Highlight(e.Source), RoutingStrategies.Bubble, handledEventsToo: true);
         RowList.AddHandler(GotFocusEvent, (_, e) => Highlight(e.Source), RoutingStrategies.Bubble);
         RowList.AddHandler(KeyDownEvent, OnRowKeyDown, RoutingStrategies.Tunnel);
+        RowList.AddHandler(KeyDownEvent, OnRowUpDown, RoutingStrategies.Tunnel);
         RowList.AddHandler(KeyDownEvent, OnFirstRowUp, RoutingStrategies.Tunnel);
         GroupList.AddHandler(KeyDownEvent, OnGroupsDown, RoutingStrategies.Tunnel);
         Scroller.AddHandler(PointerWheelChangedEvent, (_, e) =>
@@ -62,6 +65,53 @@ public partial class GuideView : UserControl
             if (next is not null) KeyFocus.Move(next);
         }, DispatcherPriority.Loaded);
     }
+
+    /// <summary>
+    /// Up and Down go to the channel above or below, onto what's on there at
+    /// the time the keyboard is at, as the Apple TV's guide does; from a
+    /// channel's name, to the next one's. Down on the last channel stays put.
+    /// (Left to Avalonia, Down could leave the guide for Edit Channels.) Up
+    /// from the first row is the group filter's, or the top bar's.
+    /// </summary>
+    private void OnRowUpDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key is not (Key.Up or Key.Down) || e.KeyModifiers != KeyModifiers.None || Model is not { } guide) return;
+        if (e.Source is not Visual source || RowOf(source) is not var (_, row)) return;
+        var index = guide.Rows.ToList().IndexOf(row) + (e.Key == Key.Down ? 1 : -1);
+        if (index < 0) return;
+        e.Handled = true;
+        if (index >= guide.Rows.Count) return;
+        var target = guide.Rows[index];
+        // The time the keyboard is at: the programme's start, or the window's when that's scrolled off.
+        DateTimeOffset? at = e.Source is Button { DataContext: GuideCell cell }
+            ? Max(LiveGuide.Slot(cell.Program, guide.GuideStart).Start, guide.WindowStart)
+            : null;
+        RowList.ScrollIntoView(index);
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (RowList.ContainerFromIndex(index) is not { } container) return;
+            var buttons = container.GetVisualDescendants().OfType<Button>().Where(KeyFocus.CanFocus).ToList();
+            Button? next = null;
+            if (at is { } time)
+            {
+                var program = target.Cells.FirstOrDefault(c => Covers(c, time))?.Program ?? target.Cells.FirstOrDefault()?.Program;
+                next = buttons.FirstOrDefault(b => b.DataContext is GuideCell c && c.Program.Id == program?.Id)
+                    // A row still loading, or without listings: its placeholder.
+                    ?? buttons.LastOrDefault(b => b.DataContext is GuideRowViewModel);
+            }
+            // From a channel's name: the next channel's (the row's first button).
+            next ??= buttons.FirstOrDefault();
+            if (next is not null) KeyFocus.Move(next);
+        }, DispatcherPriority.Loaded);
+
+        bool Covers(GuideCell c, DateTimeOffset time)
+        {
+            var (start, end) = LiveGuide.Slot(c.Program, guide.GuideStart);
+            return start <= time && time < end;
+        }
+    }
+
+    private static DateTimeOffset Max(DateTimeOffset a, DateTimeOffset b) => a > b ? a : b;
 
     /// <summary>Up from the first row goes to the group filter, on the group picked, as the Apple TV's guide has it.</summary>
     private void OnFirstRowUp(object? sender, KeyEventArgs e)
@@ -114,6 +164,9 @@ public partial class GuideView : UserControl
         base.OnAttachedToVisualTree(e);
         Model?.Shown(true);
         if (Model is { } guide && Timeline.Bounds.Width > 0) guide.SetTimelineWidth(Timeline.Bounds.Width);
+        // Opened again: the top channel, at the time it is now, where the keyboard starts (KeyFocus.StartsFresh).
+        Scroller.Offset = default;
+        if (Model?.NowCommand.CanExecute(null) == true) Model.NowCommand.Execute(null);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)

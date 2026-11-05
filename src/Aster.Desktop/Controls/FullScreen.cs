@@ -17,6 +17,19 @@ public static class FullScreen
     /// <summary>The views in the window that hold it full screen.</summary>
     private static int holders;
 
+    /// <summary>
+    /// Full screen for good (a couch session, in gamescope or Big Picture):
+    /// nothing takes the window out of it, neither a view leaving nor F or Esc.
+    /// </summary>
+    public static bool Pinned { get; private set; }
+
+    /// <summary>The window goes full screen and stays.</summary>
+    public static void Pin(Window window)
+    {
+        Pinned = true;
+        window.WindowState = WindowState.FullScreen;
+    }
+
     /// <summary>A view that wants full screen arrived; with <paramref name="enter"/>, the window goes full screen now.</summary>
     public static void Hold(Window? window, bool enter)
     {
@@ -32,11 +45,13 @@ public static class FullScreen
     public static void Release(Window? window)
     {
         holders--;
+        if (Pinned) return;
         if (window is { WindowState: WindowState.FullScreen }) Dispatcher.UIThread.Post(() => { if (holders == 0) window.WindowState = before; });
     }
 
     public static void Toggle(Window window)
     {
+        if (Pinned) return;
         if (window.WindowState == WindowState.FullScreen)
         {
             window.WindowState = before;

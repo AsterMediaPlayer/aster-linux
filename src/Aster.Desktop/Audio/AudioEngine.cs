@@ -11,7 +11,7 @@ namespace Aster.Desktop.Audio;
 /// An mpv with no picture, for songs and books. Its events come back on
 /// the UI thread. Made the first time something plays.
 /// </summary>
-public sealed class AudioEngine : IDisposable
+public sealed class AudioEngine : IAudioOutput
 {
     private MpvPlayer? mpv;
 
@@ -55,8 +55,12 @@ public sealed class AudioEngine : IDisposable
         }
     }
 
+    public bool IsRemote => false;
+
+    public bool CanChangeSpeed => true;
+
     /// <summary>Opens <paramref name="url"/> at <paramref name="start"/> seconds, playing or paused there.</summary>
-    public void Load(Uri url, double start, bool playing)
+    public void Load(Uri url, double start, bool playing, Aster.Core.Audio.SonosTrack? track = null)
     {
         try
         {
@@ -89,6 +93,15 @@ public sealed class AudioEngine : IDisposable
 
     /// <summary>Seconds into the file, or null with nothing playing.</summary>
     public double? Position => mpv?.GetDouble("time-pos");
+
+    /// <summary>Its own volume turned by <paramref name="by"/> (of 100): the level after, or null with nothing loaded.</summary>
+    public double? ChangeVolume(double by)
+    {
+        if (mpv?.GetDouble("volume") is not { } volume) return null;
+        var level = Math.Clamp(volume + by, 0, 100);
+        mpv.SetProperty("volume", level);
+        return level;
+    }
 
     /// <summary>The file's length once known.</summary>
     public double? Duration => mpv?.GetDouble("duration");

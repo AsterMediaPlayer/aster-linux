@@ -74,7 +74,7 @@ public sealed partial class LiveMiniPlayer : ObservableObject, IDisposable
             liveStreamId = source.LiveStreamId;
             playSessionId = info.PlaySessionId;
             Uri? url = source.TranscodingUrl is { } path ? client.AbsoluteUrl(path)
-                : source.Path is { } direct && direct.Contains("m3u8", StringComparison.OrdinalIgnoreCase) && Uri.TryCreate(direct, UriKind.Absolute, out var hls) ? hls
+                : source.Path is { } direct && direct.Contains("m3u8", StringComparison.OrdinalIgnoreCase) && Uri.TryCreate(direct, UriKind.Absolute, out var hls) && hls.Scheme.StartsWith("http", StringComparison.Ordinal) ? hls
                 : null;
             if (url is null)
             {

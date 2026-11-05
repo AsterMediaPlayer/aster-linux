@@ -27,6 +27,8 @@ public partial class MainWindow : Window
     {
         base.OnKeyDown(e);
         if (e.Handled) return;
+        // A video full screen over the pages: its keys are the player's alone.
+        if (DataContext is MainViewModel { CurrentPage: ShellViewModel { Video.IsMini: false } }) return;
         // The song or book: Space (outside a text box or button) or the
         // keyboard's play key toggles it, its other media keys move through
         // it, and Esc puts its player away.

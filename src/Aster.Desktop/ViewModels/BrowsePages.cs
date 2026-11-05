@@ -38,7 +38,8 @@ public sealed class TypeGridViewModel : BrowsePageViewModel
     protected override async Task<IReadOnlyList<BrowseRow>> LoadTopAsync()
     {
         var client = Navigator.Client;
-        anime = (await Navigator.Anime).ItemIds;
+        var catalog = await Navigator.Anime;
+        anime = catalog.ItemIds;
         // Extra, as the anime ones are taken out.
         var latest = AnimeCatalog.OrEmpty(client.LatestAsync(null, 40, kind.ToString()));
         var resumed = AnimeCatalog.OrEmpty(client.ResumeAsync(limit: 30));
@@ -60,6 +61,14 @@ public sealed class TypeGridViewModel : BrowsePageViewModel
 
         var rows = new List<BrowseRow>();
         if (hero.HasPages) rows.Add(new HeroRow(hero, this));
+        // TV Shows: its libraries right below the hero (Down from it lands
+        // there), less the anime ones, which are the Anime tab's.
+        if (kind == ItemKind.Series)
+        {
+            var animeLibraries = catalog.Libraries.Select(l => l.Id).ToHashSet();
+            var shows = (await Navigator.Libraries).Where(l => l.CollectionType == "tvshows" && !animeLibraries.Contains(l.Id));
+            if (TileShelf("Libraries", shows) is { } libraries) rows.Add(libraries);
+        }
         rows.Add(new TitleRow(Title, this));
         if (LandscapeShelf("Recently Added", newest) is { } recent) rows.Add(recent);
         return rows;
@@ -91,6 +100,7 @@ public sealed class AnimeViewModel : BrowsePageViewModel
         var latest = AnimeCatalog.RecentlyAddedAsync(client, catalog.Libraries);
         // The OP/ED plugin's library, which only Jellyfin has.
         var musicVideos = Task.WhenAll(catalog.MusicVideoLibraries.Select(async l => (Library: l, Items: await Navigator.JellyfinOnly.LatestMusicVideosAsync(l.Id))));
+        var upcomingAnime = UpcomingAnimeAsync();
 
         // Newest first across libraries; ISO 8601 dates sort as text.
         var resumed = await resume;
@@ -114,8 +124,21 @@ public sealed class AnimeViewModel : BrowsePageViewModel
         {
             if (LandscapeShelf(library.DisplayTitle, items, showSeriesTitle: false) is { } shelf) rows.Add(shelf);
         }
+        // At the foot, with Seerr: anime starting or airing around now, to request.
+        if (Shelf("Upcoming Anime", (await upcomingAnime).Select(t => new SeerrCard(Navigator, t)), CardStyle.Seerr) is { } upcoming) rows.Add(upcoming);
         if (!catalog.HasAnime) rows.Add(new StatusRow("No anime libraries", "Libraries are found by their titles' Shoko or AniDB ids."));
         return rows;
+    }
+
+    /// <summary>Seerr's Japanese animation first airing from last month to six months on, newest first; none without Seerr, or when it fails.</summary>
+    private async Task<IReadOnlyList<Aster.Core.Seerr.SeerrTitle>> UpcomingAnimeAsync()
+    {
+        if (Navigator.Seerr.Account is not { } account) return [];
+        try { return (await Aster.Core.Seerr.SeerrClient.UpcomingAnimeAsync(account)).DistinctBy(t => t.Key).ToList(); }
+        catch (System.Exception error) when (error is Aster.Core.Seerr.SeerrException or System.Net.Http.HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            return [];
+        }
     }
 }
 

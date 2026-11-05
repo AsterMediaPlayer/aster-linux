@@ -4,13 +4,13 @@
                     xmlns:c="using:Aster.Desktop.Controls">
 
     <!-- Sizes, after the Apple app's Lockup, at a desktop window's scale. -->
-    <x:Double x:Key="LandscapeWidth">300</x:Double>
-    <x:Double x:Key="LandscapeHeight">169</x:Double>
-    <x:Double x:Key="PosterWidth">180</x:Double>
-    <x:Double x:Key="PosterHeight">270</x:Double>
+    <x:Double x:Key="LandscapeWidth">365</x:Double>
+    <x:Double x:Key="LandscapeHeight">205</x:Double>
+    <x:Double x:Key="PosterWidth">160</x:Double>
+    <x:Double x:Key="PosterHeight">240</x:Double>
     <x:Double x:Key="PersonPhoto">120</x:Double>
     <x:Double x:Key="PersonWidth">136</x:Double>
-    <Thickness x:Key="ScreenPadding">48,0</Thickness>
+    <Thickness x:Key="ScreenPadding">107,0</Thickness>
     <!-- Segoe on Windows; elsewhere (Linux) the same icons from Fluent UI System Icons, at Segoe's code points (tools/make-icon-font.py). -->
     <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets, avares://Aster.Desktop/Assets/Fonts#Aster Icons, avares://Aster.Desktop/Assets/Fonts#Aster Icons Filled</FontFamily>
     <SolidColorBrush x:Key="Secondary" Color="#B3FFFFFF" />
@@ -104,6 +104,14 @@
         </Style>
     </ControlTheme>
 
+    <!-- A page's round back arrow: lit white, round, on keyboard focus, as the pills are. -->
+    <ControlTheme x:Key="BackButton" TargetType="Button" BasedOn="{StaticResource PillButton}">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </ControlTheme>
+
     <!-- "2019 · PG-13 · 2 hr 9 min · Action" with its badge and rating. -->
     <DataTemplate x:Key="MetadataTemplate" x:DataType="vm:MetadataLine">
         <StackPanel Orientation="Horizontal" Spacing="14">
@@ -151,8 +159,8 @@
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="16" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
                            IsVisible="{Binding Subtitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
             </StackPanel>
         </StackPanel>
@@ -191,6 +199,38 @@
         </Button>
     </DataTemplate>
 
+    <!-- An episode in Upcoming's agenda: wide, the show's logo (or name) and the episode over its picture. -->
+    <DataTemplate x:Key="AgendaCard" x:DataType="vm:AgendaEntry">
+        <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}" Width="371" Height="209"
+                AutomationProperties.Name="{Binding AccessibleName}" ToolTip.Tip="{Binding Title}">
+            <Panel>
+                <TextBlock Text="&#xE7F4;" FontFamily="{StaticResource IconFont}" FontSize="40" Opacity="0.35"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <c:RemoteImage Url="{Binding Image}" Stretch="UniformToFill" />
+                <Border>
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="50%,40%" EndPoint="50%,100%">
+                            <GradientStop Offset="0" Color="#00000000" />
+                            <GradientStop Offset="1" Color="#CC000000" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+                <StackPanel Spacing="4" Margin="16" VerticalAlignment="Bottom" HorizontalAlignment="Left">
+                    <Panel HorizontalAlignment="Left">
+                        <c:RemoteImage x:Name="Logo" Url="{Binding Logo}" Stretch="Uniform" MaxWidth="220" MaxHeight="64" HorizontalAlignment="Left" />
+                        <TextBlock Text="{Binding Title}" FontSize="22" FontWeight="Bold" TextTrimming="CharacterEllipsis" MaxWidth="340"
+                                   IsVisible="{Binding !#Logo.HasImage}" />
+                    </Panel>
+                    <TextBlock Text="{Binding EpisodeLine}" FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="340" />
+                </StackPanel>
+                <Border Background="#A6000000" CornerRadius="12" Padding="10,4" Margin="12"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="{Binding IsAvailable}">
+                    <TextBlock Text="Available" FontSize="12" FontWeight="SemiBold" />
+                </Border>
+            </Panel>
+        </Button>
+    </DataTemplate>
+
     <!-- A Live TV programme that's on: its picture, channel, LIVE and progress, then its title and episode or time. -->
     <DataTemplate x:Key="ProgramCard" x:DataType="vm:ProgramCard">
         <StackPanel Width="{StaticResource LandscapeWidth}" Spacing="8">
@@ -220,8 +260,8 @@
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="16" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
             </StackPanel>
         </StackPanel>
     </DataTemplate>
@@ -256,7 +296,7 @@
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
                 <TextBlock Text="{Binding NowTitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
                            IsVisible="{Binding NowTitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
             </StackPanel>
@@ -278,8 +318,8 @@
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="16" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
             </StackPanel>
         </StackPanel>
     </DataTemplate>
@@ -297,8 +337,8 @@
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="16" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis" />
             </StackPanel>
         </StackPanel>
     </DataTemplate>
@@ -331,12 +371,65 @@
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="16" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
                            IsVisible="{Binding Subtitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
             </StackPanel>
         </StackPanel>
     </DataTemplate>
+
+    <!-- A film or show from Seerr: its poster, where it stands (Requested, Available) on it, and its name and year. -->
+    <DataTemplate x:Key="SeerrCard" x:DataType="vm:SeerrCard">
+        <StackPanel Width="{StaticResource PosterWidth}" Spacing="8">
+            <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}"
+                    Width="{StaticResource PosterWidth}" Height="{StaticResource PosterHeight}" ToolTip.Tip="{Binding Title}"
+                    AutomationProperties.Name="{Binding Title}">
+                <Panel>
+                    <TextBlock Text="&#xE8B2;" FontFamily="{StaticResource IconFont}" FontSize="36" Opacity="0.35"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <c:RemoteImage Url="{Binding Image}" />
+                    <Border Background="#A6000000" CornerRadius="14" Padding="12,4" Margin="8"
+                            HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="{Binding HasBadge}">
+                        <TextBlock Text="{Binding Badge}" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+                    </Border>
+                </Panel>
+            </Button>
+            <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="16" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
+                           IsVisible="{Binding Subtitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            </StackPanel>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- A genre (its picture, its name over it), or a studio or network (its logo, white). -->
+    <DataTemplate x:Key="SeerrTileCard" x:DataType="vm:SeerrTileCard">
+        <Button Theme="{StaticResource CardButton}" Command="{Binding OpenCommand}"
+                Width="{StaticResource LandscapeWidth}" Height="{StaticResource LandscapeHeight}" AutomationProperties.Name="{Binding Name}">
+            <Panel>
+                <c:RemoteImage Url="{Binding Image}" Stretch="UniformToFill" IsVisible="{Binding !HasLogo}" />
+                <Border Background="#73000000" IsVisible="{Binding !HasLogo}" />
+                <TextBlock Text="{Binding Name}" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"
+                           TextWrapping="Wrap" TextAlignment="Center" Margin="12" IsVisible="{Binding !HasLogo}" />
+                <c:RemoteImage Url="{Binding Logo}" Stretch="Uniform" Margin="36,28" IsVisible="{Binding HasLogo}" />
+            </Panel>
+        </Button>
+    </DataTemplate>
+
+    <!-- Behind every page: a soft slate gradient, as the Apple TV app's, not black. -->
+    <LinearGradientBrush x:Key="SlateBackground" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Offset="0" Color="#FF2B3138" />
+        <GradientStop Offset="0.55" Color="#FF20242A" />
+        <GradientStop Offset="1" Color="#FF2A2620" />
+    </LinearGradientBrush>
+
+    <!-- A choice in a menu (a filter's), the one chosen ticked. -->
+    <ControlTheme x:Key="MenuChoice" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="vm:TrackChoice">
+        <Setter Property="Header" Value="{Binding Title}" />
+        <Setter Property="Command" Value="{Binding Select}" />
+        <Setter Property="ToggleType" Value="Radio" />
+        <Setter Property="IsChecked" Value="{Binding IsSelected, Mode=OneWay}" />
+    </ControlTheme>
 
     <!-- A library as a wide tile, its name over its picture. -->
     <DataTemplate x:Key="TileCard" x:DataType="vm:ItemCard">
@@ -401,8 +494,8 @@
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="16" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
                            IsVisible="{Binding Subtitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
             </StackPanel>
         </StackPanel>
@@ -440,8 +533,8 @@
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Subtitle}" FontSize="16" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
                            IsVisible="{Binding Subtitle, Converter={x:Static ObjectConverters.IsNotNull}}" />
             </StackPanel>
         </StackPanel>
@@ -468,7 +561,7 @@
                 </Panel>
             </Button>
             <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
                 <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{StaticResource Secondary}" />
             </StackPanel>
         </StackPanel>
@@ -504,7 +597,7 @@
                                HorizontalAlignment="Right" VerticalAlignment="Center" IsVisible="{Binding IsCurrent}" />
                 </Panel>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                    <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
                     <TextBlock Text="{Binding Artist}" FontSize="12" Foreground="{StaticResource Secondary}" TextTrimming="CharacterEllipsis"
                                IsVisible="{Binding Artist, Converter={x:Static ObjectConverters.IsNotNull}}" />
                 </StackPanel>

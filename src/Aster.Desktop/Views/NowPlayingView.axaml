@@ -7,7 +7,7 @@
              Background="#0F0F0F">
 
     <UserControl.Styles>
-        <!-- A round transport button; the main one white. -->
+        <!-- A round transport button; the main one larger. White only for the button the controller is on, so it never competes with it. -->
         <Style Selector="Button.control">
             <Setter Property="Width" Value="52" />
             <Setter Property="Height" Value="52" />
@@ -27,13 +27,23 @@
             <Setter Property="Width" Value="72" />
             <Setter Property="Height" Value="72" />
             <Setter Property="CornerRadius" Value="36" />
-            <Setter Property="Background" Value="White" />
-            <Setter Property="Foreground" Value="Black" />
             <Setter Property="FontSize" Value="26" />
         </Style>
-        <Style Selector="Button.control.main:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#E6FFFFFF" />
+        <!-- The keyboard's (a controller's) mark: white, as the Apple TV's, not Fluent's rectangle; the big play/pause grows. -->
+        <Style Selector="Button.control, Button.corner">
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+        </Style>
+        <Style Selector="Button.control:focus-visible /template/ ContentPresenter, Button.corner:focus-visible /template/ ContentPresenter">
+            <Setter Property="Background" Value="White" />
             <Setter Property="Foreground" Value="Black" />
+        </Style>
+        <Style Selector="Button.control.main:focus-visible">
+            <Setter Property="RenderTransform" Value="scale(1.1)" />
+        </Style>
+        <Style Selector="Button.control.main:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#73FFFFFF" />
+            <Setter Property="Foreground" Value="White" />
         </Style>
         <Style Selector="Button.corner">
             <Setter Property="Width" Value="40" />
@@ -45,6 +55,57 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
             <Setter Property="Margin" Value="24" />
+        </Style>
+        <!-- Play On's rows, as the Apple TV's: a soft grey card, white with black for the one the controller is on. -->
+        <Style Selector="Button.speaker">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="18,14" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Background" Value="#1FFFFFFF" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+        </Style>
+        <Style Selector="Button.speaker.selected">
+            <Setter Property="Background" Value="#38FFFFFF" />
+        </Style>
+        <Style Selector="Button.speaker:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#4DFFFFFF" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.speaker:focus-visible /template/ ContentPresenter">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="Black" />
+        </Style>
+        <Style Selector="Button.speaker TextBlock.check">
+            <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+            <Setter Property="FontSize" Value="22" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}" />
+        </Style>
+        <Style Selector="Button.speaker TextBlock.detail">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{StaticResource Secondary}" />
+        </Style>
+        <Style Selector="Button.speaker:focus-visible TextBlock, Button.speaker:focus-visible TextBlock.detail, Button.speaker:focus-visible TextBlock.check">
+            <Setter Property="Foreground" Value="Black" />
+        </Style>
+        <!-- Where it plays, at the top right: a pill with the speakers' name. -->
+        <Style Selector="Button.where">
+            <Setter Property="Height" Value="40" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="14,0,16,0" />
+            <Setter Property="Background" Value="#4DFFFFFF" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+        </Style>
+        <Style Selector="Button.where.active">
+            <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
+        </Style>
+        <Style Selector="Button.where:focus-visible /template/ ContentPresenter">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="Black" />
         </Style>
     </UserControl.Styles>
 
@@ -181,7 +242,7 @@
                     <Button Classes="control" Command="{Binding NextChapterCommand}" Content="&#xE893;" ToolTip.Tip="Next chapter" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
-                    <Button Classes="control" Classes.active="{Binding RateChanged}" Width="72" CornerRadius="26"
+                    <Button Classes="control" Classes.active="{Binding RateChanged}" IsEnabled="{Binding Books.CanChangeSpeed}" Width="72" CornerRadius="26"
                             FontFamily="{StaticResource ContentControlThemeFontFamily}" FontSize="15" FontWeight="SemiBold"
                             Content="{Binding RateLabel}" ToolTip.Tip="Speed">
                         <Button.Flyout>
@@ -233,7 +294,61 @@
 
         <Button Classes="corner" Command="{Binding CloseCommand}" AutomationProperties.Name="Close Player" Content="&#xE70D;" ToolTip.Tip="Close (Esc)"
                 HorizontalAlignment="Left" VerticalAlignment="Top" />
-        <Button Classes="corner" Command="{Binding StopCommand}" AutomationProperties.Name="Stop Playing" Content="&#xE711;" ToolTip.Tip="Stop"
-                HorizontalAlignment="Right" VerticalAlignment="Top" />
+        <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="24">
+            <Button x:Name="SpeakersButton" Classes="where" Classes.active="{Binding Audio.IsOnSpeakers}" Command="{Binding OpenSpeakersCommand}"
+                    AutomationProperties.Name="Speakers" ToolTip.Tip="Play On (Y)">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="&#xE767;" FontFamily="{StaticResource IconFont}" FontSize="16" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Audio.SpeakersName}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <Button Classes="corner" Command="{Binding StopCommand}" AutomationProperties.Name="Stop Playing" Content="&#xE711;" ToolTip.Tip="Stop" Margin="0" />
+        </StackPanel>
+        <!-- Play on: this computer, or Sonos rooms grouped to play in sync, each with its volume. Over the player, the controller kept in it; B closes it. -->
+        <Border x:Name="SpeakerSheet" Background="#99000000" IsVisible="{Binding IsChoosingSpeakers}" PointerPressed="OnSheetBackdropPressed">
+            <Border Background="#F2202024" CornerRadius="24" Width="440" Margin="0,24,24,24" Padding="20,24"
+                    HorizontalAlignment="Right" VerticalAlignment="Stretch" BoxShadow="0 12 40 0 #99000000" PointerPressed="OnSheetPressed">
+                <DockPanel>
+                    <DockPanel DockPanel.Dock="Top" Margin="8,0,0,18">
+                        <TextBlock DockPanel.Dock="Left" Text="&#xE767;" FontFamily="{StaticResource IconFont}" FontSize="22" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <TextBlock Text="Play On" FontSize="26" FontWeight="Bold" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True" IsVisible="{Binding IsFindingSpeakers}" Margin="8,0,8,12" />
+                    <TextBlock DockPanel.Dock="Top" Text="{Binding SpeakersMessage}" Foreground="{StaticResource Secondary}" TextWrapping="Wrap" Margin="8,0,8,12"
+                               IsVisible="{Binding SpeakersMessage, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding SpeakerChoices}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:SpeakerChoice">
+                                    <StackPanel Spacing="6" Margin="0,0,0,8">
+                                        <Button Classes="speaker" Classes.selected="{Binding IsSelected}" Command="{Binding ToggleCommand}" AutomationProperties.Name="{Binding Name}">
+                                            <DockPanel>
+                                                <TextBlock DockPanel.Dock="Right" Classes="check" Text="&#xE930;" IsVisible="{Binding IsSelected}" />
+                                                <StackPanel Spacing="2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}" FontSize="18" FontWeight="SemiBold" />
+                                                    <TextBlock Classes="detail" Text="{Binding Detail}" IsVisible="{Binding Detail, Converter={x:Static ObjectConverters.IsNotNull}}" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Button>
+                                        <DockPanel IsVisible="{Binding ShowsVolume}" Margin="16,0,8,6">
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding VolumeLabel}" Width="36" TextAlignment="Right" VerticalAlignment="Center"
+                                                       Foreground="{StaticResource Secondary}" FontSize="14" />
+                                            <TextBlock DockPanel.Dock="Left" Text="&#xE767;" FontFamily="{StaticResource IconFont}" FontSize="14" VerticalAlignment="Center"
+                                                       Foreground="{StaticResource Secondary}" Margin="0,0,10,0" />
+                                            <Slider Classes="roomVolume" Minimum="0" Maximum="100" Value="{Binding Volume}" AutomationProperties.Name="{Binding VolumeName}" />
+                                        </DockPanel>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+        </Border>
+        <!-- The volume just turned, the Sonos's or the player's own. -->
+        <Border Background="#D9202020" CornerRadius="16" Padding="18,8" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,24,0,0"
+                IsVisible="{Binding VolumeNotice, Converter={x:Static ObjectConverters.IsNotNull}}" IsHitTestVisible="False">
+            <TextBlock Text="{Binding VolumeNotice}" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+        </Border>
     </Panel>
 </UserControl>

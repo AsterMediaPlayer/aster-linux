@@ -22,7 +22,7 @@
     <!-- Once for each Jellyfin server: what Aster does, then what its companion plugins add,
          each a card; an administrator's plugin cards switch the plugin on and off. -->
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Margin="48,56,48,56" Spacing="40" MaxWidth="1400">
+        <StackPanel Margin="107,56,107,56" Spacing="40" MaxWidth="1400">
             <StackPanel Spacing="12" HorizontalAlignment="Center">
                 <Image Source="/Assets/Images/AsterLogo.png" Stretch="Uniform" Width="380" Margin="0,0,0,12" />
                 <TextBlock Text="Welcome to Aster" FontSize="40" FontWeight="Bold" HorizontalAlignment="Center" />

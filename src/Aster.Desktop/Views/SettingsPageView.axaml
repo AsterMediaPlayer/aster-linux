@@ -13,7 +13,7 @@
          turns it over; a list's row opens its choices. -->
     <Panel>
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Margin="48,76,48,60" DataContext="{Binding Settings}" x:DataType="vm:SettingsViewModel">
+            <StackPanel Margin="107,76,107,60" DataContext="{Binding Settings}" x:DataType="vm:SettingsViewModel">
                 <TextBlock Classes="pageTitle" Text="{Binding $parent[UserControl].((vm:SettingsPageViewModel)DataContext).Title}" />
 
                 <!-- Playback -->
@@ -35,8 +35,18 @@
                             <TextBlock Text="Play videos full screen" VerticalAlignment="Center" />
                         </DockPanel>
                     </Button>
+                    <Button Classes="row" AutomationProperties.Name="Back in a video">
+                        <DockPanel>
+                            <TextBlock Classes="chevron" />
+                            <TextBlock Classes="value" Text="{Binding VideoBack.Title}" />
+                            <TextBlock Text="Back in a video" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedRight" ItemsSource="{Binding VideoBackChoices}" ItemContainerTheme="{StaticResource SettingChoice}" />
+                        </Button.Flyout>
+                    </Button>
                     <Border Classes="note">
-                        <TextBlock Text="Over the quality limit, the server converts a video down to it. A video takes the whole screen as it starts, and the window comes back as it closes. Off, it plays inside the window." />
+                        <TextBlock Text="Over the quality limit, the server converts a video down to it. A video takes the whole screen as it starts, and the window comes back as it closes. Off, it plays inside the window. Back in a video asks whether to keep watching in the mini player (in a corner, while you browse) or stop; or always does one. A controller's Y switches between the mini player and full screen." />
                     </Border>
 
                     <TextBlock Classes="section" Text="EPISODES" />
@@ -82,6 +92,26 @@
                         </Button.Flyout>
                     </Button>
 
+                    <TextBlock Classes="section" Text="VOLUME" />
+                    <Button Classes="row" Command="{Binding FlipCommand}" CommandParameter="EvenVolume">
+                        <DockPanel>
+                            <TextBlock Classes="value" Text="{Binding EvenVolume, Converter={x:Static c:Converters.OnOff}}" />
+                            <TextBlock Text="Even out volume" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Button>
+                    <Border Classes="note">
+                        <TextBlock Text="Brings a video's sound to an even level as it plays, about as loud as games, so shows and films aren't far quieter than everything else and quiet dialogue comes up. Surround sound stays surround. Starts with the next video you play. Not while surround sound goes to a receiver, which sets its own level." />
+                    </Border>
+                    <Button Classes="row" Command="{Binding FlipCommand}" CommandParameter="StereoMix">
+                        <DockPanel>
+                            <TextBlock Classes="value" Text="{Binding StereoMix, Converter={x:Static c:Converters.OnOff}}" />
+                            <TextBlock Text="Mix surround to stereo" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Button>
+                    <Border Classes="note">
+                        <TextBlock Text="Folds a video's surround sound into two channels with the dialogue at full level in both, as games play: clearer and louder on a soundbar or TV without rear speakers. With Even out volume, louder still. Leave it off with rear speakers, which it would leave silent. Starts with the next video you play." />
+                    </Border>
+
                     <TextBlock Classes="section" Text="SURROUND SOUND" />
                     <Button Classes="row" Command="{Binding FlipCommand}" CommandParameter="AudioPassthrough">
                         <DockPanel>
@@ -91,6 +121,19 @@
                     </Button>
                     <Border Classes="note">
                         <TextBlock Text="A video's Dolby (including Dolby Atmos) and DTS sound goes over HDMI to your receiver or TV as it is, for it to decode. Use it only when this computer is connected by HDMI to one that decodes them; otherwise there may be no sound. While a video plays, Aster has the sound device to itself on Windows, so other apps go quiet, and the receiver's volume control sets the level. Music and audiobooks aren't affected. On Linux, the HDMI output must allow passthrough (in PipeWire, its Passthrough formats)." />
+                    </Border>
+                    <Button Classes="row" AutomationProperties.Name="Sonos for volume">
+                        <DockPanel>
+                            <TextBlock Classes="chevron" />
+                            <TextBlock Classes="value" Text="{Binding SonosName}" />
+                            <TextBlock Text="Sonos for volume" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedRight" ItemsSource="{Binding SonosChoices}" ItemContainerTheme="{StaticResource SettingChoice}" />
+                        </Button.Flyout>
+                    </Button>
+                    <Border Classes="note">
+                        <TextBlock Text="The Sonos soundbar this computer's TV plays through. With surround sound sent to it, the controller's volume turns it, as does music's and audiobooks' while they play here. Found by itself the first time; choose it here if the volume turns the wrong room." />
                     </Border>
 
                     <TextBlock Classes="section" Text="SUBTITLES" IsVisible="{Binding KeepsLanguages}" />
@@ -277,7 +320,7 @@
             </StackPanel>
         </ScrollViewer>
         <!-- Back, for the pointer: the page sits over its tab. -->
-        <Button x:Name="BackButton" ToolTip.Tip="Back (Alt+←)" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
+        <Button Theme="{StaticResource BackButton}" x:Name="BackButton" ToolTip.Tip="Back (Alt+←)" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
                 Width="44" Height="44" CornerRadius="22" Background="#B3000000" Foreground="White" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Padding="0">
             <TextBlock Text="&#xE72B;" FontFamily="{StaticResource IconFont}" />
         </Button>

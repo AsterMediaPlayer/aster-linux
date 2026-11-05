@@ -112,6 +112,10 @@ public partial class PlayerViewModel : ViewModelBase
 #if DEBUG
             Player.Log += (prefix, level, text) => System.Diagnostics.Debug.WriteLine($"mpv [{prefix}] {level}: {text}");
 #endif
+            Player.Log += (prefix, _, text) =>
+            {
+                if (prefix == "ao/pipewire" && text.Contains("no target node", StringComparison.Ordinal)) Dispatcher.UIThread.Post(PassthroughBlocked);
+            };
         }
         catch (Exception error) when (error is DllNotFoundException or MpvException)
         {
@@ -129,11 +133,26 @@ public partial class PlayerViewModel : ViewModelBase
             // Off: ASS and SSA lose their positions, drawings and fonts, as plain text at the bottom.
             ["sub-ass-override"] = settings.StyledSubtitles ? "scale" : "strip",
         };
+        // Shows are mastered near -24 LUFS and games near -16: brought to about a game's
+        // loudness, peaks held under -1.5 dB. loudnorm works at 192 kHz, so back to 48.
+        // Folded to stereo first (the centre's dialogue at full level in both, the
+        // surrounds at -3 dB), the centre's peaks no longer hold it back: about -13.
+        const string Fold = "aresample=ochl=stereo:clev=1:slev=0.707";
+        if (settings.EvenVolume)
+            options["af"] = settings.StereoMix
+                ? $"lavfi=[{Fold},loudnorm=I=-12:LRA=7:TP=-1,aresample=48000]"
+                : "lavfi=[loudnorm=I=-16:LRA=11:TP=-1.5,aresample=48000]";
+        else if (settings.StereoMix)
+            // The centre at full level can sum past full scale: held just under it.
+            options["af"] = $"lavfi=[{Fold},alimiter=limit=0.89:level=false]";
         if (settings.AudioPassthrough)
         {
             // Dolby and DTS go to the receiver untouched, which decodes them (Atmos and DTS:X
             // with them); anything else (AAC, Opus, FLAC) still plays as ordinary sound.
-            options["audio-spdif"] = "ac3,eac3,dts,dts-hd,truehd";
+            // Not DTS-HD: a soundbar (a Sonos Arc) takes DTS, not DTS-HD, and a PipeWire output rarely
+            // allows it, so it found nowhere to go and played nothing. Without it, a DTS-HD track's
+            // DTS core goes instead, which every DTS receiver plays.
+            options["audio-spdif"] = "ac3,eac3,dts,truehd";
             if (OperatingSystem.IsWindows())
             {
                 // E-AC-3, TrueHD and DTS-HD fit through HDMI only with the sound device to itself.
@@ -163,6 +182,9 @@ public partial class PlayerViewModel : ViewModelBase
         ["sub-auto"] = "no",
         ["ytdl"] = "no",
         ["audio-display"] = "no",
+        // The sound's output closed between one load and the next (mpv keeps it open by default), so
+        // playing again from here (Restart Audio) opens the HDMI stream afresh, as stopping and playing does.
+        ["gapless-audio"] = "no",
         ["user-agent"] = $"{JellyfinDevice.ClientName}/{JellyfinDevice.Version}",
 #if DEBUG
         // ASTER_MUTE: silent, for trying the app without disturbing anyone.
@@ -495,6 +517,59 @@ public partial class PlayerViewModel : ViewModelBase
     /// <summary>A menu is open, so the controls stay up.</summary>
     public int OpenMenus { get; set; }
 
+    // ---- The mini player ----
+
+    /// <summary>
+    /// Played over the app's pages (not a disc menu), so it can shrink to a
+    /// corner and play on while the pages are browsed.
+    /// </summary>
+    public bool CanMinimize { get; set; }
+
+    /// <summary>In the corner, the pages in front: just the picture, no controls.</summary>
+    [ObservableProperty] public partial bool IsMini { get; set; }
+
+    /// <summary>Back pressed: watch on in the mini player, or stop.</summary>
+    [ObservableProperty] public partial bool LeavePromptVisible { get; set; }
+
+    partial void OnIsMiniChanged(bool value)
+    {
+        LeavePromptVisible = false;
+        if (value)
+        {
+            hideTimer.Stop();
+            ControlsVisible = false;
+        }
+        else PokeControls();
+    }
+
+    /// <summary>To the corner, playing on.</summary>
+    [RelayCommand]
+    private void Minimize()
+    {
+        if (CanMinimize) IsMini = true;
+    }
+
+    /// <summary>The prompt put away: back to the picture.</summary>
+    [RelayCommand]
+    private void KeepWatching() => LeavePromptVisible = false;
+
+    /// <summary>
+    /// Back in the player, where there's a mini player: as Settings has it,
+    /// the prompt (mini player or stop), the mini player, or stopping.
+    /// Without one (a disc menu's), or on an error, closing.
+    /// </summary>
+    public void Back()
+    {
+        if (LeavePromptVisible) LeavePromptVisible = false;
+        else if (!CanMinimize || ErrorMessage is not null) CloseCommand.Execute(null);
+        else switch (AppSettings.Current.BackInVideo)
+        {
+            case VideoBack.MiniPlayer: IsMini = true; break;
+            case VideoBack.Stop: CloseCommand.Execute(null); break;
+            default: LeavePromptVisible = true; break;
+        }
+    }
+
     [ObservableProperty] public partial IReadOnlyList<TrackChoice> AudioChoices { get; set; } = [];
     [ObservableProperty] public partial IReadOnlyList<TrackChoice> SubtitleChoices { get; set; } = [];
     [ObservableProperty] public partial IReadOnlyList<TrackChoice> QualityChoices { get; set; } = [];
@@ -826,6 +901,18 @@ public partial class PlayerViewModel : ViewModelBase
     /// <summary>Opens <paramref name="url"/> paused at <paramref name="start"/> seconds; done once mpv has its tracks.</summary>
     private async Task LoadAsync(Uri url, double start)
     {
+        // A title before fell back to decoded sound: another tries passthrough again. The same title,
+        // played again from where it was, keeps the decoded sound that worked.
+        if (Item?.Id != decodedItem)
+        {
+            if (passthrough == PassthroughState.Decoded && settings.AudioPassthrough)
+            {
+                try { Player?.SetProperty("audio-spdif", Options()["audio-spdif"]); }
+                catch (MpvException) { }
+            }
+            passthrough = PassthroughState.Normal;
+            decodedItem = null;
+        }
         var player = Player!;
         // The video view gives mpv its surface on its first frame; a file
         // opened before then would have nowhere to draw.
@@ -912,6 +999,7 @@ public partial class PlayerViewModel : ViewModelBase
     private async Task BeginAsync()
     {
         Player!.SetProperty("pause", false);
+        CheckSoundbarSoon();
         HasStarted = true;
         stopReported = false;
         RefreshChoices();
@@ -943,6 +1031,7 @@ public partial class PlayerViewModel : ViewModelBase
                 // mpv pauses on the last frame at the end; the Up Next card has the screen then.
                 if (EndCardVisible) break;
                 if (IsPaused) ControlsVisible = true; else PokeControls();
+                if (!IsPaused && HasStarted) CheckSoundbarSoon();
                 break;
             case "paused-for-cache":
                 IsBuffering = value is true;
@@ -1095,6 +1184,7 @@ public partial class PlayerViewModel : ViewModelBase
     /// <summary>Shows the controls, and hides them again after a while of nothing.</summary>
     public void PokeControls()
     {
+        if (IsMini) return;
         ControlsVisible = true;
         hideTimer.Stop();
         hideTimer.Start();
@@ -1136,11 +1226,265 @@ public partial class PlayerViewModel : ViewModelBase
 
     public void ChangeVolume(double by)
     {
+        // The Sonos's own volume, as the TV's remote turns it: passed through, the only way (mpv can't
+        // turn a Dolby stream down); decoded, only the Sonos already confirmed, as this computer may not
+        // be playing through that TV at all. Without one, mpv's.
+        var passedThrough = IsPassthrough;
+        if (passedThrough || (!sonosUnavailable && AppSettings.Current.SonosSpeaker is not null))
+        {
+            _ = ChangeSonosVolumeAsync(Math.Sign(by) * SonosStep, passedThrough, by);
+            return;
+        }
+        ChangeOwnVolume(by);
+    }
+
+    private void ChangeOwnVolume(double by)
+    {
         if (Player?.GetDouble("volume") is not { } volume) return;
         var level = Math.Clamp(volume + by, 0, 100);
         Player.SetProperty("volume", level);
         Player.SetProperty("mute", false);
         ShowToast($"Volume {level:0}%");
+    }
+
+    /// <summary>A Sonos's own step (of 100): five would be a big jump at a soundbar's usual level.</summary>
+    private const int SonosStep = 2;
+
+    /// <summary>The sound goes out as Dolby or DTS untouched (mpv's spdif- formats), for the speaker to decode.</summary>
+    private bool IsPassthrough => Player?.GetString("audio-out-params/format")?.StartsWith("spdif", StringComparison.Ordinal) == true;
+
+    private readonly System.Threading.SemaphoreSlim sonosTurn = new(1, 1);
+    private Aster.Core.Audio.SonosSpeaker? sonos;
+
+    /// <summary>Two (or more) on TV input and none used before: the next press picks, up the first, down the second.</summary>
+    private IReadOnlyList<Aster.Core.Audio.SonosSpeaker>? sonosQuestion;
+
+    /// <summary>Decoded, the confirmed Sonos wasn't on its TV input (or didn't answer): mpv's volume from then on, without a search each press.</summary>
+    private bool sonosUnavailable;
+
+    /// <summary>
+    /// The Sonos on its TV input turned up or down, found once (the first
+    /// press takes a couple of seconds) and remembered for next time. With
+    /// two TVs on, the first press asks which, and the next one answers.
+    /// One change at a time, so a held stick's presses don't overtake.
+    /// Decoded (not <paramref name="passedThrough"/>), only the speaker
+    /// confirmed before, never a question; else mpv's own volume, by
+    /// <paramref name="ownBy"/>.
+    /// </summary>
+    private async Task ChangeSonosVolumeAsync(int by, bool passedThrough, double ownBy)
+    {
+        await sonosTurn.WaitAsync();
+        try
+        {
+            if (!passedThrough && sonos is null)
+            {
+                var confirmed = AppSettings.Current.SonosSpeaker;
+                sonos = (await Aster.Core.Audio.Sonos.OnTvInputAsync()).FirstOrDefault(s => s.Id == confirmed);
+                if (sonos is null)
+                {
+                    sonosUnavailable = true;
+                    ChangeOwnVolume(ownBy);
+                    return;
+                }
+            }
+            if (sonosQuestion is { } asked)
+            {
+                sonosQuestion = null;
+                // Two to choose between: up the first, down the second. One offered in place of the
+                // one used before: up takes it, down leaves things as they were.
+                var answer = by > 0 ? asked[0] : asked.Count > 1 ? asked[1] : null;
+                if (answer is null)
+                {
+                    ShowToast("Volume: set it on your receiver or soundbar");
+                    return;
+                }
+                Use(answer);
+                ShowToast($"Volume goes to {sonos!.Room}");
+                return;
+            }
+            if (sonos is null)
+            {
+                ShowToast("Volume: finding the speaker…");
+                var onTv = await Aster.Core.Audio.Sonos.OnTvInputAsync();
+                if (Aster.Core.Audio.Sonos.Choose(onTv, AppSettings.Current.SonosSpeaker) is { } chosen) Use(chosen);
+                else if (onTv.Count > 1)
+                {
+                    sonosQuestion = onTv;
+                    ShowToast($"Which Sonos? Volume up: {onTv[0].Room} · Volume down: {onTv[1].Room}");
+                    return;
+                }
+                else if (onTv.Count == 1)
+                {
+                    // The one used before isn't on its TV: this one's asked about, not taken.
+                    sonosQuestion = onTv;
+                    ShowToast($"Use {onTv[0].Room} for volume? Volume up: yes · Volume down: no");
+                    return;
+                }
+                else
+                {
+                    ShowToast("Volume: set it on your receiver or soundbar");
+                    return;
+                }
+            }
+            if (await Aster.Core.Audio.Sonos.ChangeVolumeAsync(sonos, by) is { } level) ShowToast($"{sonos.Room} volume {level}");
+            else if (!passedThrough)
+            {
+                sonos = null;
+                sonosUnavailable = true;
+                ChangeOwnVolume(ownBy);
+            }
+            else
+            {
+                // Gone (asleep, unplugged, a new address): found afresh next time.
+                ShowToast($"Volume: {sonos.Room} didn't answer");
+                sonos = null;
+            }
+        }
+        finally { sonosTurn.Release(); }
+
+        void Use(Aster.Core.Audio.SonosSpeaker speaker)
+        {
+            sonos = speaker;
+            if (AppSettings.Current.SonosSpeaker != speaker.Id) AppSettings.Save(AppSettings.Current with { SonosSpeaker = speaker.Id });
+        }
+    }
+
+    /// <summary>Passthrough is playing: Restart Audio is offered, for a soundbar the stream didn't reach.</summary>
+    [ObservableProperty] public partial bool CanRestartAudio { get; set; }
+
+    /// <summary>
+    /// A TV sometimes doesn't hand a Dolby stream on to its soundbar (a TCL's
+    /// eARC to a Sonos Arc missed about one start in seven), and nothing on
+    /// this side can tell: playing again from here, as stopping and playing
+    /// does, gets it through. Done by hand from the controls, or by itself
+    /// when a Sonos says no sound came.
+    /// </summary>
+    [RelayCommand]
+    private void RestartAudio()
+    {
+        if (stopped || Item is null) return;
+        Restart(e => e);
+    }
+
+    private string? soundbarCheckedItem;
+    private int soundbarRestarts;
+
+    /// <summary>
+    /// With a Sonos confirmed (its volume turned here before), seven seconds
+    /// into passthrough (a soundbar locks on in two to six), whether the
+    /// sound reached it. Not sooner: restarting a start that's still locking
+    /// on made misses likelier (8 of 12 heard, against 18 of 21 left alone).
+    /// </summary>
+    private void CheckSoundbarSoon()
+    {
+        if (!settings.AudioPassthrough || AppSettings.Current.SonosSpeaker is null) return;
+        if (Item?.Id != soundbarCheckedItem)
+        {
+            soundbarCheckedItem = Item?.Id;
+            soundbarRestarts = 0;
+        }
+        var item = Item;
+        DispatcherTimer.RunOnce(() => _ = CheckSoundbarAsync(item), TimeSpan.FromSeconds(7));
+    }
+
+    /// <summary>The Sonos says no sound is coming in: played again from here, up to three times.</summary>
+    private async Task CheckSoundbarAsync(BaseItem? item)
+    {
+        if (stopped || IsPaused || Item != item || Player is null || !IsPassthrough) return;
+        var confirmed = AppSettings.Current.SonosSpeaker;
+        var speaker = sonos?.Id == confirmed ? sonos : (await Aster.Core.Audio.Sonos.OnTvInputAsync()).FirstOrDefault(s => s.Id == confirmed);
+        if (speaker is null) return;
+        sonos ??= speaker;
+        if (await Aster.Core.Audio.Sonos.HearsTvAsync(speaker) is not false) return;
+        if (stopped || IsPaused || Item != item) return;
+        if (soundbarRestarts >= 3)
+        {
+            ShowToast($"No sound is reaching {speaker.Room}: try Restart Audio, or the TV's input");
+            return;
+        }
+        soundbarRestarts++;
+        ShowToast($"No sound reached {speaker.Room}: starting it again");
+        Restart(e => e);
+    }
+
+    /// <summary>
+    /// The sound's output opened afresh: the track off and on again. (mpv's
+    /// ao-reload does nothing while the format is the same, so it couldn't.)
+    /// </summary>
+    private void ReopenSound()
+    {
+        if (Player?.GetString("aid") is not { } track || track == "no") return;
+        try
+        {
+            Player.SetProperty("aid", "no");
+            Player.SetProperty("aid", track);
+        }
+        catch (MpvException) { }
+    }
+
+    /// <summary>Passthrough's sound decoded here instead, for this film: it shares the device.</summary>
+    /// <summary>The title whose sound fell back to decoded, kept so while it plays.</summary>
+    private string? decodedItem;
+
+    private void DecodeSound()
+    {
+        if (Player is null || passthrough == PassthroughState.Decoded) return;
+        passthrough = PassthroughState.Decoded;
+        decodedItem = Item?.Id;
+        try
+        {
+            Player.SetProperty("audio-spdif", "");
+            ReopenSound();
+        }
+        catch (MpvException) { }
+        ShowToast("Another sound had the speakers: this film's sound is decoded here (no Atmos)");
+    }
+
+    private double stallPosition = -1;
+    private DateTime stallSince;
+
+    /// <summary>
+    /// The clock standing still while playing (not paused, not buffering) in
+    /// passthrough: its sound has nowhere to go, as when the output was taken
+    /// at the start, and mpv says so only once. After four seconds, decoded.
+    /// </summary>
+    private void WatchForStall(double position)
+    {
+        if (!settings.AudioPassthrough || passthrough == PassthroughState.Decoded || IsPaused || IsBuffering || stopped)
+        {
+            stallPosition = -1;
+            return;
+        }
+        if (Math.Abs(position - stallPosition) > 0.01)
+        {
+            stallPosition = position;
+            stallSince = DateTime.UtcNow;
+        }
+        else if (DateTime.UtcNow - stallSince > TimeSpan.FromSeconds(4)) DecodeSound();
+    }
+
+    private enum PassthroughState { Normal, Retrying, Retried, Decoded }
+
+    private PassthroughState passthrough;
+
+    /// <summary>
+    /// Passthrough found the sound device taken: PipeWire puts a Dolby or
+    /// DTS stream only on an output nothing else is playing on, so another
+    /// sound there (another app, the Aster just closed letting go of it)
+    /// left mpv with nowhere to send it, and the film stood still, frozen.
+    /// Opened again after a moment, when that's usually gone; if the clock
+    /// still stands still, <see cref="WatchForStall"/> decodes the sound here,
+    /// which shares the device: the film plays, without Atmos.
+    /// </summary>
+    private void PassthroughBlocked()
+    {
+        if (Player is null || !settings.AudioPassthrough || passthrough != PassthroughState.Normal) return;
+        passthrough = PassthroughState.Retrying;
+        DispatcherTimer.RunOnce(() =>
+        {
+            passthrough = PassthroughState.Retried;
+            ReopenSound();
+        }, TimeSpan.FromSeconds(1));
     }
 
     public void ToggleMute()
@@ -1445,6 +1789,8 @@ public partial class PlayerViewModel : ViewModelBase
     {
         if (!HasStarted || EndCardVisible || Player is null) return;
         if (Player.GetDouble("time-pos") is not { } seconds) return;
+        WatchForStall(seconds);
+        CanRestartAudio = IsPassthrough;
         Position = seconds;
         if (!IsScrubbing)
         {

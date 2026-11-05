@@ -20,7 +20,60 @@ public sealed partial class AudiobookPlayer : ObservableObject, IDisposable
     public const double SkipBackSeconds = 15;
     public const double SkipForwardSeconds = 30;
 
-    private readonly AudioEngine engine = new();
+    /// <summary>This computer's own player, used whenever no speakers are chosen.</summary>
+    private readonly AudioEngine local = new();
+
+    /// <summary>Where the book plays: <see cref="local"/>, or Sonos rooms.</summary>
+    private IAudioOutput engine;
+
+    /// <summary>The player's own volume turned by <paramref name="by"/>: the level after.</summary>
+    public double? ChangeVolume(double by) => engine.ChangeVolume(by);
+
+    /// <summary>Whether the book can be played faster or slower where it plays (Sonos can't).</summary>
+    public bool CanChangeSpeed => engine.CanChangeSpeed;
+
+    /// <summary>
+    /// Plays through <paramref name="output"/> from now on (null: this
+    /// computer), carrying on with the book where it was when
+    /// <paramref name="carryOn"/>.
+    /// </summary>
+    public void UseOutput(IAudioOutput? output, bool carryOn = true)
+    {
+        var next = output ?? local;
+        if (ReferenceEquals(next, engine)) return;
+        var at = engine.Position ?? CurrentTime;
+        var wasPlaying = IsPlaying;
+        FinishCurrent();
+        engine.Stop();
+        Hook(engine, on: false);
+        engine = next;
+        Hook(engine, on: true);
+        engine.Speed = Rate;
+        OnPropertyChanged(nameof(CanChangeSpeed));
+        if (carryOn && Book is not null && client is not null) Load(PartIndex, at, wasPlaying);
+    }
+
+    private void Hook(IAudioOutput output, bool on)
+    {
+        if (on)
+        {
+            output.Loaded += Started;
+            output.Ended += PartEnded;
+            output.Failed += Fail;
+        }
+        else
+        {
+            output.Loaded -= Started;
+            output.Ended -= PartEnded;
+            output.Failed -= Fail;
+        }
+    }
+
+    private void Fail(string message)
+    {
+        ErrorMessage = message;
+        IsPlaying = false;
+    }
     private readonly DispatcherTimer clock = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private JellyfinClient? client;
     private string playSessionId = Guid.NewGuid().ToString("N");
@@ -32,18 +85,16 @@ public sealed partial class AudiobookPlayer : ObservableObject, IDisposable
 
     public AudiobookPlayer()
     {
-        engine.Loaded += Started;
-        engine.Ended += PartEnded;
-        engine.Failed += message =>
-        {
-            ErrorMessage = message;
-            IsPlaying = false;
-        };
+        engine = local;
+        Hook(engine, on: true);
         clock.Tick += (_, _) => Tick();
     }
 
     /// <summary>Called as a book starts, so songs playing step aside.</summary>
     public event Action? Starting;
+
+    /// <summary>A book was played (started, or the one loaded from a chapter or carried on), for its player to open.</summary>
+    public event Action? Played;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CurrentChapter), nameof(BookElapsed), nameof(BookDuration), nameof(Chapters))]
@@ -102,6 +153,7 @@ public sealed partial class AudiobookPlayer : ObservableObject, IDisposable
         {
             if (chapter is not null) JumpTo(chapter);
             if (!IsPlaying) Resume();
+            Played?.Invoke();
             return;
         }
         Starting?.Invoke();
@@ -112,6 +164,7 @@ public sealed partial class AudiobookPlayer : ObservableObject, IDisposable
         engine.Speed = Rate;
         var start = chapter is not null ? (chapter.Part, chapter.Start) : book.ResumePoint ?? (0, 0);
         Load(start.Item1, start.Item2, playing: true);
+        Played?.Invoke();
     }
 
     // ---- Transport ----
@@ -238,9 +291,30 @@ public sealed partial class AudiobookPlayer : ObservableObject, IDisposable
         playWhenReady = playing;
         Duration = book.PartDurations[part];
         ErrorMessage = null;
-        engine.Load(client.UniversalAudioUrl(book.Parts[part].Id, playSessionId, AppSettings.Current.MaxBitrate), seconds, playing);
+        var about = new SonosTrack(book.Title, book.Author, book.Series, client.ImageUrl(book.Cover.Id, ImageKind.Primary, maxWidth: 600), IsBook: true);
+        if (engine.IsRemote) _ = LoadOnSpeakersAsync(engine, client, book, part, seconds, playing, about);
+        else engine.Load(client.UniversalAudioUrl(book.Parts[part].Id, playSessionId, AppSettings.Current.MaxBitrate), seconds, playing, about);
         IsPlaying = playing;
         clock.Start();
+    }
+
+    /// <summary>
+    /// The part handed to the speakers as its own file (seekable, so a book
+    /// can carry on hours in), its format looked up first when the book's
+    /// parts didn't say (an audiobook's own item doesn't, without its media sources).
+    /// </summary>
+    private async System.Threading.Tasks.Task LoadOnSpeakersAsync(IAudioOutput speakers, JellyfinClient from, Audiobook book, int part, double seconds, bool playing, SonosTrack about)
+    {
+        var item = book.Parts[part];
+        var container = item.Container ?? item.MediaSources?.FirstOrDefault()?.Container;
+        if (container is null)
+        {
+            try { container = (await from.ItemAsync(item.Id)) is { } detail ? detail.Container ?? detail.MediaSources?.FirstOrDefault()?.Container : null; }
+            catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException) { }
+        }
+        // Moved on meanwhile: another part or book, or back to this computer.
+        if (Book?.Id != book.Id || PartIndex != part || !ReferenceEquals(engine, speakers)) return;
+        speakers.Load(from.SonosAudioUrl(item.Id, container), seconds, playing, about);
     }
 
     private void Started()
@@ -308,6 +382,6 @@ public sealed partial class AudiobookPlayer : ObservableObject, IDisposable
     public void Dispose()
     {
         Stop();
-        engine.Dispose();
+        local.Dispose();
     }
 }

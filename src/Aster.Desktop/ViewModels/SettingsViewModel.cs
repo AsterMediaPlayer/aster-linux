@@ -74,6 +74,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
     /// <summary>Edit Channels, where an administrator makes the first channel (the Channels tab shows only once there's one).</summary>
     [RelayCommand] private void OpenChannels() => navigator.Push(new EditChannelsViewModel(navigator));
 
+
+
     /// <summary>Turns a switch over, by its property's name: a row's Enter or click.</summary>
     [RelayCommand]
     private void Flip(string setting)
@@ -90,6 +92,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
             case nameof(OpeningSound): OpeningSound = !OpeningSound; break;
             case nameof(ThemePanel): ThemePanel = !ThemePanel; break;
             case nameof(AudioPassthrough): AudioPassthrough = !AudioPassthrough; break;
+            case nameof(EvenVolume): EvenVolume = !EvenVolume; break;
+            case nameof(StereoMix): StereoMix = !StereoMix; break;
             case nameof(PreferDiscMenu): PreferDiscMenu = !PreferDiscMenu; break;
             case nameof(DiscMenuSounds): DiscMenuSounds = !DiscMenuSounds; break;
         }
@@ -116,6 +120,25 @@ public sealed partial class SettingsViewModel : ViewModelBase
     public partial SettingOption<int>? Bitrate { get; set; }
 
     public IReadOnlyList<TrackChoice> BitrateChoices => Choices(Bitrates, Bitrate, b => Bitrate = b);
+
+    public IReadOnlyList<SettingOption<VideoBack>> VideoBacks { get; } =
+    [
+        new("Ask each time", Aster.Core.VideoBack.Ask),
+        new("Mini player", Aster.Core.VideoBack.MiniPlayer),
+        new("Stop", Aster.Core.VideoBack.Stop),
+    ];
+
+    /// <summary>What Back does in a video.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VideoBackChoices))]
+    public partial SettingOption<VideoBack>? VideoBack { get; set; }
+
+    public IReadOnlyList<TrackChoice> VideoBackChoices => Choices(VideoBacks, VideoBack, b => VideoBack = b);
+
+    partial void OnVideoBackChanged(SettingOption<VideoBack>? value)
+    {
+        if (value is not null) Change(s => s with { BackInVideo = value.Value });
+    }
     [ObservableProperty] public partial bool FullScreenPlayback { get; set; }
     [ObservableProperty] public partial bool AutoplayNext { get; set; }
     [ObservableProperty] public partial bool AutoSkipIntro { get; set; }
@@ -126,6 +149,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
     [ObservableProperty] public partial bool OpeningSound { get; set; }
     [ObservableProperty] public partial bool ThemePanel { get; set; }
     [ObservableProperty] public partial bool AudioPassthrough { get; set; }
+    [ObservableProperty] public partial bool EvenVolume { get; set; }
+    [ObservableProperty] public partial bool StereoMix { get; set; }
 
     public IReadOnlyList<SettingOption<ThemeCut>> ThemeCuts { get; } =
         Enum.GetValues<ThemeCut>().Select(cut => new SettingOption<ThemeCut>(cut.SettingTitle, cut)).ToList();
@@ -158,6 +183,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
     partial void OnOpeningSoundChanged(bool value) => Change(s => s with { OpeningSound = value });
     partial void OnThemePanelChanged(bool value) => Change(s => s with { ThemePanel = value });
     partial void OnAudioPassthroughChanged(bool value) => Change(s => s with { AudioPassthrough = value });
+    partial void OnEvenVolumeChanged(bool value) => Change(s => s with { EvenVolume = value });
+    partial void OnStereoMixChanged(bool value) => Change(s => s with { StereoMix = value });
     partial void OnPreferDiscMenuChanged(bool value) => Change(s => s with { PreferDiscMenu = value });
     partial void OnDiscMenuSoundsChanged(bool value) => Change(s => s with { DiscMenuSounds = value });
 
@@ -175,6 +202,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         var settings = AppSettings.Current;
         showing = true;
         Bitrate = Bitrates.FirstOrDefault(b => b.Value == settings.MaxBitrate) ?? Bitrates[0];
+        VideoBack = VideoBacks.FirstOrDefault(b => b.Value == settings.BackInVideo) ?? VideoBacks[0];
         FullScreenPlayback = settings.FullScreenPlayback;
         AutoplayNext = settings.AutoplayNext;
         AutoSkipIntro = settings.AutoSkipIntro;
@@ -185,10 +213,53 @@ public sealed partial class SettingsViewModel : ViewModelBase
         OpeningSound = settings.OpeningSound;
         ThemePanel = settings.ThemePanel;
         AudioPassthrough = settings.AudioPassthrough;
+        EvenVolume = settings.EvenVolume;
+        StereoMix = settings.StereoMix;
         ThemeCut = ThemeCuts.FirstOrDefault(c => c.Value == settings.ThemeCut) ?? ThemeCuts[0];
         PreferDiscMenu = settings.PreferDiscMenu;
         DiscMenuSounds = settings.DiscMenuSounds;
+        SonosSpeaker = settings.SonosSpeaker;
         showing = false;
+        _ = FindSonosAsync();
+    }
+
+    // ---- The Sonos this computer's TV plays through ----
+
+    /// <summary>The rooms on the network, found as Settings opens.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SonosChoices), nameof(SonosName))]
+    public partial IReadOnlyList<Aster.Core.Audio.SonosRoom> SonosRooms { get; private set; } = [];
+
+    /// <summary>The chosen one's id (RINCON_…), or null for none.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SonosChoices), nameof(SonosName))]
+    public partial string? SonosSpeaker { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SonosName))]
+    public partial bool IsFindingSonos { get; private set; }
+
+    public string SonosName => SonosSpeaker is null ? "None"
+        : SonosRooms.FirstOrDefault(r => r.Id == SonosSpeaker)?.Name ?? (IsFindingSonos ? "Finding…" : "Not found");
+
+    public IReadOnlyList<TrackChoice> SonosChoices =>
+    [
+        new(0, "None", SonosSpeaker is null, new RelayCommand(() => PickSonos(null))),
+        .. SonosRooms.Select((room, i) => new TrackChoice(i + 1, room.Name, room.Id == SonosSpeaker, new RelayCommand(() => PickSonos(room.Id)))),
+    ];
+
+    /// <summary>Chosen here: this computer's own (not synced), as it's this computer's TV.</summary>
+    private void PickSonos(string? id)
+    {
+        SonosSpeaker = id;
+        AppSettings.Save(AppSettings.Current with { SonosSpeaker = id });
+    }
+
+    private async System.Threading.Tasks.Task FindSonosAsync()
+    {
+        IsFindingSonos = true;
+        SonosRooms = await Aster.Core.Audio.Sonos.RoomsAsync();
+        IsFindingSonos = false;
     }
 
     // ---- Audio & Subtitles ----

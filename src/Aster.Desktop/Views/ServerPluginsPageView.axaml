@@ -20,7 +20,7 @@
          on and off, then the restart a change waits on, Aurora, and the welcome screen again. -->
     <Panel>
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Margin="48,76,48,60" DataContext="{Binding Plugins}" x:DataType="vm:ServerPluginsViewModel">
+            <StackPanel Margin="107,76,107,60" DataContext="{Binding Plugins}" x:DataType="vm:ServerPluginsViewModel">
                 <TextBlock Classes="pageTitle" Text="Server Plugins" />
 
                 <ProgressBar IsIndeterminate="True" Width="200" HorizontalAlignment="Center" Margin="0,40" IsVisible="{Binding IsLoading}" />
@@ -75,7 +75,7 @@
             </StackPanel>
         </ScrollViewer>
         <!-- Back, for the pointer: the page sits over its tab. -->
-        <Button x:Name="BackButton" ToolTip.Tip="Back (Alt+←)" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
+        <Button Theme="{StaticResource BackButton}" x:Name="BackButton" ToolTip.Tip="Back (Alt+←)" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
                 Width="44" Height="44" CornerRadius="22" Background="#B3000000" Foreground="White" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Padding="0">
             <TextBlock Text="&#xE72B;" FontFamily="{StaticResource IconFont}" />
         </Button>

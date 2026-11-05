@@ -64,18 +64,52 @@ public partial class PlayerView : UserControl
                 if (change.PropertyName is nameof(PlayerViewModel.Chapters) or nameof(PlayerViewModel.Duration)) MarkChapters();
                 if (change.PropertyName is nameof(PlayerViewModel.PreviewSeconds)) PlacePreview();
                 if (change.PropertyName is nameof(PlayerViewModel.ControlsVisible) or nameof(PlayerViewModel.Flick)) PlaceThemeCard();
+                if (change.PropertyName is nameof(PlayerViewModel.ControlsVisible)) ShowPointer();
+                if (change.PropertyName is nameof(PlayerViewModel.IsMini)) MiniChanged(model.IsMini);
+                if (change.PropertyName is nameof(PlayerViewModel.LeavePromptVisible))
+                {
+                    // On Mini Player, the likeliest, ready for A; put away, back to the picture.
+                    if (model.LeavePromptVisible) Dispatcher.UIThread.Post(() => KeyFocus.Move(MiniPlayerChoice), DispatcherPriority.Loaded);
+                    else if (!model.IsMini) Focus();
+                }
             };
+            ShowPointer();
         };
-        Surface.PointerMoved += (_, _) => Model?.PokeControls();
+        Surface.PointerMoved += (_, e) =>
+        {
+            // Only a pointer that moved: one resting where the picture
+            // changes under it (or the controls come and go) is heard too.
+            var at = e.GetPosition(this);
+            var moved = pointerAt is { } was && (Math.Abs(at.X - was.X) > 2 || Math.Abs(at.Y - was.Y) > 2);
+            pointerAt = at;
+            if (!moved || Model is { IsMini: true }) return;
+            usingGamepad = false;
+            pointerResting = false;
+            Model?.PokeControls();
+            ShowPointer();
+        };
+        Surface.PointerPressed += (_, e) =>
+        {
+            // A click on the mini player: full screen again.
+            if (Model is { IsMini: true } mini)
+            {
+                mini.IsMini = false;
+                e.Handled = true;
+                return;
+            }
+            pointerResting = false;
+            ShowPointer();
+        };
         Surface.DoubleTapped += (_, e) =>
         {
+            if (Model is { IsMini: true }) return;
             // Only on the picture, not on a control.
             if (e.Source is Visual source && source.FindAncestorOfType<Button>() is null && source.FindAncestorOfType<Slider>() is null) ToggleFullScreen();
         };
         // The controls stay up while a menu is open.
         foreach (var node in this.GetLogicalDescendants())
         {
-            if (node is Button { Flyout: { } flyout })
+            if (node is Button { Flyout: { } flyout } button)
             {
                 flyout.Opened += (_, _) => { if (Model is { } m) m.OpenMenus++; };
                 flyout.Closed += (_, _) =>
@@ -83,7 +117,9 @@ public partial class PlayerView : UserControl
                     if (Model is not { } m) return;
                     m.OpenMenus = Math.Max(0, m.OpenMenus - 1);
                     m.PokeControls();
-                    Focus();
+                    // With a controller, back on the button the menu came from, to go on from there.
+                    if (usingGamepad && KeyFocus.CanFocus(button)) KeyFocus.Move(button);
+                    else Focus();
                 };
             }
         }
@@ -194,15 +230,15 @@ public partial class PlayerView : UserControl
         base.OnAttachedToVisualTree(e);
         Window = TopLevel.GetTopLevel(this) as Window;
         Window?.AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
-        // Settings' "Play videos full screen"; the window comes back as the player closes.
-        FullScreen.Hold(Window, enter: Aster.Core.AppSettings.Current.FullScreenPlayback);
+        // Settings' "Play videos full screen"; the window comes back as the player closes (or goes mini).
+        if (Model is not { IsMini: true }) HoldFullScreen();
         Focus();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         Window?.RemoveHandler(KeyDownEvent, OnWindowKeyDown);
-        FullScreen.Release(Window);
+        ReleaseFullScreen();
         Window = null;
         base.OnDetachedFromVisualTree(e);
     }
@@ -215,6 +251,11 @@ public partial class PlayerView : UserControl
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
         if (Model is not { } model || e.Handled) return;
+        // In the corner the pages have the keys (the shell brings it back).
+        if (model.IsMini) return;
+        // The keyboard or a controller: the pointer goes until the mouse moves.
+        pointerResting = true;
+        ShowPointer();
         // The channel row has the arrows while it's open.
         if (model.Flick is { } flick)
         {
@@ -230,6 +271,34 @@ public partial class PlayerView : UserControl
             }
             e.Handled = true;
             return;
+        }
+        // Mini Player, Stop Watching or Keep Watching: the arrows between them, Enter for the one chosen.
+        if (model.LeavePromptVisible && e.KeyDeviceType != KeyDeviceType.Gamepad)
+        {
+            switch (e.Key)
+            {
+                case Key.Left or Key.Right or Key.Up or Key.Down:
+                    if (KeyFocus.Current(this) is Visual on && Nearest(on, e.Key) is { } next) KeyFocus.Move(next);
+                    e.Handled = true;
+                    return;
+                case Key.Enter or Key.Space:
+                    return;
+            }
+        }
+        // A controller's Y: watch in the mini player.
+        if (e.Key == Key.MediaMenu && model.CanMinimize)
+        {
+            model.MinimizeCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+        if (e.KeyDeviceType == KeyDeviceType.Gamepad)
+        {
+            switch (Gamepad(model, e.Key))
+            {
+                case true: e.Handled = true; return;
+                case false: return;
+            }
         }
         switch (e.Key)
         {
@@ -289,11 +358,13 @@ public partial class PlayerView : UserControl
             case Key.MediaPreviousTrack:
                 if (!model.SwitchChannel(-1)) model.SeekBy(-30);
                 break;
-            case Key.Escape when Window is { WindowState: WindowState.FullScreen }:
+            // Pinned full screen (a couch session), Esc closes the player as Back does.
+            case Key.Escape when Window is { WindowState: WindowState.FullScreen } && !FullScreen.Pinned:
                 ToggleFullScreen();
                 break;
+            // Back: the mini player or stop, asked (or, without a mini player, closing).
             case Key.Escape or Key.BrowserBack:
-                model.CloseCommand.Execute(null);
+                model.Back();
                 break;
             default:
                 model.PokeControls();
@@ -308,5 +379,169 @@ public partial class PlayerView : UserControl
         if (Window is not { } window) return;
         FullScreen.Toggle(window);
         Focus();
+    }
+
+    // ---- The pointer ----
+
+    private static readonly Cursor NoPointer = new(StandardCursorType.None);
+
+    /// <summary>Where the pointer was last heard, to tell it moving from the picture changing under it.</summary>
+    private Point? pointerAt;
+
+    /// <summary>A key or a controller was used since the mouse last moved.</summary>
+    private bool pointerResting;
+
+    /// <summary>
+    /// The pointer only with the controls, and not while the keyboard or a
+    /// controller is in use: out of the picture as the controls fade, back
+    /// as the mouse moves.
+    /// </summary>
+    private void ShowPointer() =>
+        Cursor = Model is { IsMini: true } ? new Cursor(StandardCursorType.Hand)
+            : Model is { ControlsVisible: true } && !pointerResting ? Cursor.Default : NoPointer;
+
+    // ---- The mini player ----
+
+    /// <summary>The window held full screen for the player (given back while it's in the corner).</summary>
+    private bool holdingFullScreen;
+
+    private void HoldFullScreen()
+    {
+        if (holdingFullScreen) return;
+        holdingFullScreen = true;
+        FullScreen.Hold(Window, enter: Aster.Core.AppSettings.Current.FullScreenPlayback);
+    }
+
+    private void ReleaseFullScreen()
+    {
+        if (!holdingFullScreen) return;
+        holdingFullScreen = false;
+        FullScreen.Release(Window);
+    }
+
+    /// <summary>To the corner, the window as it was for browsing; back, full screen and the keys again.</summary>
+    private void MiniChanged(bool mini)
+    {
+        ShowPointer();
+        if (mini) ReleaseFullScreen();
+        else
+        {
+            HoldFullScreen();
+            Focus();
+        }
+    }
+
+    // ---- A game controller ----
+
+    /// <summary>A controller's key came last, not the mouse: a menu closing gives focus back to its button.</summary>
+    private bool usingGamepad;
+
+    /// <summary>
+    /// A controller's keys, where they differ from the keyboard's. The D-pad
+    /// and left stick move between the controls (bringing them up, on Play/Pause,
+    /// if they're hidden) rather than seeking and changing the volume, which
+    /// the right stick does; on the timeline left and right seek. A presses
+    /// the control it's on; B shuts an open menu, or puts the controls away.
+    /// True: dealt with. False: left to the control it's on. Null: as the keyboard.
+    /// </summary>
+    private bool? Gamepad(PlayerViewModel model, Key key)
+    {
+        usingGamepad = true;
+        if (model.OpenMenus > 0)
+        {
+            if (key != Key.BrowserBack) return false;
+            CloseMenus();
+            return true;
+        }
+        var focused = KeyFocus.Current(this) as Visual;
+        // The prompt up: the arrows among its choices.
+        if (model.LeavePromptVisible && key is Key.Left or Key.Right or Key.Up or Key.Down
+            && (focused is null || !KeyFocus.IsWithin(focused, LeavePrompt)))
+        {
+            KeyFocus.Move(MiniPlayerChoice);
+            return true;
+        }
+        // On one of the player's controls, and it's showing (hidden controls can't take focus).
+        var onControl = focused is InputElement element && focused != this && KeyFocus.IsWithin(focused, this) && KeyFocus.CanFocus(element);
+        switch (key)
+        {
+            case Key.Left or Key.Right or Key.Up or Key.Down:
+                model.PokeControls();
+                if (!onControl)
+                {
+                    // Shown now; focused once they're laid out.
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if ((KeyFocus.CanFocus(PlayPauseButton) ? PlayPauseButton : KeyFocus.FirstIn(this)) is { } first) KeyFocus.Move(first);
+                    }, DispatcherPriority.Loaded);
+                    return true;
+                }
+                if (focused == SeekBar && key is Key.Left or Key.Right)
+                {
+                    model.SeekBy(key == Key.Left ? -10 : 10);
+                    return true;
+                }
+                if (Nearest(focused!, key) is { } next) KeyFocus.Move(next);
+                return true;
+            // A on a button presses it (the timeline's A pauses, as the keyboard's Enter).
+            case Key.Enter when onControl && focused != SeekBar:
+                model.PokeControls();
+                return false;
+            case Key.BrowserBack when onControl && KeyFocus.IsWithin(focused, Controls):
+                model.ControlsVisible = false;
+                Focus();
+                return true;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// The control the arrow points to: among those showing, the nearest
+    /// one past this one that way, preferring those in line with it.
+    /// </summary>
+    private InputElement? Nearest(Visual from, Key direction)
+    {
+        if (from.TranslatePoint(default, this) is not { } origin) return null;
+        var a = new Rect(origin, from.Bounds.Size);
+        InputElement? best = null;
+        var bestScore = double.MaxValue;
+        // The prompt up: only its choices, not the controls behind it.
+        Visual within = Model is { LeavePromptVisible: true } ? LeavePrompt : this;
+        foreach (var candidate in within.GetVisualDescendants().OfType<InputElement>())
+        {
+            if (candidate == from || !KeyFocus.CanFocus(candidate) || KeyFocus.IsWithin(candidate, from) || KeyFocus.IsWithin(from, candidate)) continue;
+            if (candidate.TranslatePoint(default, this) is not { } at) continue;
+            var b = new Rect(at, candidate.Bounds.Size);
+            // How far it is that way (edge to edge), and how far out of line.
+            var (ahead, beside) = direction switch
+            {
+                Key.Left => (a.Left - b.Right, Gap(a.Top, a.Bottom, b.Top, b.Bottom)),
+                Key.Right => (b.Left - a.Right, Gap(a.Top, a.Bottom, b.Top, b.Bottom)),
+                Key.Up => (a.Top - b.Bottom, Gap(a.Left, a.Right, b.Left, b.Right)),
+                _ => (b.Top - a.Bottom, Gap(a.Left, a.Right, b.Left, b.Right)),
+            };
+            var past = direction switch
+            {
+                Key.Left => b.Center.X < a.Center.X,
+                Key.Right => b.Center.X > a.Center.X,
+                Key.Up => b.Center.Y < a.Center.Y,
+                _ => b.Center.Y > a.Center.Y,
+            };
+            if (!past || ahead < -a.Width / 2 && direction is Key.Left or Key.Right || ahead < -a.Height / 2 && direction is Key.Up or Key.Down) continue;
+            var score = Math.Max(ahead, 0) + beside * 3;
+            if (score < bestScore) (best, bestScore) = (candidate, score);
+        }
+        return best;
+
+        static double Gap(double start, double end, double otherStart, double otherEnd) =>
+            Math.Max(0, Math.Max(otherStart - end, start - otherEnd));
+    }
+
+    private void CloseMenus()
+    {
+        foreach (var node in this.GetLogicalDescendants())
+        {
+            if (node is Button { Flyout: { IsOpen: true } flyout }) flyout.Hide();
+        }
     }
 }

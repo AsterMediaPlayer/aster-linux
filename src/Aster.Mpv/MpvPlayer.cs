@@ -51,6 +51,12 @@ public sealed unsafe class MpvPlayer : IDisposable
         if (handle == IntPtr.Zero) throw new MpvException("mpv couldn't be created.");
         try
         {
+            // HDR's peak detection measures every frame on the GPU and waits
+            // for the answer; under Mesa's OpenGL that stall left a 4K HDR
+            // film at 9 frames a second (247 without it). Tone mapping goes
+            // on from the film's own brightness metadata. Options given win.
+            if (OperatingSystem.IsLinux())
+                MpvException.Check(MpvNative.mpv_set_option_string(handle, "hdr-compute-peak", "no"), "Setting hdr-compute-peak");
             foreach (var (name, value) in options)
             {
                 MpvException.Check(MpvNative.mpv_set_option_string(handle, name, value), $"Setting {name}");

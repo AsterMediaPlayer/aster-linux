@@ -7,6 +7,9 @@ namespace Aster.Core;
 /// This computer's settings, kept in %LOCALAPPDATA%\Aster\settings.json.
 /// The names and defaults are the Apple app's.
 /// </summary>
+/// <summary>Back in a video: ask each time, to the mini player, or stop.</summary>
+public enum VideoBack { Ask, MiniPlayer, Stop }
+
 public sealed record AppSettings
 {
     /// <summary>The streaming limit in bits per second; the top choice means "no limit".</summary>
@@ -25,6 +28,31 @@ public sealed record AppSettings
     /// computer's own setting, as the receiver is: not synced.
     /// </summary>
     public bool AudioPassthrough { get; init; }
+
+    /// <summary>
+    /// The Sonos (its RINCON_ id) the volume last went to in passthrough: the
+    /// one chosen again when two are on their TV inputs at once. Found by
+    /// itself, not set by hand. This computer's own: not synced.
+    /// </summary>
+    public string? SonosSpeaker { get; init; }
+
+    /// <summary>
+    /// A video's sound brought to an even, game-like loudness as it plays
+    /// (ffmpeg's loudnorm, about -16 LUFS), so TV mastered near -24 isn't
+    /// far quieter than games and quiet scenes come up. Its channels stay as
+    /// they are (5.1 stays 5.1). Not with passthrough, where the receiver
+    /// decodes the sound. This computer's own setting: not synced.
+    /// </summary>
+    public bool EvenVolume { get; init; }
+
+    /// <summary>
+    /// A video's surround sound folded to stereo, the dialogue (the centre)
+    /// at full level in both speakers and the surrounds at -3 dB: clearer and
+    /// louder on a soundbar or TV without rear speakers, as games' stereo is.
+    /// With <see cref="EvenVolume"/>, evened out after the fold, and louder
+    /// (about -13 LUFS) than surround can be. Not with passthrough.
+    /// </summary>
+    public bool StereoMix { get; init; }
 
     /// <summary>ASS and SSA subtitles drawn as styled; off, as plain text at the bottom.</summary>
     public bool StyledSubtitles { get; init; } = true;
@@ -55,6 +83,9 @@ public sealed record AppSettings
 
     /// <summary>A video takes the whole screen as it starts (the Mac's setting).</summary>
     public bool FullScreenPlayback { get; init; } = true;
+
+    /// <summary>What Back does in a video played from the app's pages: ask, the mini player, or stop.</summary>
+    public VideoBack BackInVideo { get; init; } = VideoBack.Ask;
 
     /// <summary>
     /// The synced settings (by their server keys) chosen on this computer, so

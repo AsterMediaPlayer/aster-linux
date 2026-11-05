@@ -29,6 +29,9 @@ public interface INavigator
     /// <summary>The user's libraries, fetched once per sign-in.</summary>
     Task<IReadOnlyList<BaseItem>> Libraries { get; }
 
+    /// <summary>The Seerr sign-in, for Discover's requests (synced with the other Aster apps).</summary>
+    Aster.Core.Seerr.SeerrAccounts Seerr { get; }
+
     /// <summary>The song or book playing.</summary>
     Aster.Desktop.Audio.AudioSession Audio { get; }
 
@@ -107,7 +110,7 @@ public enum AppTab
     Anime,
     Music,
     Audiobooks,
-    Upcoming,
+    Discover,
     LiveTV,
     Channels,
     Library,
@@ -190,6 +193,9 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
         HasUpcoming = CheckUpcomingAsync(client);
         HasChannels = CheckChannelsAsync(client);
         Audio = new Aster.Desktop.Audio.AudioSession(client);
+        // A song or book started stops the video in the mini player: one thing heard at a time.
+        Audio.Music.Starting += StopVideo;
+        Audio.Books.Starting += StopVideo;
         Theme = new Aster.Desktop.Audio.ThemePlayer(client, Audio);
         Deck = new Aster.Desktop.Audio.ThemeDeck(client, Audio, Theme, show => Open(show));
         NowPlaying = new NowPlayingViewModel(this);
@@ -204,8 +210,11 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
         _ = Libraries.ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTabs));
         _ = HasUpcoming.ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTabs));
         _ = HasChannels.ContinueWith(_ => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTabs));
+        Seerr.Changed += () => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateTabs);
         // The settings that follow the user, as their other devices left them.
         if (client is JellyfinClient jellyfin && jellyfin.Can(ServerCapabilities.SettingsSync)) _ = Aster.Core.SettingsSync.PullAsync(jellyfin);
+        // The Seerr sign-in the Apple and Android apps sync through the server (Discover's, and Search's requests).
+        if (client is JellyfinClient synced) _ = LoadSeerrAsync(synced);
     }
 
     public IMediaServer Client { get; }
@@ -281,9 +290,9 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
             (AppTab.Anime, "Anime", ""),
             (AppTab.Music, "Music", ""),
             (AppTab.Audiobooks, "Audiobooks", ""),
-            (AppTab.Upcoming, "Upcoming", ""),
+            (AppTab.Discover, "Discover", "\uE734"),
             (AppTab.LiveTV, "Live TV", ""),
-            (AppTab.Channels, "Channels (Beta)", ""),
+            (AppTab.Channels, "Channels", ""),
             (AppTab.Library, "Library", ""),
             // At the foot, as on the Apple TV.
             (AppTab.Settings, "Settings", ""),
@@ -295,19 +304,33 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
                 AppTab.Anime => hasAnime,
                 AppTab.Music => hasMusic,
                 AppTab.Audiobooks => hasBooks,
-                AppTab.Upcoming => HasUpcoming.IsCompletedSuccessfully && HasUpcoming.Result,
+                // Upcoming episodes, and with Seerr its films and shows to request.
+                AppTab.Discover => HasUpcoming.IsCompletedSuccessfully && HasUpcoming.Result || Seerr.Account is not null,
                 AppTab.LiveTV => Client.Can(ServerCapabilities.LiveTV) && libraries.Any(l => l.CollectionType == "livetv"),
                 AppTab.Channels => HasChannels.IsCompletedSuccessfully && HasChannels.Result,
                 _ => true,
             })
             .Select(t => new SidebarTab(t.Title, t.Glyph, t.Tab == tab, new RelayCommand(() => ShowTab(t.Tab))))
             .ToList();
+        // Full screen for good (launched from Steam, in gamescope) there's no
+        // window close button, so the sidebar ends with Exit.
+        if (Aster.Desktop.Controls.FullScreen.Pinned)
+            Tabs = [.. Tabs, new SidebarTab("Exit", "", false, new RelayCommand(Exit))];
         CurrentTab = Tabs.FirstOrDefault(t => t.IsSelected);
+    }
+
+    /// <summary>Quits the app, as closing its window would: what's playing reports where it stopped.</summary>
+    private static void Exit()
+    {
+        if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+            desktop.TryShutdown();
     }
 
     /// <summary>A tab's page, from the top: made the first time, kept after.</summary>
     public void ShowTab(AppTab chosen)
     {
+        // Chosen from the sidebar over the Now Playing player: the page, in its place (what's playing plays on).
+        Audio.IsNowPlayingShown = false;
         if (!tabs.TryGetValue(chosen, out var page))
         {
             page = chosen switch
@@ -317,7 +340,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
                 AppTab.Anime => new AnimeViewModel(this),
                 AppTab.Music => new MusicViewModel(this),
                 AppTab.Audiobooks => new AudiobooksViewModel(this),
-                AppTab.Upcoming => new UpcomingViewModel(this),
+                AppTab.Discover => new DiscoverViewModel(this),
                 AppTab.LiveTV => new LiveTVViewModel(this),
                 AppTab.Channels => new ChannelsViewModel(this),
                 AppTab.Library => new LibraryViewModel(this),
@@ -412,6 +435,8 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
 
     public void Play(PlaybackQueueItem entry, Action<BaseItem?>? closed = null)
     {
+        // A video already in the mini player stops for the new one.
+        StopVideo();
         // The Now Playing panel's openings end; a song or book playing pauses for the video, and waits in the bar.
         Deck.Stop();
         Audio.Pause();
@@ -461,6 +486,55 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
     public Task SessionExpiredAsync() => signOut(SignOutKind.Expired);
 
     /// <summary>Signing out: the song or book stops, its place saved, and the theme with it.</summary>
+    // ---- Seerr ----
+
+    /// <summary>Seerr, through the server's Aster Discovery and Tracking plugin as the signed-in person (no Seerr sign-in in Aster).</summary>
+    public Aster.Core.Seerr.SeerrAccounts Seerr { get; } = new();
+
+    private async Task LoadSeerrAsync(JellyfinClient jellyfin)
+    {
+        // Seerr only through the server's Aster Discovery and Tracking plugin, as the signed-in person: no Seerr sign-in here.
+        await Seerr.UsePluginAsync(await Aster.Core.Tracking.AsterTracking.FeaturesAsync(jellyfin), jellyfin);
+#if DEBUG
+        await Task.Delay(1500);
+        if (Seerr.Account is { } account)
+        {
+            string check;
+            try { check = $"session good, user {(await Aster.Core.Seerr.SeerrClient.MeAsync(account)).DisplayName}"; }
+            catch (Exception error) { check = $"session check failed: {error.Message}"; }
+            System.Diagnostics.Debug.WriteLine($"Seerr: signed in as {account.Name} at {account.Url} ({check})");
+        }
+        else System.Diagnostics.Debug.WriteLine("Seerr: no account synced from the server");
+#endif
+    }
+
+    // ---- The video player, over the pages, full screen or in the mini player ----
+
+    /// <summary>The video playing, over every page (full screen) or in the corner (mini); null with none.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasVideo))]
+    public partial PlayerViewModel? Video { get; set; }
+
+    public bool HasVideo => Video is not null;
+
+    /// <summary>The mini player, full screen again.</summary>
+    [RelayCommand]
+    private void RestoreVideo()
+    {
+        if (Video is { IsMini: true } video) video.IsMini = false;
+    }
+
+    /// <summary>Between the mini player and full screen (a controller's Y).</summary>
+    public void ToggleVideo()
+    {
+        if (Video is { CanMinimize: true } video) video.IsMini = !video.IsMini;
+    }
+
+    private void StopVideo()
+    {
+        if (Video is { } video) video.CloseCommand.Execute(null);
+    }
+
     public void Dispose()
     {
         foreach (var live in tabs.Values.OfType<LiveTVViewModel>()) live.Mini.Dispose();

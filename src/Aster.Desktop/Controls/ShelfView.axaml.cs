@@ -5,6 +5,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 namespace Aster.Desktop.Controls;
 
@@ -34,6 +35,10 @@ public partial class ShelfView : UserControl
         PageRight.Click += (_, _) => Page(1);
         Scroller.ScrollChanged += (_, _) => UpdateArrows();
         Scroller.SizeChanged += (_, _) => UpdateArrows();
+        // A card that takes focus (keyboard, remote, controller) asks the page
+        // for its picture alone, which left its title and episode number
+        // below the window's edge: the whole card comes into view instead.
+        Row.GotFocus += (_, e) => BringCardIntoView(e.Source as Visual);
     }
 
     public string? Title
@@ -83,6 +88,18 @@ public partial class ShelfView : UserControl
             var middle = card.Bounds.X + Row.Margin.Left + card.Bounds.Width / 2 - Scroller.Viewport.Width / 2;
             Scroller.Offset = new Vector(Math.Clamp(middle, 0, Math.Max(0, Scroller.Extent.Width - Scroller.Viewport.Width)), 0);
         }, DispatcherPriority.Loaded);
+    }
+
+    private void BringCardIntoView(Visual? focused)
+    {
+        // The row's own child holding the focused button: the whole card.
+        while (focused is not null && focused.GetVisualParent() != Row.ItemsPanelRoot)
+            focused = focused.GetVisualParent();
+        if (focused is not Control card) return;
+        // After the button's own request, so the card's has the last word;
+        // with the row's padding, so a focused card's ring isn't cut either.
+        Dispatcher.UIThread.Post(() => card.BringIntoView(new Rect(0, -Row.Padding.Top, card.Bounds.Width,
+            card.Bounds.Height + Row.Padding.Top + Row.Padding.Bottom)), DispatcherPriority.Background);
     }
 
     /// <summary>Scrolls most of a row's width, leaving a card's width of the last page in view.</summary>

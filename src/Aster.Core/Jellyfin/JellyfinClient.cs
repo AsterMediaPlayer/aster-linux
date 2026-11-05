@@ -262,6 +262,14 @@ public sealed class JellyfinClient : IMediaServer, Channels.IChannelServer
     public Task<QuickConnectResult> QuickConnectStateAsync(string secret, CancellationToken ct = default) =>
         GetAsync<QuickConnectResult>("/QuickConnect/Connect", new() { ["secret"] = secret }, ct);
 
+    /// <summary>
+    /// Approves another app's Quick Connect code as this user, as Settings ›
+    /// Quick Connect in Jellyfin's web app does: Seerr's, when it signs in
+    /// through this Jellyfin, so the couch has nothing to type.
+    /// </summary>
+    public Task<bool> QuickConnectAuthorizeAsync(string code, CancellationToken ct = default) =>
+        PostAsync<bool>("/QuickConnect/Authorize", new() { ["code"] = code, ["userId"] = RequireUser() }, ct: ct);
+
     public Task<AuthenticationResult> AuthenticateWithQuickConnectAsync(string secret, CancellationToken ct = default) =>
         PostAsync<AuthenticationResult>("/Users/AuthenticateWithQuickConnect", body: new { Secret = secret }, ct: ct);
 
@@ -716,6 +724,60 @@ public sealed class JellyfinClient : IMediaServer, Channels.IChannelServer
             ["sortBy"] = "SortName",
         }, ct).ConfigureAwait(false)).Items;
 
+    /// <summary>
+    /// Whether any library has the film or show (by its TMDB id) in 4K: any
+    /// copy of a film, any version of it, or a few of a show's episodes. A
+    /// separate 4K library counts, Seerr not knowing it. Found by name, then
+    /// matched by id.
+    /// </summary>
+    public async Task<bool> Has4kCopyAsync(string tmdbId, bool movie, string name, CancellationToken ct = default)
+    {
+        var copies = (await JellyfinItemsAsync(new()
+        {
+            ["searchTerm"] = name,
+            ["recursive"] = "true",
+            ["includeItemTypes"] = movie ? "Movie" : "Series",
+            ["fields"] = "ProviderIds,MediaSources,MediaStreams",
+            ["limit"] = "20",
+            ["enableUserData"] = "false",
+        }, ct).ConfigureAwait(false)).Items
+            .Where(i => i.ProviderIds?.FirstOrDefault(p => p.Key.Equals("Tmdb", StringComparison.OrdinalIgnoreCase)).Value == tmdbId).ToList();
+        if (movie) return copies.Any(IsUhd);
+        foreach (var show in copies)
+        {
+            var episodes = (await JellyfinItemsAsync(new()
+            {
+                ["parentId"] = show.Id,
+                ["recursive"] = "true",
+                ["includeItemTypes"] = "Episode",
+                ["isMissing"] = "false",
+                ["fields"] = "MediaSources,MediaStreams",
+                ["limit"] = "3",
+                ["enableUserData"] = "false",
+            }, ct).ConfigureAwait(false)).Items;
+            if (episodes.Any(IsUhd)) return true;
+        }
+        return false;
+    }
+
+    /// <summary>The TMDB ids of every film in 4K (about 3840 across), across all the libraries.</summary>
+    public async Task<IReadOnlySet<int>> Uhd4kFilmsAsync(CancellationToken ct = default) =>
+        (await JellyfinItemsAsync(new()
+        {
+            ["recursive"] = "true",
+            ["includeItemTypes"] = "Movie",
+            ["minWidth"] = "3200",
+            ["fields"] = "ProviderIds",
+            ["enableImages"] = "false",
+            ["enableUserData"] = "false",
+        }, ct).ConfigureAwait(false)).Items
+            .Select(i => i.ProviderIds?.FirstOrDefault(p => p.Key.Equals("Tmdb", StringComparison.OrdinalIgnoreCase)).Value)
+            .Select(id => int.TryParse(id, out var number) ? number : 0).Where(id => id > 0).ToHashSet();
+
+    /// <summary>Any of its versions about 4K across (3840, or a little cropped).</summary>
+    private static bool IsUhd(BaseItem item) =>
+        (item.MediaSources?.SelectMany(s => s.MediaStreams ?? []) ?? item.MediaStreams ?? []).Any(s => s.Type == "Video" && (s.Width ?? 0) >= 3200);
+
     // ---- User data ----
 
     public Task SetFavoriteAsync(string id, bool favorite, CancellationToken ct = default)
@@ -990,6 +1052,17 @@ public sealed class JellyfinClient : IMediaServer, Channels.IChannelServer
             ["enableRedirection"] = "true",
             ["enableRemoteMedia"] = "false",
         });
+
+    /// <summary>
+    /// A stream a Sonos speaker fetches and plays itself: the file as it is,
+    /// at an address ending in an extension Sonos knows (it refuses one it
+    /// can't place, as /universal), for a format Sonos plays; else an MP3.
+    /// The token's in the address, as the speaker can't sign in.
+    /// </summary>
+    public Uri SonosAudioUrl(string itemId, string? container) =>
+        Aster.Core.Audio.Sonos.Extension(container) is { } extension
+            ? TokenUrl($"/Audio/{itemId}/stream.{extension}", new() { ["static"] = "true" })
+            : TokenUrl($"/Audio/{itemId}/stream.mp3", new() { ["audioCodec"] = "mp3", ["audioBitRate"] = "320000" });
 
     /// <summary>A path the server gave (a transcode playlist, say) made absolute on this server.</summary>
     public Uri? AbsoluteUrl(string serverRelative)
