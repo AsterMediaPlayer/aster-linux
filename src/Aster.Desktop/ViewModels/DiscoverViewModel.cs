@@ -214,7 +214,7 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
     private Task<Aster.Core.Tracking.DiscoverHome?>? homeLoading;
 
     /// <summary>
-    /// The server's Discover page for this person (its Aster Tracking plugin) with Seerr's own rows: what they're
+    /// The server's Discover page for this person (its Aster Discovery and Tracking plugin) with Seerr's own rows: what they're
     /// watching, Recommended for You, Because You Watched, On Your Server and their watchlists first; then Seerr's rows,
     /// the server's Trending in place of Seerr's (and This Season's anime after it), and without Seerr's Watchlist,
     /// which is Plex's only. Seerr's rows don't wait for the server's page: if it isn't there within a second and a

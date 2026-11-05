@@ -22,18 +22,18 @@ public sealed class SeerrAccounts
     private JsonObject secrets = [];
 
     /// <summary>
-    /// The way to Seerr, or null when requests are off: only through the server's Aster Tracking plugin, as the
+    /// The way to Seerr, or null when requests are off: only through the server's Aster Discovery and Tracking plugin, as the
     /// signed-in Jellyfin person. Aster doesn't sign in to Seerr itself.
     /// </summary>
     public SeerrAccount? Account => Allowed ? proxied : null;
 
     private SeerrAccount? proxied;
 
-    /// <summary>Whether the server has requests on (its Aster Tracking plugin's switch). Without the plugin they stay off.</summary>
+    /// <summary>Whether the server has requests on (its Aster Discovery and Tracking plugin's switch). Without the plugin they stay off.</summary>
     public bool Allowed { get; private set; }
 
     /// <summary>
-    /// Takes the server's Aster Tracking switch (null: no plugin, so off), and when it's on, who the person is on Seerr
+    /// Takes the server's Aster Discovery and Tracking switch (null: no plugin, so off), and when it's on, who the person is on Seerr
     /// through the plugin.
     /// </summary>
     public async Task UsePluginAsync(Aster.Core.Tracking.TrackingFeatures? features, JellyfinClient jellyfin, CancellationToken ct = default)

@@ -101,7 +101,7 @@ public sealed record SeerrSeason(int SeasonNumber, int? EpisodeCount, string? Na
 
 /// <summary>Signed in to Seerr: its address, the session, and who. Synced with the Apple and Android apps.</summary>
 /// <summary>
-/// A way to Seerr as one person. Through the server's Aster Tracking plugin (<paramref name="Authorization"/> set: the
+/// A way to Seerr as one person. Through the server's Aster Discovery and Tracking plugin (<paramref name="Authorization"/> set: the
 /// Jellyfin sign-in), <paramref name="Url"/> is the plugin's address for Seerr and there's no cookie; the older
 /// direct sign-in kept Seerr's own session cookie.
 /// </summary>

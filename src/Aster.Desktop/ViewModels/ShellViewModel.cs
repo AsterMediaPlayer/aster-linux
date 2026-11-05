@@ -488,12 +488,12 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
     /// <summary>Signing out: the song or book stops, its place saved, and the theme with it.</summary>
     // ---- Seerr ----
 
-    /// <summary>Seerr, through the server's Aster Tracking plugin as the signed-in person (no Seerr sign-in in Aster).</summary>
+    /// <summary>Seerr, through the server's Aster Discovery and Tracking plugin as the signed-in person (no Seerr sign-in in Aster).</summary>
     public Aster.Core.Seerr.SeerrAccounts Seerr { get; } = new();
 
     private async Task LoadSeerrAsync(JellyfinClient jellyfin)
     {
-        // Seerr only through the server's Aster Tracking plugin, as the signed-in person: no Seerr sign-in here.
+        // Seerr only through the server's Aster Discovery and Tracking plugin, as the signed-in person: no Seerr sign-in here.
         await Seerr.UsePluginAsync(await Aster.Core.Tracking.AsterTracking.FeaturesAsync(jellyfin), jellyfin);
 #if DEBUG
         await Task.Delay(1500);

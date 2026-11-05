@@ -4,7 +4,7 @@ using Aster.Core.Jellyfin;
 namespace Aster.Core.Tracking;
 
 /// <summary>
-/// The server's Aster Tracking plugin (aster-companion-plugins/AsterTracking): whether Seerr's features are on and
+/// The server's Aster Discovery and Tracking plugin (aster-companion-plugins/AsterTracking): whether Seerr's features are on and
 /// where Seerr is, and the Discover lists from each person's linked Simkl, AniList and MyAnimeList accounts. A server
 /// without the plugin answers 404, which counts as Seerr off and no lists.
 /// </summary>
