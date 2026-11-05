@@ -23,6 +23,14 @@ public static class AsterTracking
         }
     }
 
+    /// <summary>
+    /// The whole Discover page, built on the server for this person: rows in order (Recommended for You, Because You
+    /// Watched, On Your Server, watchlists, trending…). The server keeps it warm, so it's usually instant;
+    /// <paramref name="fresh"/> builds it again.
+    /// </summary>
+    public static Task<DiscoverHome> HomeAsync(JellyfinClient jellyfin, bool fresh = false, CancellationToken ct = default) =>
+        jellyfin.GetAsync<DiscoverHome>("/AsterTracking/Discover/Home", fresh ? new() { ["fresh"] = "true" } : null, ct);
+
     /// <summary>The lists this person can browse, in the order Discover shows them.</summary>
     public static Task<List<DiscoverList>> ListsAsync(JellyfinClient jellyfin, CancellationToken ct = default) =>
         jellyfin.GetAsync<List<DiscoverList>>("/AsterTracking/Discover", ct: ct);
@@ -106,4 +114,25 @@ public sealed record LibraryMatch
     public string Name { get; init; } = "";
 
     public string Type { get; init; } = "";
+}
+
+public sealed record DiscoverHome
+{
+    public List<DiscoverRow> Rows { get; init; } = [];
+
+    public DateTimeOffset Built { get; init; }
+}
+
+public sealed record DiscoverRow
+{
+    public string Id { get; init; } = "";
+
+    /// <summary>"continue", "recommended", "because", "library", "watchlist", "trending", "season".</summary>
+    public string Kind { get; init; } = "";
+
+    public string Title { get; init; } = "";
+
+    public string? Subtitle { get; init; }
+
+    public List<DiscoverItem> Items { get; init; } = [];
 }

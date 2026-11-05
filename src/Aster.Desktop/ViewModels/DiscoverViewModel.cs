@@ -208,72 +208,100 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
         ]);
     }
 
+    /// <summary>The Discover page the server built for this person, once it's come (kept for this page's life).</summary>
+    private Aster.Core.Tracking.DiscoverHome? home;
+
+    private Task<Aster.Core.Tracking.DiscoverHome?>? homeLoading;
+
     /// <summary>
-    /// Seerr's own Discover rows, in its admin's order and names, with In Theaters after Trending; and the person's
-    /// lists from the server's Aster Tracking plugin (Simkl, AniList, MyAnimeList): their watchlists, what they're
-    /// watching and what's recommended for them first, in place of Seerr's Watchlist (Plex's only), and the services'
-    /// trending and this season's anime after Seerr's Trending.
+    /// The server's Discover page for this person (its Aster Tracking plugin) with Seerr's own rows: what they're
+    /// watching, Recommended for You, Because You Watched, On Your Server and their watchlists first; then Seerr's rows,
+    /// the server's Trending in place of Seerr's (and This Season's anime after it), and without Seerr's Watchlist,
+    /// which is Plex's only. Seerr's rows don't wait for the server's page: if it isn't there within a second and a
+    /// half, they show alone and the page fills in when it comes.
     /// </summary>
     private async Task<IReadOnlyList<BrowseRow>> DiscoverRowsAsync(SeerrAccount account)
     {
-        var tracked = await TrackedListsAsync();
+        homeLoading ??= LoadHomeAsync();
         var sliders = (await SeerrClient.SlidersAsync(account)).ToList();
-        if (tracked.Any(l => l.Kind == "Watchlist")) sliders.RemoveAll(s => s.Type == 3);
-        var trending = sliders.FindIndex(s => s.Type == 4);
-        sliders.Insert(trending + 1, new SeerrSlider { Type = SeerrClient.InTheatersType });
         var seerrRows = Task.WhenAll(sliders.Select(slider => RowAsync(slider, account)));
-        var personal = Task.WhenAll(tracked.Where(l => l.Personal).Select(TrackedRowAsync));
-        var everyone = Task.WhenAll(tracked.Where(l => !l.Personal).Select(TrackedRowAsync));
-        var seerr = (await seerrRows).ToList();
-        // After Trending and In Theaters, which follow it.
-        var after = Math.Min(seerr.Count, trending < 0 ? 0 : trending + 2);
-        seerr.InsertRange(after, await everyone);
-        return (await personal).Concat(seerr).OfType<BrowseRow>().ToList();
+        if (home is null && await Task.WhenAny(homeLoading, Task.Delay(1500)) == homeLoading) home = await homeLoading;
+        if (home is null)
+        {
+            var waiting = homeLoading;
+            _ = waiting.ContinueWith(done =>
+            {
+                if (done.Result is { } built) Avalonia.Threading.Dispatcher.UIThread.Post(() => { home = built; Refresh(); });
+            }, TaskScheduler.Default);
+        }
+
+        var rows = new List<(SeerrSlider? Slider, BrowseRow? Row)>();
+        var fromSeerr = await seerrRows;
+        var serverRows = (home?.Rows ?? []).ToDictionary(r => r.Id, r => Shelf(r));
+        var serverHas = (home?.Rows ?? []).Select(r => r.Kind).ToHashSet();
+        IEnumerable<BrowseRow?> Server(params string[] kinds) =>
+            (home?.Rows ?? []).Where(r => kinds.Contains(r.Kind)).Select(r => serverRows[r.Id]);
+
+        var result = new List<BrowseRow?>();
+        result.AddRange(Server("continue", "recommended", "because", "library", "watchlist"));
+        for (var i = 0; i < sliders.Count; i++)
+        {
+            var slider = sliders[i];
+            if (slider.Type == 3 && serverHas.Contains("watchlist")) continue;
+            if (slider.Type == 4 && serverHas.Contains("trending"))
+            {
+                result.AddRange(Server("trending", "season"));
+                result.Add(await RowAsync(new SeerrSlider { Type = SeerrClient.InTheatersType }, account));
+                continue;
+            }
+            result.Add(fromSeerr[i]);
+            if (slider.Type == 4) result.Add(await RowAsync(new SeerrSlider { Type = SeerrClient.InTheatersType }, account));
+        }
+        // No Trending among Seerr's rows: the server's go last.
+        if (!sliders.Any(s => s.Type == 4)) result.AddRange(Server("trending", "season"));
+        return result.OfType<BrowseRow>().ToList();
     }
 
-    /// <summary>The plugin's lists for this person; none without the plugin, or anything linked.</summary>
-    private async Task<IReadOnlyList<Aster.Core.Tracking.DiscoverList>> TrackedListsAsync()
+    /// <summary>The server's page, or null without the plugin (or when it can't be reached).</summary>
+    private async Task<Aster.Core.Tracking.DiscoverHome?> LoadHomeAsync()
     {
-        if (Navigator.Jellyfin is not { } jellyfin) return [];
-        try { return await Aster.Core.Tracking.AsterTracking.ListsAsync(jellyfin); }
-        catch (Exception error) when (error is JellyfinException or HttpRequestException or TaskCanceledException or System.Text.Json.JsonException) { return []; }
+        if (Navigator.Jellyfin is not { } jellyfin) return null;
+        try { return await Aster.Core.Tracking.AsterTracking.HomeAsync(jellyfin); }
+        catch (Exception error) when (error is JellyfinException or HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            System.Diagnostics.Debug.WriteLine($"Discover: the server's page failed: {error.Message}");
+            return null;
+        }
     }
 
     /// <summary>
-    /// One of the plugin's lists as a row of Seerr cards: each opens Seerr's page by its TMDB id (those without one
-    /// are left out), with the tracking site's poster and, for Watching, how far along it is.
+    /// One of the server's rows as Seerr cards: each opens Seerr's page by its TMDB id (titles without one are left
+    /// out), with the row's poster (the tracking site's, or the server's own for its titles) and, for Watching, how
+    /// far along it is.
     /// </summary>
-    private async Task<BrowseRow?> TrackedRowAsync(Aster.Core.Tracking.DiscoverList list)
+    private ShelfRow? Shelf(Aster.Core.Tracking.DiscoverRow row)
     {
-        if (Navigator.Jellyfin is not { } jellyfin) return null;
-        try
+        var server = Navigator.Jellyfin?.BaseUrl;
+        var cards = row.Items.Where(i => i.TmdbId is not null).DistinctBy(i => (i.TmdbId, i.MediaType)).Select(i =>
         {
-            var page = await Aster.Core.Tracking.AsterTracking.PageAsync(jellyfin, list, 1, 30);
-            var cards = page.Items.Where(i => i.TmdbId is not null).DistinctBy(i => (i.TmdbId, i.MediaType)).Select(i =>
+            var movie = i.MediaType == "movie";
+            var title = new SeerrTitle
             {
-                var movie = i.MediaType == "movie";
-                var title = new SeerrTitle
-                {
-                    Id = i.TmdbId!.Value,
-                    MediaType = movie ? "movie" : "tv",
-                    Title = movie ? i.Title : null,
-                    Name = movie ? null : i.Title,
-                    ReleaseDate = movie && i.Year is { } y ? $"{y}" : null,
-                    FirstAirDate = !movie && i.Year is { } f ? $"{f}" : null,
-                    Overview = i.Overview,
-                };
-                var subtitle = i.Progress ?? string.Join(" · ", new[] { i.Year?.ToString(System.Globalization.CultureInfo.InvariantCulture), movie ? "Film" : i.Anime ? "Anime" : "Series" }.OfType<string>());
-                return new SeerrCard(Navigator, title, badge: i.InLibrary is not null ? "On Server" : null, subtitle: subtitle,
-                    poster: Uri.TryCreate(i.Poster, UriKind.Absolute, out var poster) ? poster : null);
-            }).ToList();
-            return cards.Count == 0 ? null : Shelf(list.Title, cards, CardStyle.Seerr);
-        }
-        // A list failing (a service signed out, or down) leaves the others.
-        catch (Exception error) when (error is JellyfinException or HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
-        {
-            System.Diagnostics.Debug.WriteLine($"Discover: {list.Service}/{list.List} failed: {error.Message}");
-            return null;
-        }
+                Id = i.TmdbId!.Value,
+                MediaType = movie ? "movie" : "tv",
+                Title = movie ? i.Title : null,
+                Name = movie ? null : i.Title,
+                ReleaseDate = movie && i.Year is { } y ? $"{y}" : null,
+                FirstAirDate = !movie && i.Year is { } f ? $"{f}" : null,
+                Overview = i.Overview,
+            };
+            var subtitle = i.Progress ?? string.Join(" · ", new[] { i.Year?.ToString(System.Globalization.CultureInfo.InvariantCulture), movie ? "Film" : i.Anime ? "Anime" : "Series" }.OfType<string>());
+            Uri? poster = null;
+            if (Uri.TryCreate(i.Poster, UriKind.Absolute, out var absolute)) poster = absolute;
+            else if (i.Poster is { Length: > 0 } relative && server is not null) poster = new Uri(server, relative);
+            return (object)new SeerrCard(Navigator, title, badge: i.InLibrary is not null ? "On Server" : null, subtitle: subtitle, poster: poster);
+        }).ToList();
+        return Shelf(row.Title, cards, CardStyle.Seerr);
     }
 
     private async Task<BrowseRow?> RowAsync(SeerrSlider slider, SeerrAccount account)

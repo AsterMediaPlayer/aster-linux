@@ -122,24 +122,37 @@ public partial class BrowsePageView : UserControl
         timer.Start();
     }
 
-    /// <summary>The chosen section's pill, once the page has made it again (its rows load after); given up after two seconds, or once the keyboard's moved on.</summary>
+    /// <summary>
+    /// The chosen section's pill, kept focused while the section loads: its rows come after, and each time the row
+    /// with the pills is made again the keyboard would fall back to the first pill (Discover). Let go once the
+    /// section has loaded and the pill has stayed put for half a second, after 15 seconds, or as soon as the keyboard
+    /// moves on to anything but a pill.
+    /// </summary>
     private void RefocusChosenPill()
     {
         var tries = 0;
+        var settled = 0;
         DispatcherTimer? timer = null;
         timer = new DispatcherTimer(TimeSpan.FromMilliseconds(100), DispatcherPriority.Background, (_, _) =>
         {
             var focused = KeyFocus.Current(this);
             var chosen = this.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.DataContext is Choice { IsSelected: true } && KeyFocus.CanFocus(b));
-            var movedOn = focused is Visual on && KeyFocus.IsWithin(on, this) && focused is not Button { DataContext: Choice { IsSelected: false } };
-            if (++tries > 20 || movedOn)
+            var movedOn = focused is Visual on && KeyFocus.IsWithin(on, this) && focused is not Button { DataContext: Choice };
+            if (++tries > 150 || movedOn)
             {
                 timer!.Stop();
                 return;
             }
             if (chosen is null) return;
-            KeyFocus.Move(chosen);
-            timer!.Stop();
+            if (!ReferenceEquals(focused, chosen))
+            {
+                KeyFocus.Move(chosen);
+                settled = 0;
+            }
+            else if (Model is { IsLoadingPage: false } && ++settled >= 5)
+            {
+                timer!.Stop();
+            }
         });
         timer.Start();
     }

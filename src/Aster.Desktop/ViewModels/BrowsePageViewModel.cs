@@ -338,6 +338,9 @@ public abstract partial class BrowsePageViewModel : ViewModelBase, IRefreshable
     /// <summary>Loads begun, so a slower earlier one is dropped.</summary>
     private int loads;
 
+    /// <summary>The page (or a section of it) is loading, its rows not in yet.</summary>
+    public bool IsLoadingPage { get; private set; }
+
     /// <summary>Loads the page, as when first shown or on a new section.</summary>
     protected async Task LoadAsync()
     {
@@ -345,6 +348,7 @@ public abstract partial class BrowsePageViewModel : ViewModelBase, IRefreshable
         // Only the last load asked for shows: a section chosen while another
         // was loading (Discover's slow rows) mustn't be overwritten by it.
         var load = ++loads;
+        IsLoadingPage = true;
         if (Rows.Count == 0) Rows.Add(new StatusRow("Loading…", IsLoading: true));
         IReadOnlyList<BrowseRow> loaded;
         try
@@ -360,6 +364,7 @@ public abstract partial class BrowsePageViewModel : ViewModelBase, IRefreshable
         top = loaded;
         RebuildTop();
         await ReloadGridAsync();
+        if (load == loads) IsLoadingPage = false;
     }
 
     public virtual void Refresh() => _ = RefreshTopAsync();
