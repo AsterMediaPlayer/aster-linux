@@ -297,7 +297,9 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
             };
             var subtitle = i.Progress ?? string.Join(" · ", new[] { i.Year?.ToString(System.Globalization.CultureInfo.InvariantCulture), movie ? "Film" : i.Anime ? "Anime" : "Series" }.OfType<string>());
             Uri? poster = null;
-            if (Uri.TryCreate(i.Poster, UriKind.Absolute, out var absolute)) poster = absolute;
+            // A web address as it is; else a path on the server ("/Items/…"). On Linux "/Items/…" alone parses as an
+            // absolute file:// address, so only http and https count as complete.
+            if (Uri.TryCreate(i.Poster, UriKind.Absolute, out var absolute) && absolute.Scheme is "http" or "https") poster = absolute;
             else if (i.Poster is { Length: > 0 } relative && server is not null) poster = new Uri(server, relative);
             return (object)new SeerrCard(Navigator, title, badge: i.InLibrary is not null ? "On Server" : null, subtitle: subtitle, poster: poster);
         }).ToList();
