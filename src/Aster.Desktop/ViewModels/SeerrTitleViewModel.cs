@@ -66,7 +66,10 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(HasRequestOptions))]
     public partial IReadOnlyList<FilterChip> RequestOptions { get; private set; } = [];
     /// <summary>Shown while there's something to ask for, or a 4K copy to switch to (a film already here may not be in 4K).</summary>
-    public bool HasRequestOptions => RequestOptions.Count > 0 && (CanRequest || offers4k || services.Any(s => s.Is4k == true));
+    public bool HasRequestOptions => !unavailable && RequestOptions.Count > 0 && (CanRequest || offers4k || services.Any(s => s.Is4k == true));
+
+    /// <summary>The server's admin keeps this title out of Discover: shown as such, and nothing to request.</summary>
+    private bool unavailable;
 
     /// <summary>
     /// The servers, a 4K one among them for whoever may ask for 4K (its
@@ -216,7 +219,7 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
     public string? StatusLabel => Status.Label() is { } label && Is4k ? $"4K {label}" : Status.Label();
     public bool HasStatus => StatusLabel is not null && !CanRequest;
     public bool IsAvailable => Status == SeerrStatus.Available;
-    public bool CanRequest => Status.CanRequest() && navigator.Seerr.Account is not null
+    public bool CanRequest => !unavailable && Status.CanRequest() && navigator.Seerr.Account is not null
         && (title.IsMovie || Seasons.Count == 0 || Seasons.Any(s => s.CanRequest));
 
     /// <summary>The Details: release, status, network, studio, director, and so on, as far as they're known.</summary>
@@ -299,6 +302,13 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
             details = await SeerrClient.DetailsAsync(title, account);
             if (details.MediaInfo is { } info) title = title with { MediaInfo = info };
             BuildSeasons();
+        }
+        catch (SeerrException error) when (error.Failure == SeerrFailure.Unavailable)
+        {
+            unavailable = true;
+            Message = error.Message;
+            OnPropertyChanged(string.Empty);
+            return;
         }
         catch (SeerrException error) when (error.Failure == SeerrFailure.SignedOut) { navigator.Seerr.SessionEnded(); Message = error.Message; }
         catch (Exception error) when (error is SeerrException or HttpRequestException or TaskCanceledException) { Message = error.Message; }

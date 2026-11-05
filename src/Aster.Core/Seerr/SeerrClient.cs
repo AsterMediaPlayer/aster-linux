@@ -93,6 +93,10 @@ public static class SeerrClient
                     throw me.StatusCode == HttpStatusCode.OK ? new SeerrException(SeerrFailure.Http, status: 403) : new SeerrException(SeerrFailure.SignedOut);
                 }
             }
+            // The server's plugin keeps this title out (the admin's blocks): its own words, not "Seerr answered 404".
+            if (status == 404 && account.Authorization is not null && Message(data) is { } said
+                && said.Contains("Not available on this server", StringComparison.OrdinalIgnoreCase))
+                throw new SeerrException(SeerrFailure.Unavailable, said, status);
             if (status != 200) throw new SeerrException(SeerrFailure.Http, status: status);
             return JsonSerializer.Deserialize<T>(data, Json) ?? throw new SeerrException(SeerrFailure.Http, "Seerr's answer couldn't be read.", status);
         }

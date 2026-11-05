@@ -120,7 +120,11 @@ public sealed class SeerrException(SeerrFailure failure, string? message = null,
     };
 }
 
-public enum SeerrFailure { SignedOut, Refused, Http }
+/// <summary>
+/// Why Seerr didn't give an answer. <see cref="Unavailable"/>: the server's admin keeps this title out (the Aster
+/// Tracking plugin's blocks), so it isn't shown or requested.
+/// </summary>
+public enum SeerrFailure { SignedOut, Refused, Http, Unavailable }
 
 /// <summary>A page of anything Seerr pages.</summary>
 public sealed record SeerrPage<T>
