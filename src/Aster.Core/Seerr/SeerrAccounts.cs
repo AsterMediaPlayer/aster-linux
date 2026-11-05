@@ -21,33 +21,44 @@ public sealed class SeerrAccounts
     private string? owner;
     private JsonObject secrets = [];
 
-    /// <summary>The account, or null: not signed in, or Seerr ended the session (<see cref="NeedsSignIn"/>).</summary>
-    /// <remarks>
-    /// The address is the server's (its Aster Tracking plugin's Seerr address) when it gives one: the server's admin
-    /// knows where Seerr is reached, and a sign-in synced from another device can carry an address this computer can't
-    /// reach (a Tailscale name, say). The Seerr session goes with the sign-in, so it holds at either address.
-    /// </remarks>
-    public SeerrAccount? Account => !Allowed || NeedsSignIn || Stored is not { } stored ? null
-        : Suggested is { } server ? stored with { Url = server }
-        : reached is { } url ? stored with { Url = url } : stored;
+    /// <summary>
+    /// The way to Seerr, or null when requests are off: only through the server's Aster Tracking plugin, as the
+    /// signed-in Jellyfin person. Aster doesn't sign in to Seerr itself.
+    /// </summary>
+    public SeerrAccount? Account => Allowed ? proxied : null;
+
+    private SeerrAccount? proxied;
+
+    /// <summary>Whether the server has requests on (its Aster Tracking plugin's switch). Without the plugin they stay off.</summary>
+    public bool Allowed { get; private set; }
 
     /// <summary>
-    /// Whether the server lets Aster's Seerr features show: the Aster Tracking plugin's switch, so a server turns
-    /// them on. Without the plugin they stay off.
+    /// Takes the server's Aster Tracking switch (null: no plugin, so off), and when it's on, who the person is on Seerr
+    /// through the plugin.
     /// </summary>
-    public bool Allowed { get; private set; } = true;
-
-    /// <summary>Seerr's address as the server's plugin gives it, to start Settings › Requests with.</summary>
-    public Uri? Suggested { get; private set; }
-
-    /// <summary>Takes the server's Aster Tracking switch (null: no plugin, so off).</summary>
-    public void UsePlugin(Aster.Core.Tracking.TrackingFeatures? features)
+    public async Task UsePluginAsync(Aster.Core.Tracking.TrackingFeatures? features, JellyfinClient jellyfin, CancellationToken ct = default)
     {
-        var allowed = features?.Seerr.Enabled == true;
-        Suggested = features?.Seerr.Url is { } url ? SeerrClient.Address(url) : null;
-        if (allowed == Allowed) return;
-        Allowed = allowed;
-        Changed?.Invoke();
+        SeerrAccount? account = null;
+        if (features?.Seerr is { Enabled: true, Proxy: { Length: > 0 } proxy })
+        {
+            // The plugin's path ends with Seerr's own "/api/v1", which the Seerr client adds.
+            var root = proxy.EndsWith("/api/v1", StringComparison.Ordinal) ? proxy[..^"/api/v1".Length] : proxy;
+            var through = new SeerrAccount(new Uri(jellyfin.BaseUrl.AbsoluteUri.TrimEnd('/') + root), "", "", 0, jellyfin.AuthorizationHeader);
+            try
+            {
+                var me = await SeerrClient.MeAsync(through, ct).ConfigureAwait(false);
+                account = through with { Name = me.DisplayName ?? "", UserId = me.Id };
+            }
+            catch (Exception error) when (error is SeerrException or HttpRequestException or TaskCanceledException or JsonException)
+            {
+                System.Diagnostics.Debug.WriteLine($"Seerr: through the server failed: {error.Message}");
+            }
+        }
+        var changed = account != proxied || (account is not null) != Allowed;
+        proxied = account;
+        Allowed = account is not null;
+        NeedsSignIn = false;
+        if (changed) Changed?.Invoke();
     }
 
     /// <summary>

@@ -63,12 +63,14 @@ public static class SeerrClient
     }
 
     public static async Task<(byte[] Body, HttpResponseMessage Response)> SendAsync(Uri baseUrl, string path, HttpMethod? method = null,
-        object? body = null, string? cookie = null, CancellationToken ct = default)
+        object? body = null, string? cookie = null, CancellationToken ct = default, string? authorization = null)
     {
         using var request = new HttpRequestMessage(method ?? HttpMethod.Get, Base(baseUrl) + "/api/v1" + path);
         request.Headers.Accept.ParseAdd("application/json");
         if (body is not null) request.Content = new StringContent(JsonSerializer.Serialize(body, Json), Encoding.UTF8, "application/json");
-        if (cookie is not null) request.Headers.TryAddWithoutValidation("Cookie", cookie);
+        if (!string.IsNullOrEmpty(cookie)) request.Headers.TryAddWithoutValidation("Cookie", cookie);
+        // Through the server's plugin: the Jellyfin sign-in, in place of a Seerr session.
+        if (authorization is not null) request.Headers.TryAddWithoutValidation("Authorization", authorization);
         var response = await Http.SendAsync(request, ct).ConfigureAwait(false);
         var bytes = await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
         return (bytes, response);
@@ -76,7 +78,7 @@ public static class SeerrClient
 
     public static async Task<T> GetAsync<T>(SeerrAccount account, string path, CancellationToken ct = default)
     {
-        var (data, response) = await SendAsync(account.Url, path, cookie: account.Cookie, ct: ct).ConfigureAwait(false);
+        var (data, response) = await SendAsync(account.Url, path, cookie: account.Cookie, ct: ct, authorization: account.Authorization).ConfigureAwait(false);
         using (response)
         {
             var status = (int)response.StatusCode;
@@ -85,7 +87,7 @@ public static class SeerrClient
             {
                 // Seerr says 403 both to no session and to a user who may not
                 // see this; only the first is being signed out.
-                var (_, me) = await SendAsync(account.Url, "/auth/me", cookie: account.Cookie, ct: ct).ConfigureAwait(false);
+                var (_, me) = await SendAsync(account.Url, "/auth/me", cookie: account.Cookie, ct: ct, authorization: account.Authorization).ConfigureAwait(false);
                 using (me)
                 {
                     throw me.StatusCode == HttpStatusCode.OK ? new SeerrException(SeerrFailure.Http, status: 403) : new SeerrException(SeerrFailure.SignedOut);
@@ -470,7 +472,7 @@ public static class SeerrClient
 
     private static async Task ActAsync(string path, HttpMethod method, SeerrAccount account, object? body, CancellationToken ct)
     {
-        var (data, response) = await SendAsync(account.Url, path, method, body, account.Cookie, ct).ConfigureAwait(false);
+        var (data, response) = await SendAsync(account.Url, path, method, body, account.Cookie, ct, account.Authorization).ConfigureAwait(false);
         using (response)
         {
             var status = (int)response.StatusCode;

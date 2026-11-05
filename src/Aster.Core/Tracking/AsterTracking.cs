@@ -45,8 +45,8 @@ public sealed record SeerrFeature
 {
     public bool Enabled { get; init; }
 
-    /// <summary>Seerr's address, when it's on.</summary>
-    public string? Url { get; init; }
+    /// <summary>Seerr's API through the server ("/AsterTracking/Seerr/api/v1"), when it's on.</summary>
+    public string? Proxy { get; init; }
 }
 
 public sealed record DiscoverList

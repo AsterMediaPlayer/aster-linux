@@ -70,7 +70,7 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
     protected override async Task<IReadOnlyList<BrowseRow>> LoadTopAsync()
     {
         var heading = new TitleRow("Discover", this, Navigator.Seerr.NeedsSignIn
-            ? "Seerr ended the session: sign in again in Settings › Requests."
+            ? "Requests couldn't be reached through your server just now."
             : null) { Segmented = true };
         if (Shown == Section.Upcoming)
         {
@@ -126,7 +126,7 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
         catch (SeerrException error) when (error.Failure == SeerrFailure.SignedOut)
         {
             Navigator.Seerr.SessionEnded();
-            return [heading, new StatusRow("Signed out of Seerr", "Sign in again in Settings › Requests.")];
+            return [heading, new StatusRow("Requests aren't available", "Your server couldn't reach Seerr. Try again in a moment.")];
         }
         catch (Exception error) when (error is SeerrException or HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {

@@ -100,7 +100,12 @@ public sealed record SeerrShow
 public sealed record SeerrSeason(int SeasonNumber, int? EpisodeCount, string? Name);
 
 /// <summary>Signed in to Seerr: its address, the session, and who. Synced with the Apple and Android apps.</summary>
-public sealed record SeerrAccount(Uri Url, string Cookie, string Name, int UserId);
+/// <summary>
+/// A way to Seerr as one person. Through the server's Aster Tracking plugin (<paramref name="Authorization"/> set: the
+/// Jellyfin sign-in), <paramref name="Url"/> is the plugin's address for Seerr and there's no cookie; the older
+/// direct sign-in kept Seerr's own session cookie.
+/// </summary>
+public sealed record SeerrAccount(Uri Url, string Cookie, string Name, int UserId, string? Authorization = null);
 
 public sealed class SeerrException(SeerrFailure failure, string? message = null, int status = 0) : Exception(message ?? Describe(failure, status))
 {
@@ -109,7 +114,7 @@ public sealed class SeerrException(SeerrFailure failure, string? message = null,
 
     private static string Describe(SeerrFailure failure, int status) => failure switch
     {
-        SeerrFailure.SignedOut => "The Seerr sign-in has run out. Sign in again in Settings.",
+        SeerrFailure.SignedOut => "Requests couldn't be reached through your server.",
         SeerrFailure.Refused => "Seerr turned that down.",
         _ => $"Seerr answered {status}.",
     };

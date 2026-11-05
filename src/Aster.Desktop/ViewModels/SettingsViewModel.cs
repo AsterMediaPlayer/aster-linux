@@ -74,10 +74,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     /// <summary>Edit Channels, where an administrator makes the first channel (the Channels tab shows only once there's one).</summary>
     [RelayCommand] private void OpenChannels() => navigator.Push(new EditChannelsViewModel(navigator));
 
-    /// <summary>Settings › Requests: the Seerr sign-in, for Discover.</summary>
-    [RelayCommand] private void OpenRequests() => navigator.Push(new SeerrSettingsViewModel(navigator));
 
-    public string RequestsValue => navigator.Seerr.Account is { } account ? account.Name : "Off";
 
     /// <summary>Turns a switch over, by its property's name: a row's Enter or click.</summary>
     [RelayCommand]
