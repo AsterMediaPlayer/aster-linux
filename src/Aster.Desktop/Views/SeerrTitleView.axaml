@@ -115,6 +115,14 @@
                                     ToolTip.Tip="Trailer" AutomationProperties.Name="Trailer">
                                 <TextBlock Text="&#xE768;" FontFamily="{StaticResource IconFont}" FontSize="24" />
                             </Button>
+                            <Button Theme="{StaticResource PillButton}" MinHeight="56" Padding="22,0" CornerRadius="28" FontSize="25"
+                                    Command="{Binding Watchlist.ToggleCommand}" IsVisible="{Binding Watchlist.IsShown}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="&#xEC61;" FontFamily="{StaticResource IconFont}" FontSize="24" VerticalAlignment="Center" IsVisible="{Binding Watchlist.IsOn}" />
+                                    <TextBlock Text="+" FontSize="36" FontWeight="Light" VerticalAlignment="Center" Margin="0,-4,0,0" IsVisible="{Binding !Watchlist.IsOn}" />
+                                    <TextBlock Text="{Binding Watchlist.Label}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
 
                         <!-- Where the request goes: Server (a 4K one too), Quality, Folder, Language; or Standard or 4K. -->
@@ -153,6 +161,8 @@
                         </StackPanel>
                         <TextBlock Text="{Binding Message}" FontSize="19" Foreground="#B3FFFFFF" TextWrapping="Wrap"
                                    IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                        <TextBlock Text="{Binding Watchlist.Problem}" FontSize="19" Foreground="#FF8A80" TextWrapping="Wrap"
+                                   IsVisible="{Binding Watchlist.Problem, Converter={x:Static ObjectConverters.IsNotNull}}" />
                     </StackPanel>
                 </Grid>
 

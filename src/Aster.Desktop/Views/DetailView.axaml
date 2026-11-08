@@ -193,6 +193,13 @@
                                     <TextBlock Text="Request in 4K" />
                                 </StackPanel>
                             </Button>
+                            <Button Theme="{StaticResource PillButton}" Command="{Binding Watchlist.ToggleCommand}" IsVisible="{Binding Watchlist.IsShown}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="&#xEC61;" FontFamily="{StaticResource IconFont}" VerticalAlignment="Center" IsVisible="{Binding Watchlist.IsOn}" />
+                                    <TextBlock Text="+" FontWeight="SemiBold" VerticalAlignment="Center" IsVisible="{Binding !Watchlist.IsOn}" />
+                                    <TextBlock Text="{Binding Watchlist.Label}" />
+                                </StackPanel>
+                            </Button>
                             <Button Theme="{StaticResource PillButton}" Command="{Binding ToggleFavoriteCommand}" ToolTip.Tip="Favorite" Width="44" Padding="0" IsVisible="{Binding CanFavorite}">
                                 <Panel>
                                     <TextBlock Text="&#xEB51;" FontFamily="{StaticResource IconFont}" IsVisible="{Binding IsFavorite}" HorizontalAlignment="Center" />
@@ -226,6 +233,8 @@
                         </StackPanel>
                         <TextBlock Text="{Binding Message}" Foreground="#FF8A80"
                                    IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                        <TextBlock Text="{Binding Watchlist.Problem}" Foreground="#FF8A80"
+                                   IsVisible="{Binding Watchlist.Problem, Converter={x:Static ObjectConverters.IsNotNull}}" />
                     </StackPanel>
                 </Panel>
 

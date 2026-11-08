@@ -223,6 +223,14 @@ public sealed class JellyfinClient : IMediaServer, Channels.IChannelServer
         await SendAsync(request, ct).ConfigureAwait(false);
     }
 
+    /// <summary>A request with a JSON body by any method (a DELETE with one, say), decoded.</summary>
+    public async Task<T> SendJsonAsync<T>(HttpMethod method, string path, object body, Query? query = null, CancellationToken ct = default)
+    {
+        var request = AuthorizedRequest(Url(path, query), method);
+        request.Content = JsonBody(body);
+        return Decode<T>(await SendRequiredAsync(request, ct).ConfigureAwait(false));
+    }
+
     public async Task DeleteAsync(string path, Query? query = null, CancellationToken ct = default) =>
         await SendAsync(AuthorizedRequest(Url(path, query), HttpMethod.Delete), ct).ConfigureAwait(false);
 

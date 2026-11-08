@@ -14,7 +14,9 @@ namespace Aster.Desktop.ViewModels;
 /// Opens its request page; one the library has opens the library's page.
 /// </summary>
 /// <remarks><paramref name="poster"/>: a picture from elsewhere (a tracking site's), for a title known only by its TMDB id.</remarks>
-public sealed partial class SeerrCard(INavigator navigator, SeerrTitle title, string? badge = null, string? subtitle = null, SeerrRequest? request = null, Uri? poster = null) : ICard
+/// <paramref name="trackingIds"/> and <paramref name="anime"/>: Discover's ids and word on it, for its page's watchlist button.</remarks>
+public sealed partial class SeerrCard(INavigator navigator, SeerrTitle title, string? badge = null, string? subtitle = null, SeerrRequest? request = null, Uri? poster = null,
+    IReadOnlyDictionary<string, string>? trackingIds = null, bool anime = false) : ICard
 {
     public SeerrTitle Item => title;
     public SeerrRequest? Request => request;
@@ -27,7 +29,7 @@ public sealed partial class SeerrCard(INavigator navigator, SeerrTitle title, st
     public bool IsAvailable => title.Status == SeerrStatus.Available;
 
     [RelayCommand]
-    private Task Open() => SeerrPages.OpenAsync(navigator, title, request);
+    private Task Open() => SeerrPages.OpenAsync(navigator, title, request, trackingIds, anime);
 }
 
 /// <summary>A genre, studio or network: its picture (or logo) and name; opens its titles.</summary>
@@ -49,7 +51,8 @@ public static class SeerrPages
     /// A title's page: the library's when the server has it (Seerr knows its
     /// Jellyfin id), else its Seerr page, to read about and request.
     /// </summary>
-    public static async Task OpenAsync(INavigator navigator, SeerrTitle title, SeerrRequest? request = null)
+    public static async Task OpenAsync(INavigator navigator, SeerrTitle title, SeerrRequest? request = null,
+        IReadOnlyDictionary<string, string>? trackingIds = null, bool anime = false)
     {
         // A request still waiting opens its Seerr page, for Approve, Decline or Cancel.
         if (request is { IsPending: true })
@@ -66,7 +69,7 @@ public static class SeerrPages
             }
             catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException) { }
         }
-        navigator.Push(new SeerrTitleViewModel(navigator, title));
+        navigator.Push(new SeerrTitleViewModel(navigator, title, trackingIds: trackingIds, anime: anime));
     }
 
     /// <summary>Whether any of the Jellyfin server's libraries has it in 4K; false without Jellyfin, or when the server can't say.</summary>

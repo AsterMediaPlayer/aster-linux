@@ -32,6 +32,9 @@ public interface INavigator
     /// <summary>The Seerr sign-in, for Discover's requests (synced with the other Aster apps).</summary>
     Aster.Core.Seerr.SeerrAccounts Seerr { get; }
 
+    /// <summary>What the server's Aster Discovery and Tracking plugin offers (Seerr, watchlists), asked once per sign-in; null without it.</summary>
+    Task<Aster.Core.Tracking.TrackingFeatures?> Tracking { get; }
+
     /// <summary>The song or book playing.</summary>
     Aster.Desktop.Audio.AudioSession Audio { get; }
 
@@ -215,6 +218,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
         // The settings that follow the user, as their other devices left them.
         if (client is JellyfinClient jellyfin && jellyfin.Can(ServerCapabilities.SettingsSync)) _ = Aster.Core.SettingsSync.PullAsync(jellyfin);
         // The Seerr sign-in the Apple and Android apps sync through the server (Discover's, and Search's requests).
+        Tracking = client is JellyfinClient plugin ? Aster.Core.Tracking.AsterTracking.FeaturesAsync(plugin) : Task.FromResult<Aster.Core.Tracking.TrackingFeatures?>(null);
         if (client is JellyfinClient synced) _ = LoadSeerrAsync(synced);
     }
 
@@ -509,10 +513,12 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
     /// <summary>Seerr, through the server's Aster Discovery and Tracking plugin as the signed-in person (no Seerr sign-in in Aster).</summary>
     public Aster.Core.Seerr.SeerrAccounts Seerr { get; } = new();
 
+    public Task<Aster.Core.Tracking.TrackingFeatures?> Tracking { get; }
+
     private async Task LoadSeerrAsync(JellyfinClient jellyfin)
     {
         // Seerr only through the server's Aster Discovery and Tracking plugin, as the signed-in person: no Seerr sign-in here.
-        await Seerr.UsePluginAsync(await Aster.Core.Tracking.AsterTracking.FeaturesAsync(jellyfin), jellyfin);
+        await Seerr.UsePluginAsync(await Tracking, jellyfin);
 #if DEBUG
         await Task.Delay(1500);
         if (Seerr.Account is { } account)

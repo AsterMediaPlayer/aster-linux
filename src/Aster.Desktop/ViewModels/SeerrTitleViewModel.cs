@@ -46,13 +46,37 @@ public sealed partial class SeerrTitleViewModel : ViewModelBase
     private readonly bool prefer4k;
 
     /// <param name="prefer4k">Opened to ask for the 4K copy (from the library's page): a 4K server, or 4K, picked to start.</param>
-    public SeerrTitleViewModel(INavigator navigator, SeerrTitle title, SeerrRequest? request = null, bool prefer4k = false)
+    /// <param name="trackingIds">The ids the tracking sites know it by, from Discover (AniList's, MyAnimeList's…), for the watchlist.</param>
+    /// <param name="anime">Discover's word on whether it's anime, before Seerr's details say.</param>
+    public SeerrTitleViewModel(INavigator navigator, SeerrTitle title, SeerrRequest? request = null, bool prefer4k = false,
+        IReadOnlyDictionary<string, string>? trackingIds = null, bool anime = false)
     {
         this.navigator = navigator;
         this.title = title;
         this.request = request;
         this.prefer4k = wants4k = prefer4k;
-        _ = LoadAsync();
+        this.trackingIds = trackingIds;
+        this.anime = anime;
+        Watchlist = new WatchlistModel(navigator);
+        _ = StartAsync();
+    }
+
+    private readonly IReadOnlyDictionary<string, string>? trackingIds;
+    private readonly bool anime;
+
+    /// <summary>Its place on the person's linked watchlist (Simkl's Plan to Watch), with Seerr or without it.</summary>
+    public WatchlistModel Watchlist { get; }
+
+    private async Task StartAsync()
+    {
+        await LoadAsync();
+        // The ids the sites know it by: Discover's, and TMDB's.
+        var ids = new Dictionary<string, string>();
+        foreach (var (key, value) in trackingIds ?? new Dictionary<string, string>())
+            if (key is "tmdb" or "imdb" or "tvdb" or "mal" or "anidb" or "anilist" or "simkl" && !string.IsNullOrWhiteSpace(value)) ids[key] = value;
+        if (title.Id > 0) ids["tmdb"] = title.Id.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        await Watchlist.LoadAsync(title.IsMovie ? "movie" : "tv", details?.IsAnime ?? anime, ids, Title,
+            int.TryParse(title.Year, out var year) ? year : null);
     }
 
     // ---- Where a request goes (whoever manages requests chooses) ----

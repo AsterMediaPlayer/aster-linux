@@ -47,6 +47,7 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
         this.navigator = navigator;
         this.playOnOpen = playOnOpen;
         Item = item;
+        Watchlist = new WatchlistModel(navigator);
         _ = LoadAsync(item);
     }
 
@@ -264,6 +265,7 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
             Cast = full.Cast.Select(p => ItemCard.Person(navigator, p)).ToList();
             IsLoading = false;
             _ = LoadSeerr4kAsync(full);
+            _ = LoadWatchlistAsync(full);
 
             var similar = Client.SimilarAsync(full.Id, 20);
             var themes = full.Kind == ItemKind.Series && full.IsAnime ? OpeningsEndingsAsync(full) : Task.FromResult<IReadOnlyList<OpeningEndingCard>>([]);

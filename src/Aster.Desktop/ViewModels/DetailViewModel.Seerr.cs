@@ -30,6 +30,17 @@ public partial class DetailViewModel
         if (Seerr4k is { } title) navigator.Push(new SeerrTitleViewModel(navigator, title, prefer4k: true));
     }
 
+    /// <summary>Its place on the person's linked watchlist (Simkl's Plan to Watch), for a film or show.</summary>
+    public WatchlistModel Watchlist { get; }
+
+    private async Task LoadWatchlistAsync(BaseItem item)
+    {
+        if (item.Kind is not (ItemKind.Movie or ItemKind.Series)) return;
+        var anime = item.Kind == ItemKind.Series && (await navigator.Anime).ItemIds.Contains(item.Id);
+        await Watchlist.LoadAsync(item.Kind == ItemKind.Movie ? "movie" : "tv", anime,
+            Aster.Core.Tracking.AsterTracking.TrackingIds(item.ProviderIds), item.Name, item.ProductionYear);
+    }
+
     /// <summary>Whether there's a 4K copy to ask for (by the title's TMDB id); any fault leaves the button out.</summary>
     private async Task LoadSeerr4kAsync(BaseItem item)
     {
