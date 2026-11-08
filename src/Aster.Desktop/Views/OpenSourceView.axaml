@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             x:Class="Aster.Desktop.Views.OpenSourceView"
+             x:DataType="vm:OpenSourceViewModel">
+
+    <UserControl.Styles>
+        <StyleInclude Source="avares://Aster.Desktop/Views/SettingsStyles.axaml" />
+        <Style Selector="Button.row TextBlock.caption">
+            <Setter Property="Foreground" Value="#99FFFFFF" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="Button.row:pointerover TextBlock.caption, Button.row:focus-visible TextBlock.caption">
+            <Setter Property="Foreground" Value="#8C000000" />
+        </Style>
+    </UserControl.Styles>
+
+    <UserControl.DataTemplates>
+        <DataTemplate DataType="vm:OpenSourceRow">
+            <Button Classes="row" Command="{Binding Open}" Margin="0,0,0,8">
+                <DockPanel>
+                    <TextBlock Classes="chevron" />
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="{Binding Component.Name}" />
+                        <TextBlock Classes="caption" Text="{Binding Component.License}" />
+                    </StackPanel>
+                </DockPanel>
+            </Button>
+        </DataTemplate>
+    </UserControl.DataTemplates>
+
+    <!-- Settings ▸ About ▸ Open Source & Licenses: Aster's own license, then each component by what it's for. -->
+    <Panel>
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="107,76,107,60">
+                <TextBlock Classes="pageTitle" Text="Open Source &amp; Licenses" />
+                <ContentControl Content="{Binding Own}" />
+                <Border Classes="note">
+                    <TextBlock Text="Aster is free software, built with the open-source components below. Each one's license is here in full." />
+                </Border>
+                <ItemsControl ItemsSource="{Binding Sections}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:OpenSourceGroup">
+                            <StackPanel>
+                                <TextBlock Classes="section" Text="{Binding Title}" />
+                                <ItemsControl ItemsSource="{Binding Rows}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+        <!-- Back, for the pointer: the page sits over its tab. -->
+        <Button Theme="{StaticResource BackButton}" x:Name="BackButton" ToolTip.Tip="Back (Alt+←)" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
+                Width="44" Height="44" CornerRadius="22" Background="#B3000000" Foreground="White" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Padding="0">
+            <TextBlock Text="&#xE72B;" FontFamily="{StaticResource IconFont}" />
+        </Button>
+    </Panel>
+</UserControl>

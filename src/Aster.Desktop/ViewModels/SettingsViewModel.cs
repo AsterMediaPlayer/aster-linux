@@ -409,6 +409,9 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     [ObservableProperty] public partial string? WebMessage { get; set; }
 
+    /// <summary>Open Source &amp; Licenses: Aster's license, and every open-source component in it with its license in full.</summary>
+    [RelayCommand] private void OpenSource() => navigator.Push(new OpenSourceViewModel(navigator));
+
     public string AppVersion { get; } =
         typeof(SettingsViewModel).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "";
 

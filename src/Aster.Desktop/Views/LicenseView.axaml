@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             xmlns:c="using:Aster.Desktop.Controls"
+             x:Class="Aster.Desktop.Views.LicenseView"
+             x:DataType="vm:LicenseViewModel">
+
+    <UserControl.Styles>
+        <StyleInclude Source="avares://Aster.Desktop/Views/SettingsStyles.axaml" />
+    </UserControl.Styles>
+
+    <!-- One component: what it does, its license and source, and the license texts in full.
+         The page itself takes the keyboard, so the arrows and Page Up/Down scroll it. -->
+    <Panel>
+        <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled" Focusable="True" c:KeyFocus.IsPreferred="True">
+            <StackPanel Margin="107,76,107,60" Spacing="4">
+                <TextBlock Classes="pageTitle" Text="{Binding Component.Name}" />
+                <Border Classes="note">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="{Binding Component.Role}" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding Component.License, StringFormat='License: {0}'}" TextWrapping="Wrap" />
+                        <SelectableTextBlock Text="{Binding Component.Url}" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding Component.Note}" TextWrapping="Wrap"
+                                   IsVisible="{Binding Component.Note, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    </StackPanel>
+                </Border>
+                <ItemsControl ItemsSource="{Binding Texts}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <SelectableTextBlock Text="{Binding}" FontFamily="monospace" FontSize="13" TextWrapping="Wrap"
+                                                 Foreground="#CCFFFFFF" Margin="0,20,0,0" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+        <!-- Back, for the pointer: the page sits over its tab. -->
+        <Button Theme="{StaticResource BackButton}" x:Name="BackButton" ToolTip.Tip="Back (Alt+←)" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
+                Width="44" Height="44" CornerRadius="22" Background="#B3000000" Foreground="White" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Padding="0">
+            <TextBlock Text="&#xE72B;" FontFamily="{StaticResource IconFont}" />
+        </Button>
+    </Panel>
+</UserControl>

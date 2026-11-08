@@ -334,6 +334,12 @@
                             <TextBlock Text="Privacy Policy" VerticalAlignment="Center" />
                         </DockPanel>
                     </Button>
+                    <Button Classes="row" Command="{Binding OpenSourceCommand}">
+                        <DockPanel>
+                            <TextBlock Classes="chevron" />
+                            <TextBlock Text="Open Source &amp; Licenses" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Button>
                     <Border Classes="note" IsVisible="{Binding WebMessage, Converter={x:Static ObjectConverters.IsNotNull}}">
                         <TextBlock Text="{Binding WebMessage}" />
                     </Border>
