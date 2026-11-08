@@ -49,6 +49,9 @@ public partial class PlayerViewModel : ViewModelBase
     private string? mediaSourceId;
     private string playMethod = "DirectPlay";
     private bool stopped;
+
+    /// <summary>How long this start is taking, step by step, for a debug report.</summary>
+    private Aster.Core.Diagnostics.StartTiming? timing;
     private bool stopReported;
 
     /// <summary>The file's streams as Jellyfin lists them.</summary>
@@ -111,7 +114,11 @@ public partial class PlayerViewModel : ViewModelBase
             Player.Observe("duration", typeof(double));
 #if DEBUG
             Player.Log += (prefix, level, text) => System.Diagnostics.Debug.WriteLine($"mpv [{prefix}] {level}: {text}");
+#else
+            // mpv's warnings and errors, for a debug report's log.
+            Player.Log += (prefix, level, text) => System.Diagnostics.Trace.WriteLine($"mpv [{prefix}] {level}: {text}");
 #endif
+            Player.PlaybackRestart += () => Dispatcher.UIThread.Post(FirstPicture);
             Player.Log += (prefix, _, text) =>
             {
                 if (prefix == "ao/pipewire" && text.Contains("no target node", StringComparison.Ordinal)) Dispatcher.UIThread.Post(PassthroughBlocked);
@@ -635,6 +642,7 @@ public partial class PlayerViewModel : ViewModelBase
     {
         try
         {
+            timing = new Aster.Core.Diagnostics.StartTiming();
             preferences ??= await LoadPreferencesAsync();
             PlaysFile = entry.MediaUrl is not null;
             if (entry.MediaUrl is { } file)
@@ -644,6 +652,7 @@ public partial class PlayerViewModel : ViewModelBase
             }
             var item = await client.ItemAsync(entry.ItemId);
             if (stopped) return;
+            timing?.Mark("item");
             Item = item;
             if (item.Kind == ItemKind.TvChannel)
             {
@@ -816,6 +825,7 @@ public partial class PlayerViewModel : ViewModelBase
             throw JellyfinException.Http(0, "This channel's stream format isn't supported.");
         }
         System.Diagnostics.Debug.WriteLine($"Playback: live channel {Item?.DisplayTitle} ({playMethod})");
+        NotePlayback(source, live: true);
         await LoadAsync(url, 0);
         // A broadcast's captions aren't listed by the server, so they follow
         // the subtitle setting alone: on only when subtitles are always on.
@@ -831,6 +841,7 @@ public partial class PlayerViewModel : ViewModelBase
             mediaSourceId: entry.MediaSourceId, subtitleStreamIndex: -1);
         if (info.ErrorCode is { } code) throw JellyfinException.Http(0, code);
         var source = info.MediaSources.FirstOrDefault() ?? throw JellyfinException.Http(0, "No media source");
+        timing?.Mark("server's playback answer");
         playSessionId = info.PlaySessionId;
         mediaSourceId = source.Id;
 
@@ -857,6 +868,7 @@ public partial class PlayerViewModel : ViewModelBase
         }
 
         playMethod = "DirectPlay";
+        NotePlayback(source);
         await LoadAsync(client.DirectStreamUrl(entry.ItemId, source.Id, info.PlaySessionId), start);
         if (stopped) return;
         MapTracks();
@@ -890,6 +902,9 @@ public partial class PlayerViewModel : ViewModelBase
             throw JellyfinException.Http(0, "The server didn't offer a converted stream");
         playSessionId = info.PlaySessionId;
         playMethod = "Transcode";
+        timing?.Mark("server's converted stream");
+        NotePlayback(source, reasons: System.Text.RegularExpressions.Regex.Match(path, "TranscodeReasons=([^&]+)") is { Success: true } found
+            ? Uri.UnescapeDataString(found.Groups[1].Value) : null);
         currentAudio = audio;
         currentSubtitle = subtitle;
         await LoadAsync(url, start);
@@ -924,6 +939,7 @@ public partial class PlayerViewModel : ViewModelBase
         var options = start > 0 ? "start=" + start.ToString("0.###", CultureInfo.InvariantCulture) : "";
         await player.CommandAsync("loadfile", url.AbsoluteUri, "replace", "-1", options);
         await waiter.Task.WaitAsync(TimeSpan.FromMinutes(1));
+        timing?.Mark("stream opened");
         audioTracks.Clear();
         subtitleTracks.Clear();
     }
@@ -995,6 +1011,49 @@ public partial class PlayerViewModel : ViewModelBase
         catch (MpvException) { }
     }
 
+    /// <summary>
+    /// One playback attempt, for a debug report: what's played, from what
+    /// file, and how (the file itself, or the server's transcode and why).
+    /// </summary>
+    private void NotePlayback(MediaSourceInfo source, bool live = false, string? reasons = null)
+    {
+        var streams = source.MediaStreams ?? [];
+        var video = streams.FirstOrDefault(s => s.Type == "Video");
+        var audio = streams.Where(s => s.Type == "Audio").ToList();
+        var method = playMethod == "DirectPlay" ? "direct play" : "transcode";
+        if (timing is not null) timing.Method = method;
+        var fields = new Dictionary<string, string>
+        {
+            ["type"] = Item?.Type ?? "Video",
+            ["method"] = method,
+            ["server"] = client.Kind.ToString().ToLowerInvariant(),
+        };
+        if (reasons is not null) fields["transcodeReasons"] = reasons;
+        if (source.Container is { } container) fields["container"] = container;
+        if (video is not null)
+        {
+            if (video.Codec is { } codec) fields["videoCodec"] = codec;
+            fields["resolution"] = $"{video.Width}x{video.Height}";
+            if (video.VideoRangeType is { } range) fields["videoRange"] = range;
+        }
+        if (audio.Count > 0) fields["audioCodec"] = string.Join("/", audio.Select(a => $"{a.Codec} {a.Channels?.ToString(CultureInfo.InvariantCulture) ?? "?"}ch"));
+        if (source.Bitrate is { } bitrate) fields["bitrateKbps"] = (bitrate / 1000).ToString(CultureInfo.InvariantCulture);
+        if (entry.Fallback != StreamFallback.None) fields["fallback"] = entry.Fallback.ToString();
+        if (live) fields["live"] = "true";
+        if (settings.AudioPassthrough) fields["passthrough"] = "true";
+        Aster.Core.Diagnostics.DebugLog.LastPlayback = fields;
+        Aster.Core.Diagnostics.DebugLog.Note("Playback", string.Join(", ", fields.Where(f => f.Key != "type").Select(f => f.Key == "method" ? f.Value : $"{f.Key} {f.Value}").Prepend(fields["type"])));
+    }
+
+    /// <summary>mpv shows its first picture: the start's timing is told, once.</summary>
+    private void FirstPicture()
+    {
+        if (stopped || timing is not { Told: false } started) return;
+        started.Mark("first picture", once: true);
+        started.Told = true;
+        Aster.Core.Diagnostics.DebugLog.Note("Playback", started.Summary());
+    }
+
     /// <summary>Playing from here on, once mpv has the stream.</summary>
     private async Task BeginAsync()
     {
@@ -1056,6 +1115,14 @@ public partial class PlayerViewModel : ViewModelBase
     private void FallBack(string reason)
     {
         if (stopped) return;
+        Aster.Core.Diagnostics.DebugLog.Note("Playback", $"Failed: {reason} while {(playMethod == "DirectPlay" ? "playing the file" : "transcoding")}"
+            + (entry.Fallback != StreamFallback.None ? $", already on {entry.Fallback}" : ""));
+        Aster.Core.Diagnostics.DebugLog.LastPlayback = new Dictionary<string, string>(Aster.Core.Diagnostics.DebugLog.LastPlayback) { ["error"] = reason };
+        if (timing is { Told: false } failed)
+        {
+            failed.Told = true;
+            Aster.Core.Diagnostics.DebugLog.Note("Playback", failed.Summary(leftEarly: true));
+        }
         // Another stream won't help a computer that can't show video.
         if (reason == NoVideoOutputException.Explanation)
         {
@@ -2002,6 +2069,11 @@ public partial class PlayerViewModel : ViewModelBase
     {
         if (stopped) return;
         stopped = true;
+        if (timing is { Told: false } early)
+        {
+            early.Told = true;
+            Aster.Core.Diagnostics.DebugLog.Note("Playback", early.Summary(leftEarly: true));
+        }
         reportTimer.Stop();
         timedTimer.Stop();
         countdownTimer.Stop();

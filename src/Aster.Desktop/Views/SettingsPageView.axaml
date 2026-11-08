@@ -316,6 +316,12 @@
                     <Border Classes="note">
                         <TextBlock Text="A Jellyfin, Emby and Plex client for Windows and Linux, ported from the Apple TV, iPhone, iPad and Mac app." />
                     </Border>
+                    <Button Classes="row" Command="{Binding SendDebugReportCommand}" Margin="0,8,0,0">
+                        <TextBlock Text="Send Debug Report" VerticalAlignment="Center" />
+                    </Button>
+                    <Border Classes="note">
+                        <TextBlock Text="Sends what happened, in your words, with the app's recent log, to help fix a problem. Server addresses, sign-ins, passwords, your name and your library's file names are taken out first." />
+                    </Border>
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>

@@ -392,6 +392,9 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     // ---- About ----
 
+    /// <summary>Send Debug Report: what happened, and the app's log with names and sign-ins taken out.</summary>
+    [RelayCommand] private void SendDebugReport() => (navigator as ShellViewModel)?.OpenDebugReport();
+
     public string AppVersion { get; } =
         typeof(SettingsViewModel).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "";
 

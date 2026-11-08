@@ -200,6 +200,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
         Deck = new Aster.Desktop.Audio.ThemeDeck(client, Audio, Theme, show => Open(show));
         NowPlaying = new NowPlayingViewModel(this);
         UserName = session.UserName;
+        UserId = session.UserId;
         ServerName = session.ServerName ?? session.ServerUrl.Host;
         Home = new HomeViewModel(this);
         tabs[AppTab.Home] = Home;
@@ -361,6 +362,23 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
     }
     public HomeViewModel Home { get; }
     public string UserName { get; }
+
+    /// <summary>The account's id, taken out of a debug report wherever it appears.</summary>
+    public string UserId { get; }
+
+    /// <summary>
+    /// Send Debug Report over the current page; with <paramref name="afterCrash"/>,
+    /// the offer after the last run ended in a crash.
+    /// </summary>
+    public void OpenDebugReport(bool afterCrash = false)
+    {
+        DebugReportViewModel? page = null;
+        page = new DebugReportViewModel(this, [UserName, UserId, ServerName], afterCrash, () =>
+        {
+            if (CurrentPage == page) Back();
+        });
+        Push(page);
+    }
     public string ServerName { get; }
 
     [ObservableProperty]

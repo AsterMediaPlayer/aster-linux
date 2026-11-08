@@ -20,6 +20,11 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
 
     private ShellViewModel? shell;
 
+
+    /// <summary>The last run's crash has been offered this run (it stays on disk until sent or put aside).</summary>
+
+    private bool crashOffered;
+
     /// <summary>Every server signed in to, to switch between (the development session isn't one).</summary>
     public IReadOnlyList<SavedServer> Servers { get; private set; } = [];
 
@@ -144,6 +149,17 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
             // Disc menus come from Aster's Jellyfin plugin.
             (document, itemId, closed) => ShowDiscMenu((JellyfinClient)client, document, itemId, closed), kind => SignOutAsync(client, kind), this);
         CurrentPage = shell;
+        // The last run ended in a crash: offered once, to send with a report.
+        if (!crashOffered && Aster.Core.Diagnostics.DebugLog.LastCrash() is not null)
+        {
+            crashOffered = true;
+            // After the first tab is chosen, which would clear it away.
+            var offering = shell;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                if (shell == offering) offering.OpenDebugReport(afterCrash: true);
+            }, Avalonia.Threading.DispatcherPriority.Background);
+        }
         // Once for each Jellyfin server, people signed in before it included.
         if (CurrentId is { } id && !AppSettings.Current.WelcomeSeen.Contains(id)) ShowWelcome();
     }

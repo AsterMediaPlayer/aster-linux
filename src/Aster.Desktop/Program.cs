@@ -11,6 +11,8 @@ sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // A debug report's log and the last crash: before anything else can fail.
+        Aster.Core.Diagnostics.DebugLog.Install();
         // ASTER_LOG_AVALONIA: Avalonia's own messages (which renderer it chose, and why) on the console.
         if (Environment.GetEnvironmentVariable("ASTER_LOG_AVALONIA") is not null)
         {
