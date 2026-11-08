@@ -180,8 +180,7 @@ public partial class SignInViewModel : ViewModelBase
         signedIn(server.SignedIn(result.AccessToken, result.User.Id), session);
     }
 
-    private static string Describe(Exception error) =>
-        error is HttpRequestException ? $"Couldn't reach the server: {error.Message}" : error.Message;
+    private static string Describe(Exception error) => JellyfinException.Unreachable(error);
 
     /// <summary>
     /// What was typed as a server address, with http:// assumed when no

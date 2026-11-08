@@ -322,6 +322,21 @@
                     <Border Classes="note">
                         <TextBlock Text="Sends what happened, in your words, with the app's recent log, to help fix a problem. Server addresses, sign-ins, passwords, your name and your library's file names are taken out first." />
                     </Border>
+                    <Button Classes="row" Command="{Binding OpenWebCommand}" CommandParameter="https://astermediaplayer.com/support.html" Margin="0,8,0,0">
+                        <DockPanel>
+                            <TextBlock Classes="value" Text="astermediaplayer.com/support" />
+                            <TextBlock Text="Help &amp; Support" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Button>
+                    <Button Classes="row" Command="{Binding OpenWebCommand}" CommandParameter="https://astermediaplayer.com/privacy.html">
+                        <DockPanel>
+                            <TextBlock Classes="value" Text="astermediaplayer.com/privacy" />
+                            <TextBlock Text="Privacy Policy" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Button>
+                    <Border Classes="note" IsVisible="{Binding WebMessage, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <TextBlock Text="{Binding WebMessage}" />
+                    </Border>
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>

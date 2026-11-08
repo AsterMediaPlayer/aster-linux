@@ -395,6 +395,20 @@ public sealed partial class SettingsViewModel : ViewModelBase
     /// <summary>Send Debug Report: what happened, and the app's log with names and sign-ins taken out.</summary>
     [RelayCommand] private void SendDebugReport() => (navigator as ShellViewModel)?.OpenDebugReport();
 
+    /// <summary>Help &amp; Support or the Privacy Policy, in the browser; its address is shown beside it, for where none opens (Steam's gaming mode).</summary>
+    [RelayCommand]
+    private void OpenWeb(string url)
+    {
+        WebMessage = null;
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); }
+        catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            WebMessage = $"Couldn't open a browser. The page is at {url.Replace("https://", "", StringComparison.Ordinal)}.";
+        }
+    }
+
+    [ObservableProperty] public partial string? WebMessage { get; set; }
+
     public string AppVersion { get; } =
         typeof(SettingsViewModel).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "";
 
