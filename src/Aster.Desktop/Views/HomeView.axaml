@@ -12,7 +12,7 @@
                 <!-- The featured banner, as tall as the window; the shelves start below the fold. -->
                 <c:HeroBanner x:Name="Hero" DataContext="{Binding Hero}" Height="700" />
 
-                <ItemsControl ItemsSource="{Binding Shelves}">
+                <ItemsControl x:Name="ShelfList" ItemsSource="{Binding Shelves}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Spacing="20" />

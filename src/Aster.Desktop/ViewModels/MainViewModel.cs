@@ -479,6 +479,8 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
             catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException) { }
         }
         StoredSession.Clear();
+        // Last time's screens, kept to show at once, go with the sign-in.
+        if (kind != SignOutKind.AddServer) Aster.Core.Snapshots.Clear();
         ShowSignIn(kind == SignOutKind.Expired ? "Your session has ended. Please sign in again." : null, address);
     }
 

@@ -40,11 +40,31 @@ public partial class HomeViewModel : ViewModelBase, IRefreshable
     [RelayCommand]
     private Task RetryAsync() => LoadAsync();
 
+    /// <summary>Home as it was last shown, for this server and person: what a start shows at once.</summary>
+    private sealed record HomeSnapshot(IReadOnlyList<HomeSnapshotShelf> Shelves, IReadOnlyList<BaseItem> Hero);
+
+    private sealed record HomeSnapshotShelf(string Title, IReadOnlyList<BaseItem> Items);
+
+    private string SnapshotKey => Aster.Core.Snapshots.Key(navigator.Client.BaseUrl, navigator.Client.UserId, "home");
+
+    private void Show(HomeSnapshot home)
+    {
+        Hero.Show(home.Hero);
+        Shelves = home.Shelves
+            .Select(s => new Shelf(s.Title, s.Items.Select(i => ItemCard.Landscape(navigator, i)).ToList()))
+            .Where(s => s.Cards.Count > 0)
+            .ToList();
+    }
+
     private async Task LoadAsync()
     {
         refreshWanted = false;
-        IsLoading = !Hero.HasPages;
         ErrorMessage = null;
+        // Last time's Home at once, then what the server says now in its place.
+        if (!Hero.HasPages && Shelves.Count == 0 && await Aster.Core.Snapshots.ReadAsync<HomeSnapshot>(SnapshotKey) is { } kept
+            && !Hero.HasPages && Shelves.Count == 0)
+            Show(kept);
+        IsLoading = !Hero.HasPages && Shelves.Count == 0;
         var client = navigator.Client;
         try
         {
@@ -69,12 +89,8 @@ public partial class HomeViewModel : ViewModelBase, IRefreshable
             var movieItems = await movies;
             var showItems = await shows;
 
-            var shelves = new List<Shelf>();
-            void Add(string title, IEnumerable<BaseItem> items)
-            {
-                var cards = items.Select(i => ItemCard.Landscape(navigator, i)).ToList();
-                if (cards.Count > 0) shelves.Add(new Shelf(title, cards));
-            }
+            var shelves = new List<HomeSnapshotShelf>();
+            void Add(string title, IEnumerable<BaseItem> items) => shelves.Add(new HomeSnapshotShelf(title, items.ToList()));
             Add("Continue Watching", resumeItems);
             Add("Up Next", nextItems);
             Add("Recently Added Movies", movieItems);
@@ -82,13 +98,16 @@ public partial class HomeViewModel : ViewModelBase, IRefreshable
             Add("Recently Added Anime", await anime);
             foreach (var (library, items) in await Task.WhenAll(others)) Add(library.DisplayTitle, items);
 
-            Hero.Show(resumeItems.Take(3).Concat(nextItems.Take(3)).Concat(movieItems.Take(4)).Concat(showItems.Take(3)));
-            Shelves = shelves;
+            var home = new HomeSnapshot(shelves, resumeItems.Take(3).Concat(nextItems.Take(3)).Concat(movieItems.Take(4)).Concat(showItems.Take(3)).ToList());
+            Show(home);
+            _ = Aster.Core.Snapshots.WriteAsync(SnapshotKey, home);
         }
         catch (Exception error) when (error is JellyfinException or HttpRequestException or TimeoutException)
         {
             if (error is JellyfinException { StatusCode: 401 }) await navigator.SessionExpiredAsync();
-            else ErrorMessage = error.Message;
+            // Last time's Home stays up when the server can't be reached; the error shows only over nothing.
+            else if (Shelves.Count == 0 && !Hero.HasPages) ErrorMessage = error.Message;
+            else Aster.Core.Diagnostics.DebugLog.Note("Home", $"Couldn't refresh Home: {error.Message}");
         }
         IsLoading = false;
     }
