@@ -260,20 +260,37 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
         ErrorMessage = null;
         try
         {
-            var full = await Client.ItemAsync(summary.Id);
+            // What the card already says it is loads alongside the item, not after it:
+            // a show's seasons and next episode, the extras, and what's similar.
+            var asked = Client.ItemAsync(summary.Id);
+            var kind = summary.Kind;
+            var showSeasons = kind == ItemKind.Series ? Client.SeasonsAsync(summary.Id) : null;
+            var showNext = kind == ItemKind.Series ? OrEmpty(Client.NextUpAsync(1, seriesId: summary.Id)) : null;
+            var extras = kind is ItemKind.Movie or ItemKind.Series or ItemKind.Season ? OrEmpty(Client.SpecialFeaturesAsync(summary.Id)) : null;
+            var similar = Client.SimilarAsync(summary.Id, 20);
+            BaseItem full;
+            try { full = await asked; }
+            catch
+            {
+                // Seen, so they aren't told of as background tasks that failed unseen.
+                if (showSeasons is not null) _ = showSeasons.ContinueWith(t => t.Exception, TaskScheduler.Default);
+                _ = similar.ContinueWith(t => t.Exception, TaskScheduler.Default);
+                throw;
+            }
             Item = full;
             Cast = full.Cast.Select(p => ItemCard.Person(navigator, p)).ToList();
             IsLoading = false;
             _ = LoadSeerr4kAsync(full);
             _ = LoadWatchlistAsync(full);
 
-            var similar = Client.SimilarAsync(full.Id, 20);
             var themes = full.Kind == ItemKind.Series && full.IsAnime ? OpeningsEndingsAsync(full) : Task.FromResult<IReadOnlyList<OpeningEndingCard>>([]);
             switch (full.Kind)
             {
                 case ItemKind.Series:
-                    seasons = await Client.SeasonsAsync(full.Id);
-                    NextEpisode = (await OrEmpty(Client.NextUpAsync(1, seriesId: full.Id))).FirstOrDefault();
+                    var seasonsAsked = showSeasons ?? Client.SeasonsAsync(full.Id);
+                    var nextAsked = showNext ?? OrEmpty(Client.NextUpAsync(1, seriesId: full.Id));
+                    seasons = await seasonsAsked;
+                    NextEpisode = (await nextAsked).FirstOrDefault();
                     var preferred = NextEpisode?.SeasonId ?? seasons.FirstOrDefault(s => (s.IndexNumber ?? 0) > 0)?.Id ?? seasons.FirstOrDefault()?.Id;
                     if (preferred is not null) await SelectSeasonAsync(preferred);
                     break;
@@ -288,7 +305,7 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
             }
             if (full.Kind is ItemKind.Movie or ItemKind.Series or ItemKind.Season)
             {
-                Extras = (await OrEmpty(Client.SpecialFeaturesAsync(full.Id))).Select(e => ItemCard.Extra(navigator, e)).ToList();
+                Extras = (await (extras ?? OrEmpty(Client.SpecialFeaturesAsync(full.Id)))).Select(e => ItemCard.Extra(navigator, e)).ToList();
             }
             Similar = (await OrEmpty(similar)).Select(i => ItemCard.Landscape(navigator, i)).ToList();
             await LoadDiscMenuAsync();
