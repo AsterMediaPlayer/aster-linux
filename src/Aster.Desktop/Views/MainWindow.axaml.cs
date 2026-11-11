@@ -19,7 +19,14 @@ public partial class MainWindow : Window
             if (e.GetCurrentPoint(this).Properties.IsXButton1Pressed && GoBack()) e.Handled = true;
         }, RoutingStrategies.Tunnel);
         // Lock After: away is the window in the background or minimized.
-        Deactivated += (_, _) => (DataContext as MainViewModel)?.NoteLeft();
+        Deactivated += (_, _) =>
+        {
+            (DataContext as MainViewModel)?.NoteLeft();
+            // A video pauses as Aster goes behind another window (Steam's overlay, another app), to
+            // carry on from there on coming back; songs and books play on. Not in gamescope, whose
+            // one window can be told it's not focused while it's the screen.
+            if (!Aster.Desktop.Platform.SteamSession.InGamescope) Aster.Desktop.Audio.VideoMedia.Current?.Run(Aster.Desktop.Audio.MediaCommand.Pause);
+        };
         Activated += (_, _) => (DataContext as MainViewModel)?.CheckLock();
     }
 
