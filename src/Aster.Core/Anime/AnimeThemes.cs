@@ -38,15 +38,69 @@ public sealed record KnownTheme(bool IsOpening, int Sequence, string? SongTitle,
 /// is found by its season's AniDB id when the server knows it (Jellyfin
 /// with Shoko), else by its name and the year the season began, since
 /// AnimeThemes lists each season apart and by its Japanese name. Each show
-/// is asked about once per launch. The Apple app's AnimeThemesLookup.
+/// is asked about once, and what it has is kept on disk (song-names.json),
+/// so it isn't asked again; Settings ▸ Title Pages ▸ Refresh songs forgets
+/// them all, and Look up song names off asks AnimeThemes nothing (as the
+/// Android app's). The Apple app's AnimeThemesLookup.
 /// </summary>
 public static class AnimeThemesLookup
 {
     private const string Base = "https://api.animethemes.moe";
     private const string Include = "animethemes.song.performances.artist,animethemes.animethemeentries";
 
-    /// <summary>What each show turned out to have, nothing included.</summary>
-    private static readonly ConcurrentDictionary<string, IReadOnlyList<KnownTheme>> Found = new();
+    /// <summary>What each show turned out to have, nothing included; read from disk the first time it's asked.</summary>
+    private static ConcurrentDictionary<string, IReadOnlyList<KnownTheme>>? found;
+
+    private static readonly object FileLock = new();
+
+    private static string FilePath => Path.Combine(AppPaths.Data, "song-names.json");
+
+    private static ConcurrentDictionary<string, IReadOnlyList<KnownTheme>> Found
+    {
+        get
+        {
+            if (found is { } loaded) return loaded;
+            lock (FileLock)
+            {
+                if (found is not null) return found;
+                var read = new ConcurrentDictionary<string, IReadOnlyList<KnownTheme>>();
+                try
+                {
+                    if (File.Exists(FilePath) && JsonSerializer.Deserialize<Dictionary<string, List<KnownTheme>>>(File.ReadAllText(FilePath), Json) is { } saved)
+                        foreach (var (key, themes) in saved) read[key] = themes;
+                }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException) { }
+                return found = read;
+            }
+        }
+    }
+
+    /// <summary>What's been found, on disk; it's only song names and shows, nothing of the server's.</summary>
+    private static void Save()
+    {
+        lock (FileLock)
+        {
+            try
+            {
+                Directory.CreateDirectory(AppPaths.Data);
+                var temporary = FilePath + ".tmp";
+                File.WriteAllText(temporary, JsonSerializer.Serialize(Found.ToDictionary(p => p.Key, p => p.Value)));
+                File.Move(temporary, FilePath, overwrite: true);
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+        }
+    }
+
+    /// <summary>Refresh songs: everything found forgotten, so each show is asked about again as its page opens.</summary>
+    public static void Forget()
+    {
+        Found.Clear();
+        lock (FileLock)
+        {
+            try { File.Delete(FilePath); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+        }
+    }
 
     /// <summary>Its own client: nothing of the server's (its token above all) goes to another site.</summary>
     /// <remarks>AnimeThemes refuses a request that doesn't say what it's from (403).</remarks>
@@ -85,12 +139,16 @@ public static class AnimeThemesLookup
     {
         var key = aniDbId is not null ? $"anidb:{aniDbId}" : $"name:{seriesName.ToLowerInvariant()}|{year ?? 0}";
         if (Found.TryGetValue(key, out var cached)) return cached;
+        if (!AppSettings.Current.SongLookups) return [];
         var themes = aniDbId is not null ? await ByAniDbAsync(aniDbId, ct).ConfigureAwait(false) : await ByNameAsync(seriesName, year, ct).ConfigureAwait(false);
+        // Not reached (null): asked again next time, not kept as having none.
+        if (themes is null) return [];
         Found[key] = themes;
+        Save();
         return themes;
     }
 
-    private static async Task<IReadOnlyList<KnownTheme>> ByAniDbAsync(string id, CancellationToken ct)
+    private static async Task<IReadOnlyList<KnownTheme>?> ByAniDbAsync(string id, CancellationToken ct)
     {
         var reply = await GetAsync<AnimeList>("/anime", new()
         {
@@ -99,7 +157,7 @@ public static class AnimeThemesLookup
             ["filter[external_id]"] = id,
             ["include"] = Include,
         }, ct).ConfigureAwait(false);
-        return reply?.Anime.FirstOrDefault() is { } anime ? Themes(anime) : [];
+        return reply is null ? null : reply.Anime.FirstOrDefault() is { } anime ? Themes(anime) : [];
     }
 
     /// <summary>
@@ -107,16 +165,17 @@ public static class AnimeThemesLookup
     /// season running over New Year began in the earlier one) among those the
     /// name finds; with no year, the first found.
     /// </summary>
-    private static async Task<IReadOnlyList<KnownTheme>> ByNameAsync(string name, int? year, CancellationToken ct)
+    private static async Task<IReadOnlyList<KnownTheme>?> ByNameAsync(string name, int? year, CancellationToken ct)
     {
         var search = await GetAsync<SearchReply>("/search", new() { ["q"] = name, ["fields[search]"] = "anime" }, ct).ConfigureAwait(false);
-        var candidates = search?.Search.Anime ?? [];
+        if (search is null) return null;
+        var candidates = search.Search.Anime ?? [];
         var pick = year is { } y
             ? candidates.FirstOrDefault(a => a.Year == y) ?? candidates.FirstOrDefault(a => a.Year == y - 1)
             : candidates.FirstOrDefault();
         if (pick is null) return [];
         var reply = await GetAsync<AnimeReply>($"/anime/{Uri.EscapeDataString(pick.Slug)}", new() { ["include"] = Include }, ct).ConfigureAwait(false);
-        return reply is null ? [] : Themes(reply.Anime);
+        return reply is null ? null : Themes(reply.Anime);
     }
 
     /// <summary>The themes in an <c>/anime/{slug}</c> reply, for tests.</summary>

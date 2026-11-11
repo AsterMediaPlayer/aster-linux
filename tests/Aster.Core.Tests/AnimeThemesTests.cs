@@ -130,4 +130,19 @@ public class AnimeThemesTests
         // An ending AnimeThemes doesn't place in that episode: no song, rather than a wrong one.
         Assert.Null(ThemeInfo.Match(Clip(ThemeKind.Ending, 1), known));
     }
+
+    /// <summary>What's found is kept on disk (song-names.json) as JSON: it comes back as it went.</summary>
+    [Fact]
+    public void KeptThemesReadBack()
+    {
+        var themes = AnimeThemesLookup.Read(Reply);
+        var json = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, IReadOnlyList<KnownTheme>> { ["anidb:1"] = themes });
+        var back = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, List<KnownTheme>>>(json,
+            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })!["anidb:1"];
+        Assert.Equal(themes.Count, back.Count);
+        Assert.Equal("BAD SURPRISE", back[1].SongTitle);
+        Assert.Equal(["Tenrou-gun"], back[1].Artists);
+        Assert.Equal("1-6, 8-", back[1].Episodes);
+        Assert.False(back[1].IsOpening);
+    }
 }

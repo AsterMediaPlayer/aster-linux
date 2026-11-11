@@ -75,6 +75,12 @@ public sealed record AppSettings
     /// <summary>An anime opening looping behind a show's page (with no theme video of its own) plays its sound, quietly.</summary>
     public bool OpeningSound { get; init; }
 
+    /// <summary>
+    /// An opening's or ending's song named from AnimeThemes (animethemes.moe)
+    /// where the server doesn't name it; off, AnimeThemes is asked nothing.
+    /// </summary>
+    public bool SongLookups { get; init; } = true;
+
     /// <summary>Play on a title with a JellyDisc menu opens its menu, like putting in the disc.</summary>
     public bool PreferDiscMenu { get; init; }
 
