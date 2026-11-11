@@ -346,6 +346,8 @@
                                     <MenuFlyout ItemsSource="{Binding QualityChoices}" ItemContainerTheme="{StaticResource ChoiceItem}" />
                                 </Button.Flyout>
                             </Button>
+                            <Button Classes="bar" Content="{Binding FillLabel}" Command="{Binding ToggleFillCommand}"
+                                    ToolTip.Tip="Fill the screen, cutting off the picture's edges, or fit it all in" />
                             <Button Classes="bar" Content="Mini Player" Command="{Binding MinimizeCommand}" IsVisible="{Binding CanMinimize}"
                                     ToolTip.Tip="Watch in a corner while you browse (controller: Y)" />
                             <Button Classes="bar" x:Name="FullScreenButton" ToolTip.Tip="Full screen (F)">

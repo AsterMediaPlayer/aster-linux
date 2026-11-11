@@ -1587,6 +1587,21 @@ public partial class PlayerViewModel : ViewModelBase
 
     private static readonly double[] Speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
+    /// <summary>
+    /// Fill Screen: the picture zoomed to fill the screen, its edges cut off
+    /// (a 2.39:1 film without its bars), rather than fitted inside it; as the
+    /// Apple app's, until the player closes.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FillLabel))]
+    public partial bool Fills { get; set; }
+
+    public string FillLabel => Fills ? "Fit to Screen" : "Fill Screen";
+
+    partial void OnFillsChanged(bool value) => Player?.SetProperty("panscan", value ? 1.0 : 0.0);
+
+    [RelayCommand] private void ToggleFill() => Fills = !Fills;
+
     private void SetSpeed(double speed)
     {
         Player?.SetProperty("speed", speed);
