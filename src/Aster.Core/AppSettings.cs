@@ -57,6 +57,13 @@ public sealed record AppSettings
     /// <summary>ASS and SSA subtitles drawn as styled; off, as plain text at the bottom.</summary>
     public bool StyledSubtitles { get; init; } = true;
 
+    /// <summary>Subtitles' size, colour and background (<see cref="SubtitleStyle"/>).</summary>
+    public SubtitleSize SubtitleSize { get; init; } = SubtitleSize.Normal;
+
+    public SubtitleColor SubtitleColor { get; init; }
+
+    public SubtitleBackground SubtitleBackground { get; init; }
+
     /// <summary>The song card as an anime episode's opening or ending plays, and on music videos.</summary>
     public bool ThemeCards { get; init; } = true;
 

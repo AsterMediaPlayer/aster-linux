@@ -178,6 +178,44 @@ public sealed partial class SettingsViewModel : ViewModelBase
     {
         if (value is not null) Change(s => s with { ThemeCut = value.Value });
     }
+    public IReadOnlyList<SettingOption<SubtitleSize>> SubtitleSizes { get; } =
+        Enum.GetValues<SubtitleSize>().Select(size => new SettingOption<SubtitleSize>(size.Title(), size)).ToList();
+    public IReadOnlyList<SettingOption<SubtitleColor>> SubtitleColors { get; } =
+        Enum.GetValues<SubtitleColor>().Select(color => new SettingOption<SubtitleColor>(color.Title(), color)).ToList();
+    public IReadOnlyList<SettingOption<SubtitleBackground>> SubtitleBackgrounds { get; } =
+        Enum.GetValues<SubtitleBackground>().Select(back => new SettingOption<SubtitleBackground>(back.Title(), back)).ToList();
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SubtitleSizeChoices))]
+    public partial SettingOption<SubtitleSize>? SubtitleSize { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SubtitleColorChoices))]
+    public partial SettingOption<SubtitleColor>? SubtitleColor { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SubtitleBackgroundChoices))]
+    public partial SettingOption<SubtitleBackground>? SubtitleBackground { get; set; }
+
+    public IReadOnlyList<TrackChoice> SubtitleSizeChoices => Choices(SubtitleSizes, SubtitleSize, c => SubtitleSize = c);
+    public IReadOnlyList<TrackChoice> SubtitleColorChoices => Choices(SubtitleColors, SubtitleColor, c => SubtitleColor = c);
+    public IReadOnlyList<TrackChoice> SubtitleBackgroundChoices => Choices(SubtitleBackgrounds, SubtitleBackground, c => SubtitleBackground = c);
+
+    partial void OnSubtitleSizeChanged(SettingOption<SubtitleSize>? value)
+    {
+        if (value is not null) Change(s => s with { SubtitleSize = value.Value });
+    }
+
+    partial void OnSubtitleColorChanged(SettingOption<SubtitleColor>? value)
+    {
+        if (value is not null) Change(s => s with { SubtitleColor = value.Value });
+    }
+
+    partial void OnSubtitleBackgroundChanged(SettingOption<SubtitleBackground>? value)
+    {
+        if (value is not null) Change(s => s with { SubtitleBackground = value.Value });
+    }
+
     [ObservableProperty] public partial bool PreferDiscMenu { get; set; }
     [ObservableProperty] public partial bool DiscMenuSounds { get; set; }
 
@@ -231,6 +269,9 @@ public sealed partial class SettingsViewModel : ViewModelBase
         EvenVolume = settings.EvenVolume;
         StereoMix = settings.StereoMix;
         ThemeCut = ThemeCuts.FirstOrDefault(c => c.Value == settings.ThemeCut) ?? ThemeCuts[0];
+        SubtitleSize = SubtitleSizes.First(o => o.Value == settings.SubtitleSize);
+        SubtitleColor = SubtitleColors.First(o => o.Value == settings.SubtitleColor);
+        SubtitleBackground = SubtitleBackgrounds.First(o => o.Value == settings.SubtitleBackground);
         PreferDiscMenu = settings.PreferDiscMenu;
         DiscMenuSounds = settings.DiscMenuSounds;
         SonosSpeaker = settings.SonosSpeaker;

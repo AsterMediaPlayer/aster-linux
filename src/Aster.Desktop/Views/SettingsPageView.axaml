@@ -161,6 +161,41 @@
                         <TextBlock Text="{Binding LanguageNote}" />
                     </Border>
 
+                    <TextBlock Classes="section" Text="SUBTITLE STYLE" />
+                    <Button Classes="row" AutomationProperties.Name="Size">
+                        <DockPanel>
+                            <TextBlock Classes="chevron" />
+                            <TextBlock Classes="value" Text="{Binding SubtitleSize.Title}" />
+                            <TextBlock Text="Size" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedRight" ItemsSource="{Binding SubtitleSizeChoices}" ItemContainerTheme="{StaticResource SettingChoice}" />
+                        </Button.Flyout>
+                    </Button>
+                    <Button Classes="row" AutomationProperties.Name="Colour">
+                        <DockPanel>
+                            <TextBlock Classes="chevron" />
+                            <TextBlock Classes="value" Text="{Binding SubtitleColor.Title}" />
+                            <TextBlock Text="Colour" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedRight" ItemsSource="{Binding SubtitleColorChoices}" ItemContainerTheme="{StaticResource SettingChoice}" />
+                        </Button.Flyout>
+                    </Button>
+                    <Button Classes="row" AutomationProperties.Name="Background">
+                        <DockPanel>
+                            <TextBlock Classes="chevron" />
+                            <TextBlock Classes="value" Text="{Binding SubtitleBackground.Title}" />
+                            <TextBlock Text="Background" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedRight" ItemsSource="{Binding SubtitleBackgroundChoices}" ItemContainerTheme="{StaticResource SettingChoice}" />
+                        </Button.Flyout>
+                    </Button>
+                    <Border Classes="note">
+                        <TextBlock Text="How plain subtitles look, from the next video on. Styled anime subtitles keep their own colours and outlines, and take the size." />
+                    </Border>
+
                     <TextBlock Classes="section" Text="STYLED SUBTITLES" />
                     <Button Classes="row" Command="{Binding FlipCommand}" CommandParameter="StyledSubtitles">
                         <DockPanel>
