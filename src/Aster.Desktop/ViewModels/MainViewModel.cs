@@ -411,6 +411,33 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
         if (Aster.Core.Channels.ChannelTuner.OrderedChannels.FirstOrDefault(c => c.Number == number) is { } channel) channels.PlayChannel(channel.Id);
     }
 
+    /// <summary>
+    /// An <c>aster://</c> link, opened at launch or handed on by a later one:
+    /// a title's page, the title playing, or a Channels-tab channel tuned in.
+    /// Signed out, it's dropped.
+    /// </summary>
+    public async void Follow(Aster.Core.DeepLink link)
+    {
+        if (shell is not { } open) return;
+        System.Diagnostics.Trace.WriteLine($"Links: {link.Kind}");
+        switch (link.Kind)
+        {
+            case Aster.Core.DeepLinkKind.Item:
+                await OpenByIdAsync(open.Client, link.Id, null);
+                break;
+            case Aster.Core.DeepLinkKind.Play:
+                await PlayByIdAsync(open.Client, link.Id, null, null);
+                break;
+            case Aster.Core.DeepLinkKind.Channel:
+                if (open.Client is not Aster.Core.Channels.IChannelServer) return;
+                open.ShowTab(AppTab.Channels);
+                if (open.CurrentPage is not ChannelsViewModel channels) return;
+                await channels.Loaded;
+                channels.PlayChannel(link.Id);
+                break;
+        }
+    }
+
     /// <param name="section">A tab of the title's page to show once it has something in it (<c>--section music</c>).</param>
     private async Task OpenByIdAsync(IMediaServer client, string itemId, string? section)
     {

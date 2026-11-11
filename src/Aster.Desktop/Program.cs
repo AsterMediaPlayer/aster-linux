@@ -13,6 +13,8 @@ sealed class Program
     {
         // A debug report's log and the last crash: before anything else can fail.
         Aster.Core.Diagnostics.DebugLog.Install();
+        // An aster:// link with Aster already running: handed to it, and this launch goes.
+        if (Aster.Core.DeepLink.Find(args) is { } link && Aster.Desktop.Platform.DeepLinks.HandOff(link)) return;
         // ASTER_LOG_AVALONIA: Avalonia's own messages (which renderer it chose, and why) on the console.
         if (Environment.GetEnvironmentVariable("ASTER_LOG_AVALONIA") is not null)
         {
