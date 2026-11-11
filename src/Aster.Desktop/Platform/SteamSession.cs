@@ -25,6 +25,14 @@ public static class SteamSession
     /// <summary>Steam's controller-first interface (Big Picture, Game Mode) launched it.</summary>
     public static bool InGamepadUi { get; } = Has("SteamGamepadUI") || Has("SteamTenfoot");
 
+    /// <summary>
+    /// Plasma Bigscreen, KDE's TV session: Plasma started with its Bigscreen
+    /// shell. It reports focus as any Plasma does, so the app's controllers
+    /// can be let go of when it's behind (Bigscreen needs them back for its own menus).
+    /// </summary>
+    public static bool InBigscreen { get; } =
+        string.Equals(Environment.GetEnvironmentVariable("PLASMA_DEFAULT_SHELL"), "org.kde.plasma.bigscreen", StringComparison.Ordinal);
+
     /// <summary>A Steam Deck.</summary>
     public static bool OnSteamDeck { get; } = Environment.GetEnvironmentVariable("SteamDeck") == "1";
 
@@ -32,18 +40,18 @@ public static class SteamSession
     /// Watched from the couch with a controller: the window is full screen
     /// from the start and stays so, and the sidebar has an Exit. On by itself
     /// whenever Steam starts the app (its desktop Big Picture doesn't say it's
-    /// Big Picture, so launched by Steam at all counts) and in gamescope;
-    /// <c>--couch</c> asks for it anywhere, <c>--desktop</c> turns it off.
+    /// Big Picture, so launched by Steam at all counts), in gamescope and in
+    /// Plasma Bigscreen; <c>--couch</c> asks for it anywhere, <c>--desktop</c> turns it off.
     /// </summary>
     public static bool Couch(string[] args) =>
         IsCouch = Array.IndexOf(args, "--desktop") < 0
-            && (Array.IndexOf(args, "--couch") >= 0 || LaunchedBySteam || InGamescope || InGamepadUi);
+            && (Array.IndexOf(args, "--couch") >= 0 || LaunchedBySteam || InGamescope || InGamepadUi || InBigscreen);
 
     /// <summary>What <see cref="Couch"/> found at launch: the pages a controller needs (the search keyboard) show.</summary>
     public static bool IsCouch { get; private set; }
 
     public static string Describe() =>
-        $"Steam: launched={LaunchedBySteam} gamescope={InGamescope} gamepadUi={InGamepadUi} deck={OnSteamDeck}";
+        $"Steam: launched={LaunchedBySteam} gamescope={InGamescope} gamepadUi={InGamepadUi} deck={OnSteamDeck} bigscreen={InBigscreen}";
 
     private static bool Has(string name) => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(name));
 }

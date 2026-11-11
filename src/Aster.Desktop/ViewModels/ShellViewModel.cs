@@ -317,7 +317,7 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
             })
             .Select(t => new SidebarTab(t.Title, t.Glyph, t.Tab == tab, new RelayCommand(() => ShowTab(t.Tab))))
             .ToList();
-        // Full screen for good (launched from Steam, in gamescope) there's no
+        // Full screen for good (launched from Steam, in gamescope, in Plasma Bigscreen) there's no
         // window close button, so the sidebar ends with Exit.
         if (Aster.Desktop.Controls.FullScreen.Pinned)
             Tabs = [.. Tabs, new SidebarTab("Exit", "", false, new RelayCommand(Exit))];
