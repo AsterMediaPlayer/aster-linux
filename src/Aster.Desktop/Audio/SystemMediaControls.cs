@@ -1,14 +1,14 @@
 // The system's own media controls: Windows' media overlay (the volume
 // flyout, the lock screen, Bluetooth headsets' buttons) and Linux's MPRIS
 // (KDE's and GNOME's media applets, playerctl, headsets through them). The
-// counterpart of the Apple app's Now Playing and remote commands, for songs
-// and audiobooks; a video is left to the player's own keys, as on the Mac.
+// counterpart of the Apple app's Now Playing and remote commands, for songs,
+// audiobooks and videos (VideoMedia), as on the Mac.
 
 using System;
 
 namespace Aster.Desktop.Audio;
 
-/// <summary>What the system shows while a song or book plays.</summary>
+/// <summary>What the system shows while a song, book or video plays.</summary>
 /// <param name="Title">The song, or the book.</param>
 /// <param name="Artist">The song's artist, or the book's author.</param>
 /// <param name="Album">The song's album, or the book's chapter.</param>

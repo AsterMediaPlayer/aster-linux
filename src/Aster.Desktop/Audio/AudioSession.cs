@@ -47,7 +47,10 @@ public sealed partial class AudioSession : ObservableObject, IDisposable
         Music.PropertyChanged += Changed;
         Books.PropertyChanged += Changed;
         Sleep = new SleepTimer(this);
+        VideoMedia.Changed += VideoChanged;
     }
+
+    private void VideoChanged() => Avalonia.Threading.Dispatcher.UIThread.Post(UpdateSystemControls);
 
     /// <summary>Pauses the song or book after a while, or at the end of the song or chapter.</summary>
     public SleepTimer Sleep { get; }
@@ -142,9 +145,10 @@ public sealed partial class AudioSession : ObservableObject, IDisposable
         systemControls?.Show(current, bytes);
     }
 
-    /// <summary>The song or book loaded, as the system shows it; null with neither.</summary>
+    /// <summary>The video playing, else the song or book loaded, as the system shows it; null with none.</summary>
     private NowPlayingInfo? NowPlaying()
     {
+        if (VideoMedia.Current?.NowPlaying is { } video) return video;
         if (Books.Book is { } book)
         {
             var chapter = Books.CurrentChapter;
@@ -168,6 +172,11 @@ public sealed partial class AudioSession : ObservableObject, IDisposable
     /// <summary>A system button, as the window's own media keys do it: next and previous are a book's chapters.</summary>
     private void Run(MediaCommand command)
     {
+        if (VideoMedia.Current is { } video)
+        {
+            video.Run(command);
+            return;
+        }
         var book = Books.Book is not null;
         switch (command)
         {
@@ -188,6 +197,11 @@ public sealed partial class AudioSession : ObservableObject, IDisposable
     /// <summary>A point on the system's timeline: in the song, or in the book's chapter.</summary>
     private void SeekTo(double seconds)
     {
+        if (VideoMedia.Current is { } video)
+        {
+            video.SeekTo(seconds);
+            return;
+        }
         // The part playing's start in the book, plus the chapter's in the part.
         if (Books.Book is not null) Books.SeekInBook(Books.BookElapsed - Books.CurrentTime + Books.ChapterBounds.Start + seconds);
         else if (Music.Current is not null) Music.Seek(seconds);
@@ -258,6 +272,7 @@ public sealed partial class AudioSession : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        VideoMedia.Changed -= VideoChanged;
         systemControls?.Dispose();
         Music.Dispose();
         Books.Dispose();

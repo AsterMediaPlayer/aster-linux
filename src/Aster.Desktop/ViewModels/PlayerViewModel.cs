@@ -37,7 +37,7 @@ public sealed record TrackChoice(int Id, string Title, bool IsSelected, IRelayCo
 /// <summary>A chapter in the Chapters menu: its name and start, ticked while it plays.</summary>
 public sealed record ChapterChoice(string Title, string Time, bool IsCurrent, IRelayCommand Select);
 
-public partial class PlayerViewModel : ViewModelBase
+public partial class PlayerViewModel : ViewModelBase, Aster.Desktop.Audio.IVideoMediaSource
 {
     private readonly IMediaServer client;
     private readonly Action<BaseItem?> close;
@@ -98,6 +98,13 @@ public partial class PlayerViewModel : ViewModelBase
         toastTimer.Tick += (_, _) => { toastTimer.Stop(); Toast = null; };
         bugTimer.Tick += (_, _) => { bugTimer.Stop(); BugOpacity = 0; };
         flickTimer.Tick += (_, _) => CloseFlick();
+        // The system's media controls (MPRIS) show the video and drive it, once it plays.
+        PropertyChanged += (_, e) =>
+        {
+            if (!stopped && HasStarted && e.PropertyName is nameof(HasStarted) or nameof(IsPaused) or nameof(Position) or nameof(Duration)
+                or nameof(Title) or nameof(Subtitle) or nameof(UpNext))
+                Aster.Desktop.Audio.VideoMedia.Update(this);
+        };
         try
         {
 #if DEBUG
@@ -1240,6 +1247,36 @@ public partial class PlayerViewModel : ViewModelBase
         PokeControls();
     }
 
+    // ---- The system's media controls ----
+
+    /// <summary>The video as the system's media controls show it: an episode with its show, a channel live (no timeline).</summary>
+    public Aster.Desktop.Audio.NowPlayingInfo? NowPlaying => Item is not { } item ? null : new(
+        item.Id,
+        // An episode by its code and name ("S7, E12 · Ransom") with its show as the artist; a film by its name.
+        item.Kind == ItemKind.Episode && Subtitle is { } episode ? episode : Title,
+        item.Kind == ItemKind.Episode ? item.SeriesName ?? Title : Subtitle,
+        null, client.PosterUrl(item, width: 600),
+        IsLive ? 0 : Duration, IsLive ? 0 : Position, !IsPaused, IsBook: false, Rate: 1,
+        CanGoNext: UpNext is not null, CanGoPrevious: !IsLive);
+
+    /// <summary>A system button: play and pause; next is the next episode; previous, back to the start; the skips are ten seconds.</summary>
+    public void Run(Aster.Desktop.Audio.MediaCommand command)
+    {
+        switch (command)
+        {
+            case Aster.Desktop.Audio.MediaCommand.Play when IsPaused:
+            case Aster.Desktop.Audio.MediaCommand.Pause when !IsPaused:
+            case Aster.Desktop.Audio.MediaCommand.TogglePlayPause:
+                TogglePause();
+                break;
+            case Aster.Desktop.Audio.MediaCommand.Next when UpNext is not null: PlayUpNextNow(); break;
+            case Aster.Desktop.Audio.MediaCommand.Previous: SeekTo(0); break;
+            case Aster.Desktop.Audio.MediaCommand.SkipForward: SeekBy(10); break;
+            case Aster.Desktop.Audio.MediaCommand.SkipBack: SeekBy(-10); break;
+            case Aster.Desktop.Audio.MediaCommand.Stop: Close(); break;
+        }
+    }
+
     [RelayCommand] private void Back10() => SeekBy(-10);
     [RelayCommand] private void Forward10() => SeekBy(10);
 
@@ -2086,6 +2123,7 @@ public partial class PlayerViewModel : ViewModelBase
     {
         if (stopped) return;
         stopped = true;
+        Aster.Desktop.Audio.VideoMedia.Clear(this);
         if (timing is { Told: false } early)
         {
             early.Told = true;
