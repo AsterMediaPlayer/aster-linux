@@ -214,11 +214,16 @@
                                 </Panel>
                             </Button>
                             <Button Theme="{StaticResource PillButton}" ToolTip.Tip="More" AutomationProperties.Name="More" Width="44" Padding="0"
-                                    IsVisible="{Binding CanAddToPlaylist}">
+                                    IsVisible="{Binding HasMore}">
                                 <TextBlock Text="•••" FontSize="12" HorizontalAlignment="Center" />
                                 <Button.Flyout>
                                     <MenuFlyout Placement="BottomEdgeAlignedLeft">
-                                        <MenuItem Header="Add to Playlist…" Command="{Binding AddToPlaylistCommand}" />
+                                        <MenuItem Header="Add to Playlist…" Command="{Binding AddToPlaylistCommand}" IsVisible="{Binding CanAddToPlaylist}" />
+                                        <!-- Asks first: it's gone from the server for good. -->
+                                        <MenuItem Header="Delete Recording" IsVisible="{Binding CanDeleteRecording}">
+                                            <MenuItem Header="Delete — it can't be recovered" Command="{Binding DeleteRecordingCommand}" Foreground="#FF8A80" />
+                                            <MenuItem Header="Keep" />
+                                        </MenuItem>
                                     </MenuFlyout>
                                 </Button.Flyout>
                             </Button>

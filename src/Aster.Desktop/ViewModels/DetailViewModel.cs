@@ -57,7 +57,8 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
     [NotifyPropertyChangedFor(nameof(Backdrop), nameof(Logo), nameof(SeriesLogo), nameof(SeriesName), nameof(Title), nameof(EpisodeCode),
         nameof(Metadata), nameof(Tagline), nameof(Overview), nameof(IsFavorite), nameof(IsPlayed), nameof(ShowsWatched), nameof(Remaining),
         nameof(CanGoToSeries), nameof(UsesSections), nameof(PlayLabel), nameof(Resumable), nameof(Information), nameof(HasInformation),
-        nameof(ShowsEpisodes), nameof(ShowsExtras), nameof(ShowsRelated), nameof(ShowsDetails), nameof(CanAddToPlaylist))]
+        nameof(ShowsEpisodes), nameof(ShowsExtras), nameof(ShowsRelated), nameof(ShowsDetails), nameof(CanAddToPlaylist),
+        nameof(CanDeleteRecording), nameof(HasMore))]
     public partial BaseItem Item { get; set; }
 
     [ObservableProperty]
@@ -651,6 +652,29 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
     public bool CanAddToPlaylist => PlaylistActions.CanAdd(navigator) && Item.Kind is ItemKind.Movie or ItemKind.Series or ItemKind.Season or ItemKind.Episode or ItemKind.MusicVideo;
 
     [RelayCommand] private Task AddToPlaylistAsync() => PlaylistActions.PickForAsync(navigator, Item);
+
+    /// <summary>The "•••" menu's Delete Recording, on a Live TV recording (Jellyfin and Emby), as the Apple app's.</summary>
+    public bool CanDeleteRecording => Item.Kind is ItemKind.Recording && navigator.Jellyfin is not null;
+
+    /// <summary>Whether the "•••" menu has anything in it.</summary>
+    public bool HasMore => CanAddToPlaylist || CanDeleteRecording;
+
+    /// <summary>The recording off the server, for good (the menu asks first), and back to where it was listed.</summary>
+    [RelayCommand]
+    private async Task DeleteRecordingAsync()
+    {
+        if (navigator.Jellyfin is not { } jellyfin) return;
+        Message = null;
+        try
+        {
+            await jellyfin.DeleteRecordingAsync(Item.Id);
+            navigator.Back();
+        }
+        catch (Exception error) when (error is HttpRequestException or TaskCanceledException or InvalidOperationException)
+        {
+            Message = "Couldn't delete the recording: " + error.Message;
+        }
+    }
 
     [RelayCommand] private void PlayResume() => Play(fromBeginning: false);
 
