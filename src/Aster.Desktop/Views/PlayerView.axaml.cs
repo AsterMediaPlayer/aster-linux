@@ -439,7 +439,8 @@ public partial class PlayerView : UserControl
     /// <summary>
     /// A controller's keys, where they differ from the keyboard's. The D-pad
     /// and left stick move between the controls (bringing them up, on Play/Pause,
-    /// if they're hidden) rather than seeking and changing the volume, which
+    /// if they're hidden; on a channel, Up then opens the channel row instead)
+    /// rather than seeking and changing the volume, which
     /// the right stick does; on the timeline left and right seek. A presses
     /// the control it's on; B shuts an open menu, or puts the controls away.
     /// True: dealt with. False: left to the control it's on. Null: as the keyboard.
@@ -465,6 +466,9 @@ public partial class PlayerView : UserControl
         var onControl = focused is InputElement element && focused != this && KeyFocus.IsWithin(focused, this) && KeyFocus.CanFocus(element);
         switch (key)
         {
+            // On a channel with the controls away, Up opens the channel row, as on the Apple TV.
+            case Key.Up when !onControl && model.OpenFlick():
+                return true;
             case Key.Left or Key.Right or Key.Up or Key.Down:
                 model.PokeControls();
                 if (!onControl)
@@ -482,6 +486,8 @@ public partial class PlayerView : UserControl
                     return true;
                 }
                 if (Nearest(focused!, key) is { } next) KeyFocus.Move(next);
+                // Up from the top of the controls, on a channel: the channel row.
+                else if (key == Key.Up) model.OpenFlick();
                 return true;
             // A on a button presses it (the timeline's A pauses, as the keyboard's Enter).
             case Key.Enter when onControl && focused != SeekBar:
