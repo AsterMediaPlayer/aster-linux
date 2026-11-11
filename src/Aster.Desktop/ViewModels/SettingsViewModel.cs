@@ -18,6 +18,9 @@ public sealed record SettingOption<T>(string Title, T Value)
 }
 
 /// <summary>A saved server in Settings: its name, Jellyfin or Emby and who's signed in, and its page.</summary>
+/// <summary>A library switched on or off for somewhere, by name.</summary>
+public sealed record LibrarySwitch(string Name, bool IsOn, IRelayCommand Flip);
+
 public sealed record ServerRow(string Name, string Detail, bool IsCurrent, bool AsksPassword, IRelayCommand Open)
 {
     /// <summary>Another server that asks for its password to switch: a lock beside it.</summary>
@@ -63,6 +66,38 @@ public sealed partial class SettingsViewModel : ViewModelBase
         ServerAddress = navigator.Client.BaseUrl.ToString().TrimEnd('/');
         ShowLocal();
         _ = LoadAsync();
+        _ = ShowAnimeMusicVideosAsync();
+    }
+
+    /// <summary>
+    /// Music Videos in Anime: each music video library but the OP/ED plugin's
+    /// (which the Anime tab always has), to give it a shelf there too. Only
+    /// with anime and such a library, as the Apple app's.
+    /// </summary>
+    [ObservableProperty] public partial IReadOnlyList<LibrarySwitch> AnimeMusicVideoSwitches { get; set; } = [];
+
+    public bool HasAnimeMusicVideoSwitches => AnimeMusicVideoSwitches.Count > 0;
+
+    partial void OnAnimeMusicVideoSwitchesChanged(IReadOnlyList<LibrarySwitch> value) => OnPropertyChanged(nameof(HasAnimeMusicVideoSwitches));
+
+    private async Task ShowAnimeMusicVideosAsync()
+    {
+        var catalog = await navigator.Anime;
+        if (!catalog.HasAnime) return;
+        var chosen = AppSettings.Current.AnimeMusicVideoLibraries;
+        AnimeMusicVideoSwitches = catalog.OtherMusicVideoLibraries.Select(l => l.Name).OfType<string>().Distinct()
+            .Select(name => new LibrarySwitch(name, chosen.Contains(name), new RelayCommand(() => FlipAnimeMusicVideos(name)))).ToList();
+    }
+
+    private void FlipAnimeMusicVideos(string name)
+    {
+        Change(s => s with
+        {
+            AnimeMusicVideoLibraries = s.AnimeMusicVideoLibraries.Contains(name)
+                ? s.AnimeMusicVideoLibraries.Where(n => n != name).ToList()
+                : [.. s.AnimeMusicVideoLibraries, name],
+        });
+        _ = ShowAnimeMusicVideosAsync();
     }
 
     /// <summary>Opens one of the pages over the list.</summary>

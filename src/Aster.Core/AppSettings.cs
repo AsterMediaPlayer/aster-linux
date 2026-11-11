@@ -88,6 +88,9 @@ public sealed record AppSettings
     /// </summary>
     public bool SongLookups { get; init; } = true;
 
+    /// <summary>Music video libraries (by name) with a shelf in the Anime tab, besides the OP/ED plugin's.</summary>
+    public IReadOnlyList<string> AnimeMusicVideoLibraries { get; init; } = [];
+
     /// <summary>Play on a title with a JellyDisc menu opens its menu, like putting in the disc.</summary>
     public bool PreferDiscMenu { get; init; }
 
