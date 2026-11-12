@@ -4,11 +4,14 @@
 # a package, make it again with flatpak-builder-tools' dotnet/flatpak-dotnet-generator.py.
 # libmpv is built here (a Flatpak can't use the system's), from mpv's own Flathub recipe,
 # cut down to what Aster plays with: libmpv alone, OpenGL, VA-API, PipeWire and Pulse.
-# No WebKitGTK yet: trailers open in the browser.
+# Trailers play in WebKitGTK 4.1 (GTK 3's), built here: GNOME's runtime has only GTK 4's now.
+# The GNOME runtime (on Freedesktop 26.08, so .NET 10's extension fits) brings GTK 3,
+# libsoup 3 and GStreamer for it. WebKit takes long to build the first time, and wants
+# memory: flatpak-builder --jobs=6 on a machine with 16 GB or so. It's cached after that.
 id: com.astermediaplayer.Aster
-runtime: org.freedesktop.Platform
-runtime-version: '26.08'
-sdk: org.freedesktop.Sdk
+runtime: org.gnome.Platform
+runtime-version: '51'
+sdk: org.gnome.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.dotnet10
 command: aster
@@ -28,6 +31,8 @@ finish-args:
   - --own-name=org.mpris.MediaPlayer2.aster
 
 cleanup:
+  # WebKit's JavaScript shell: Aster has no use for it.
+  - /libexec/webkit2gtk-4.1/jsc
   - /include
   - /lib/pkgconfig
   - /share/man
@@ -150,6 +155,59 @@ modules:
         url: https://github.com/mpv-player/mpv.git
         tag: v0.42.0
         commit: b0841e8c4d156b8403dc1876c4cbd9011eb583f3
+
+  # WebKit's build wants it to strip platform sections from its headers.
+  - name: unifdef
+    no-autogen: true
+    build-options:
+      # It names a variable constexpr, a keyword in C23 (GCC 15's default).
+      cflags: -std=gnu17
+    make-install-args:
+      - prefix=${FLATPAK_DEST}
+    cleanup:
+      - '*'
+    sources:
+      - type: archive
+        url: https://dotat.at/prog/unifdef/unifdef-2.12.tar.xz
+        sha256: 43ce0f02ecdcdc723b2475575563ddb192e988c886d368260bc0a63aee3ac400
+
+  # For trailers: Avalonia's web view on Linux is WebKitGTK 4.1, GTK 3's. Built as
+  # little as plays YouTube's embedded player: no spelling, gamepads, speech or WebDriver.
+  - name: webkit2gtk-4.1
+    buildsystem: cmake-ninja
+    build-options:
+      cxxflags: -g0
+      cflags: -g0
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DPORT=GTK
+      - -DUSE_GTK4=OFF
+      - -DUSE_SOUP2=OFF
+      - -DUSE_LIBBACKTRACE=OFF
+      - -DUSE_LIBHYPHEN=OFF
+      - -DUSE_AVIF=OFF
+      - -DUSE_JPEGXL=OFF
+      - -DUSE_WOFF2=OFF
+      - -DUSE_SYSTEM_SYSPROF_CAPTURE=OFF
+      - -DENABLE_SPELLCHECK=OFF
+      - -DENABLE_GAMEPAD=OFF
+      - -DENABLE_SPEECH_SYNTHESIS=OFF
+      - -DENABLE_WEBDRIVER=OFF
+      - -DENABLE_MINIBROWSER=OFF
+      - -DENABLE_DOCUMENTATION=OFF
+      - -DENABLE_INTROSPECTION=OFF
+      - -DENABLE_JOURNALD_LOG=OFF
+      # Its own bubblewrap sandbox can't run inside Flatpak's.
+      - -DENABLE_BUBBLEWRAP_SANDBOX=OFF
+      - -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
+    cleanup:
+      - /bin
+      - /libexec/webkit2gtk-4.1/MiniBrowser
+      - /share/gir-1.0
+    sources:
+      - type: archive
+        url: https://webkitgtk.org/releases/webkitgtk-2.54.2.tar.xz
+        sha256: a76345b391bef6211fb5ab6cfab2e86b285d18cda17cbb9ade595f1252b86065
 
   - name: aster
     buildsystem: simple
