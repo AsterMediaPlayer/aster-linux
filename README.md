@@ -239,7 +239,7 @@ and pages leave it room on the right rather than going under it.
 the corner (Esc goes back, Space pauses, the arrows skip): mpv's video can't
 move between views, so the panel's one view grows rather than handing over.
 Title-page themes go quiet while it plays; a title, a disc menu or a song
-starting ends it. Settings ▸ Title Pages ▸ Now Playing panel off plays
+starting ends it. Settings ▸ Anime ▸ Now Playing panel off plays
 picks full screen, one at a time, as before.
 
 **Watch OP** and **Watch ED** on an anime show's page play the season
@@ -248,7 +248,7 @@ else one found in chapters, else one of the whole show); on an episode's
 page, the ones in that episode.
 
 **Versions**: where the OP/ED plugin has them, a song plays in the version
-Settings ▸ Title Pages ▸ Version to play prefers: the TV size, the
+Settings ▸ Anime ▸ Version to play prefers: the TV size, the
 full-length song (`OP1-Full`) or its music video (`OP1-MV`), else the
 nearest it has (a music video falls back to the full version, then the TV
 size). A card shows **Full** and **MV** when it has them, and a right click
