@@ -220,6 +220,20 @@ public sealed partial class SettingsViewModel : ViewModelBase
     [ObservableProperty] public partial bool SongLookups { get; set; }
     [ObservableProperty] public partial bool SwapControllerButtons { get; set; }
 
+    /// <summary>Title Pages ▸ Ratings: the viewer's own MDBList key, kept with the sign-ins; saved as it's typed, as the Apple app's.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RatingsNote))]
+    public partial string MdbListKey { get; set; } = "";
+
+    partial void OnMdbListKeyChanged(string value)
+    {
+        if (!showing) Aster.Core.Ratings.MdbList.ApiKey = value;
+    }
+
+    public string RatingsNote => string.IsNullOrWhiteSpace(MdbListKey)
+        ? "Title pages show the scores your server has. With a free MDBList key (from mdblist.com, under Preferences › API Access), films and shows also get IMDb, Rotten Tomatoes (critics and audience), Metacritic, Letterboxd and TMDB scores. The key stays on this computer, with your sign-ins."
+        : "Films and shows get IMDb, Rotten Tomatoes, Metacritic, Letterboxd and TMDB scores from MDBList. Clear the key to stop asking it.";
+
     /// <summary>Refresh songs' word on what it did ("Done"), beside it.</summary>
     [ObservableProperty] public partial string? SongsRefreshed { get; set; }
 
@@ -339,6 +353,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         OpeningSound = settings.OpeningSound;
         SongLookups = settings.SongLookups;
         SwapControllerButtons = settings.SwapControllerButtons;
+        MdbListKey = Aster.Core.Ratings.MdbList.ApiKey ?? "";
         ThemePanel = settings.ThemePanel;
         AudioPassthrough = settings.AudioPassthrough;
         EvenVolume = settings.EvenVolume;

@@ -380,6 +380,18 @@
                     <Border Classes="note">
                         <TextBlock Text="Plays a title's theme song quietly, or loops its theme video behind the page, when your library has them. Theme music stays off while you are listening to music." />
                     </Border>
+
+                    <TextBlock Classes="section" Text="RATINGS" />
+                    <Border Classes="fact">
+                        <DockPanel>
+                            <TextBlock Text="MDBList API key" Width="200" VerticalAlignment="Center" />
+                            <TextBox Text="{Binding MdbListKey}" PasswordChar="•" PlaceholderText="None" Background="Transparent" BorderThickness="0" FontSize="17"
+                                     AutomationProperties.Name="MDBList API key" />
+                        </DockPanel>
+                    </Border>
+                    <Border Classes="note">
+                        <TextBlock Text="{Binding RatingsNote}" />
+                    </Border>
                 </StackPanel>
 
                 <!-- General -->

@@ -166,7 +166,12 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
     public string? SeriesName => Item.Kind is ItemKind.Episode or ItemKind.Season ? Item.SeriesName : null;
     public string Title => Item.DisplayTitle;
     public string? EpisodeCode => Item.Kind == ItemKind.Episode ? Item.EpisodeCode : null;
-    public MetadataLine Metadata => MetadataLine.For(Item, showsUnwatched: true);
+    public MetadataLine Metadata => MetadataLine.For(Item, showsUnwatched: true, AddedScores);
+
+    /// <summary>The title's scores from MDBList, with a key in Settings ▸ Title Pages ▸ Ratings.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Metadata))]
+    public partial IReadOnlyList<Aster.Core.Ratings.TitleScore> AddedScores { get; set; } = [];
     public string? Tagline => Item.Taglines?.FirstOrDefault();
     public string? Overview => Item.Overview;
 
@@ -255,6 +260,13 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
 
     // ---- Loading ----
 
+    /// <summary>MDBList's scores for a film or show, with a key; the server's show meanwhile.</summary>
+    private async Task LoadScoresAsync(BaseItem full)
+    {
+        var scores = await Aster.Core.Ratings.MdbList.ScoresAsync(full);
+        if (Item.Id == full.Id) AddedScores = scores;
+    }
+
     private async Task LoadAsync(BaseItem summary)
     {
         IsLoading = true;
@@ -279,6 +291,7 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
                 throw;
             }
             Item = full;
+            _ = LoadScoresAsync(full);
             Cast = full.Cast.Select(p => ItemCard.Person(navigator, p)).ToList();
             IsLoading = false;
             _ = LoadSeerr4kAsync(full);
