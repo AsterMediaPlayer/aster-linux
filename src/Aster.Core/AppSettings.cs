@@ -100,6 +100,12 @@ public sealed record AppSettings
     /// <summary>A controller's A and B, and X and Y, trade places: Nintendo's layout (the right button opens, the bottom one goes back, Y pauses).</summary>
     public bool SwapControllerButtons { get; init; }
 
+    /// <summary>When Aster asks who's watching as it opens, for a household (Bonfire profiles, a Plex Home): as the server is set, by default.</summary>
+    public Profiles.ProfileGateMode ProfileGate { get; init; } = Profiles.ProfileGateMode.Server;
+
+    /// <summary>Each household's "ask on startup" as last read (by <see cref="Jellyfin.StoredSession.HouseholdKey"/>), so a cold launch decides without the network.</summary>
+    public IReadOnlyDictionary<string, bool> ProfileAskOnStartup { get; init; } = new Dictionary<string, bool>();
+
     /// <summary>Music video libraries (by name) with a shelf in the Anime tab, besides the OP/ED plugin's.</summary>
     public IReadOnlyList<string> AnimeMusicVideoLibraries { get; init; } = [];
 

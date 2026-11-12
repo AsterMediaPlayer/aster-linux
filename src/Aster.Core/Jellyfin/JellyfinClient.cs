@@ -253,6 +253,31 @@ public sealed class JellyfinClient : IMediaServer, Channels.IChannelServer
         }
     }
 
+    /// <summary>
+    /// A plugin's route whose answer is in its status and one header as well
+    /// as its body (Bonfire's X-Bonfire-Error): all three, rather than an
+    /// exception for a refusal. <paramref name="json"/> is sent as it is.
+    /// Not reaching the server still throws.
+    /// </summary>
+    public async Task<(int Status, byte[] Body, string? Header)> SendForAnswerAsync(HttpMethod method, string path, string? json, string header,
+        TimeSpan? timeout = null, CancellationToken ct = default)
+    {
+        using var request = AuthorizedRequest(Url(path), method);
+        if (json is not null) request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var timer = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timer.CancelAfter(timeout ?? RequestTimeout);
+        try
+        {
+            using var response = await http.SendAsync(request, timer.Token).ConfigureAwait(false);
+            var value = response.Headers.TryGetValues(header, out var values) ? values.FirstOrDefault() : null;
+            return ((int)response.StatusCode, await response.Content.ReadAsByteArrayAsync(timer.Token).ConfigureAwait(false), value);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new TimeoutException("The server took too long to answer.");
+        }
+    }
+
     public async Task DeleteAsync(string path, Query? query = null, CancellationToken ct = default) =>
         await SendAsync(AuthorizedRequest(Url(path, query), HttpMethod.Delete), ct).ConfigureAwait(false);
 

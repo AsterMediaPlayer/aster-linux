@@ -147,8 +147,15 @@ public sealed record StoredSession
     /// <summary>A Plex sign-in's plex.tv side; null for Jellyfin and Emby.</summary>
     public PlexLink? Plex { get; init; }
 
+    /// <summary>The household (Bonfire profiles) this sign-in belongs to, once known; null for an ordinary sign-in, and in sessions saved before.</summary>
+    public StoredHousehold? Household { get; init; }
+
     [System.Text.Json.Serialization.JsonIgnore]
     public ServerKind Kind => ServerKind ?? Jellyfin.ServerKind.Jellyfin;
+
+    /// <summary>The server and the household's main account, which every profile of the household shares; null without a household.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? HouseholdKey => Household is { } household ? ServerUrl.AbsoluteUri + "|" + household.MasterUserId : null;
 
     private const string Account = "session";
 
@@ -163,6 +170,29 @@ public sealed record StoredSession
     public void Save() => Secrets.Write(Account, JsonSerializer.Serialize(this, JellyfinJson.Options));
 
     public static void Clear() => Secrets.Delete(Account);
+}
+
+/// <summary>
+/// The household a sign-in is part of: a Bonfire main account and its
+/// profiles. Enough to find the household's other saved sign-ins, decide
+/// whether to ask who's watching on opening, and draw the profile's tile
+/// before the server answers. The Apple app's StoredHousehold.
+/// </summary>
+public sealed record StoredHousehold
+{
+    /// <summary>The main account's id, as Jellyfin writes it: lowercase, no dashes.</summary>
+    public required string MasterUserId { get; init; }
+
+    /// <summary>Whether this sign-in is the main account itself.</summary>
+    public bool IsMaster { get; init; }
+
+    /// <summary>The tile without a picture: a letter on a colour (<c>#00A4DC</c>-style).</summary>
+    public string? AvatarInitial { get; init; }
+
+    public string? AvatarColor { get; init; }
+
+    /// <summary>Bonfire's own picture value (an avatar's id, a URL, or a stored file's name); null without one.</summary>
+    public string? ProfileImage { get; init; }
 }
 
 /// <summary>A Plex sign-in's plex.tv side, kept with the session. The Apple app's PlexLink.</summary>
@@ -241,9 +271,13 @@ public sealed record SavedServer
         _ => $"{minutes} Minutes",
     };
 
-    /// <summary>What switching and Lock After ask for: the user's password on the server, or a Plex Home profile's PIN.</summary>
+    /// <summary>What switching and Lock After ask for: the user's password on the server, or a Plex Home profile's or a Bonfire profile's PIN.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
-    public string CredentialName => Session.Kind == ServerKind.Plex ? "PIN" : "password";
+    public string CredentialName => Session.Kind == ServerKind.Plex || IsHouseholdProfile ? "PIN" : "password";
+
+    /// <summary>Whether this is a household profile (not the main account), whose password on the server is its PIN.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsHouseholdProfile => Session.Household is { IsMaster: false };
 
     /// <summary>
     /// Whether there's anything to ask for: a Plex profile without a PIN, or
