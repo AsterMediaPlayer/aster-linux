@@ -1,3 +1,4 @@
+using Aster.Core;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -247,6 +248,17 @@ public sealed unsafe class Gamepads : IDisposable
             return;
         }
         if (!down) return;
+        // Settings ▸ General ▸ Swap A/B and X/Y: Nintendo's layout, the right button opening and the
+        // bottom one going back. Read at each press, so a change applies at once.
+        if (AppSettings.Current.SwapControllerButtons)
+            button = button switch
+            {
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH => SDL_GamepadButton.SDL_GAMEPAD_BUTTON_EAST,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_EAST => SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_WEST => SDL_GamepadButton.SDL_GAMEPAD_BUTTON_NORTH,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_NORTH => SDL_GamepadButton.SDL_GAMEPAD_BUTTON_WEST,
+                _ => button,
+            };
         Key? key = button switch
         {
             SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH => Key.Enter,

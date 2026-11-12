@@ -88,6 +88,9 @@ public sealed record AppSettings
     /// </summary>
     public bool SongLookups { get; init; } = true;
 
+    /// <summary>A controller's A and B, and X and Y, trade places: Nintendo's layout (the right button opens, the bottom one goes back, Y pauses).</summary>
+    public bool SwapControllerButtons { get; init; }
+
     /// <summary>Music video libraries (by name) with a shelf in the Anime tab, besides the OP/ED plugin's.</summary>
     public IReadOnlyList<string> AnimeMusicVideoLibraries { get; init; } = [];
 

@@ -134,6 +134,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
             case nameof(ThemeVideos): ThemeVideos = !ThemeVideos; break;
             case nameof(OpeningSound): OpeningSound = !OpeningSound; break;
             case nameof(SongLookups): SongLookups = !SongLookups; break;
+            case nameof(SwapControllerButtons): SwapControllerButtons = !SwapControllerButtons; break;
             case nameof(ThemePanel): ThemePanel = !ThemePanel; break;
             case nameof(AudioPassthrough): AudioPassthrough = !AudioPassthrough; break;
             case nameof(EvenVolume): EvenVolume = !EvenVolume; break;
@@ -192,6 +193,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     [ObservableProperty] public partial bool ThemeVideos { get; set; }
     [ObservableProperty] public partial bool OpeningSound { get; set; }
     [ObservableProperty] public partial bool SongLookups { get; set; }
+    [ObservableProperty] public partial bool SwapControllerButtons { get; set; }
 
     /// <summary>Refresh songs' word on what it did ("Done"), beside it.</summary>
     [ObservableProperty] public partial string? SongsRefreshed { get; set; }
@@ -276,6 +278,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     partial void OnThemeVideosChanged(bool value) => Change(s => s with { ThemeVideos = value });
     partial void OnOpeningSoundChanged(bool value) => Change(s => s with { OpeningSound = value });
     partial void OnSongLookupsChanged(bool value) => Change(s => s with { SongLookups = value });
+    partial void OnSwapControllerButtonsChanged(bool value) => Change(s => s with { SwapControllerButtons = value });
     partial void OnThemePanelChanged(bool value) => Change(s => s with { ThemePanel = value });
     partial void OnAudioPassthroughChanged(bool value) => Change(s => s with { AudioPassthrough = value });
     partial void OnEvenVolumeChanged(bool value) => Change(s => s with { EvenVolume = value });
@@ -307,6 +310,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         ThemeVideos = settings.ThemeVideos;
         OpeningSound = settings.OpeningSound;
         SongLookups = settings.SongLookups;
+        SwapControllerButtons = settings.SwapControllerButtons;
         ThemePanel = settings.ThemePanel;
         AudioPassthrough = settings.AudioPassthrough;
         EvenVolume = settings.EvenVolume;

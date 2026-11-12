@@ -346,6 +346,17 @@
 
                 <!-- General -->
                 <StackPanel IsVisible="{Binding $parent[UserControl].((vm:SettingsPageViewModel)DataContext).IsGeneral}">
+                    <TextBlock Classes="section" Text="CONTROLLERS" />
+                    <Button Classes="row" Command="{Binding FlipCommand}" CommandParameter="SwapControllerButtons">
+                        <DockPanel>
+                            <TextBlock Classes="value" Text="{Binding SwapControllerButtons, Converter={x:Static c:Converters.OnOff}}" />
+                            <TextBlock Text="Swap A/B and X/Y" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Button>
+                    <Border Classes="note">
+                        <TextBlock Text="A game controller moves through Aster like the arrow keys. Normally the bottom button (A) opens and the right one (B) goes back, and X pauses. Swapped, they follow Nintendo's layout: the right button opens, the bottom one goes back, and Y pauses." />
+                    </Border>
+
                     <Button Classes="row" Command="{Binding ShowWelcomeCommand}" IsVisible="{Binding IsJellyfin}">
                         <TextBlock Text="Show Welcome Screen" VerticalAlignment="Center" />
                     </Button>
