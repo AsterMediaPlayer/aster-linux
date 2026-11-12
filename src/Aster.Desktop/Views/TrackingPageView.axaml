@@ -1,0 +1,104 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             xmlns:c="using:Aster.Desktop.Controls"
+             x:Class="Aster.Desktop.Views.TrackingPageView"
+             x:DataType="vm:TrackingPageViewModel">
+
+    <UserControl.Styles>
+        <StyleInclude Source="avares://Aster.Desktop/Views/SettingsStyles.axaml" />
+    </UserControl.Styles>
+
+    <!-- Settings ▸ Tracking with the server's plugin: each service in its group, Link or Unlink and
+         the switch for sending, then the plugin's last sends. The Apple app's PluginTrackingSections. -->
+    <Panel>
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="107,76,107,60">
+                <TextBlock Classes="pageTitle" Text="Tracking" />
+                <ProgressBar IsIndeterminate="True" Width="200" HorizontalAlignment="Center" Margin="0,40" IsVisible="{Binding IsLoading}" />
+
+                <ItemsControl ItemsSource="{Binding Groups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:TrackingGroup">
+                            <StackPanel>
+                                <TextBlock Classes="section" Text="{Binding Title, Converter={x:Static c:Converters.Upper}}" />
+                                <ItemsControl ItemsSource="{Binding Rows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:TrackingRow">
+                                            <StackPanel>
+                                                <!-- Linked: Unlink asks first. Not linked: Link opens its page. -->
+                                                <Button Classes="row" Command="{Binding Link}" IsVisible="{Binding IsUnlinked}" AutomationProperties.Name="{Binding Title}">
+                                                    <DockPanel>
+                                                        <TextBlock Classes="chevron" />
+                                                        <TextBlock Classes="value" Text="Link" />
+                                                        <StackPanel VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Title}" />
+                                                            <TextBlock Text="{Binding Line}" FontSize="14" Opacity="0.6" />
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Button>
+                                                <Button Classes="row" IsVisible="{Binding IsLinked}" AutomationProperties.Name="{Binding Title}">
+                                                    <DockPanel>
+                                                        <TextBlock Classes="value" Text="Unlink" Foreground="#FF8A80" />
+                                                        <StackPanel VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Title}" />
+                                                            <TextBlock Text="{Binding Line}" FontSize="14" Opacity="0.6" />
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                    <Button.Flyout>
+                                                        <Flyout Placement="BottomEdgeAlignedRight">
+                                                            <StackPanel Spacing="12" MaxWidth="300">
+                                                                <TextBlock Text="{Binding Title, StringFormat='Unlink {0}? The server stops sending to it, for every app.'}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                                                                <Button Content="Unlink" Command="{Binding Unlink}" HorizontalAlignment="Right" />
+                                                            </StackPanel>
+                                                        </Flyout>
+                                                    </Button.Flyout>
+                                                </Button>
+                                                <Button Classes="row" Command="{Binding FlipSending}" IsVisible="{Binding IsLinked}">
+                                                    <DockPanel>
+                                                        <TextBlock Classes="value" Text="{Binding Sends, Converter={x:Static c:Converters.OnOff}}" />
+                                                        <TextBlock Text="{Binding SendLabel}" VerticalAlignment="Center" />
+                                                    </DockPanel>
+                                                </Button>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <Border Classes="note" IsVisible="{Binding IsLast}">
+                                    <TextBlock Text="Linked on your server, so every Aster app on this server account has them, this one included, and the server sends what you watch or listen to, from any app." />
+                                </Border>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <StackPanel IsVisible="{Binding HasSends}">
+                    <TextBlock Classes="section" Text="RECENT SENDS" />
+                    <ItemsControl ItemsSource="{Binding Sends}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:TrackingSend">
+                                <Border Classes="fact">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}" />
+                                        <TextBlock Text="{Binding Detail}" FontSize="14" Opacity="0.6" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Border Classes="note" IsVisible="{Binding Waiting, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <TextBlock Text="{Binding Waiting}" />
+                    </Border>
+                </StackPanel>
+
+                <TextBlock Text="{Binding Problem}" Foreground="#FF8A80" TextWrapping="Wrap" Margin="0,16,0,0"
+                           IsVisible="{Binding Problem, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            </StackPanel>
+        </ScrollViewer>
+        <!-- Back, for the pointer: the page sits over its tab. -->
+        <Button Theme="{StaticResource BackButton}" Command="{Binding BackCommand}" ToolTip.Tip="Back (Alt+←)" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20"
+                Width="44" Height="44" CornerRadius="22" Background="#B3000000" Foreground="White" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Padding="0">
+            <TextBlock Text="&#xE72B;" FontFamily="{StaticResource IconFont}" />
+        </Button>
+    </Panel>
+</UserControl>

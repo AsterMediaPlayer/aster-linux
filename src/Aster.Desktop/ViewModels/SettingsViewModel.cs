@@ -73,6 +73,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         ShowLocal();
         _ = LoadAsync();
         _ = ShowAnimeMusicVideosAsync();
+        _ = FindTrackingAsync();
     }
 
     /// <summary>
@@ -111,6 +112,24 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     /// <summary>Aster's companion plugins on the server: the welcome screen's switches, any time.</summary>
     [RelayCommand] private void OpenServerPlugins() => navigator.Push(new ServerPluginsPageViewModel(navigator.JellyfinOnly));
+
+    /// <summary>Services ▸ Tracking: only with the server's Aster Discovery and Tracking plugin, which links the services.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasServices))]
+    public partial Aster.Core.Tracking.TrackingFeatures? TrackingFeatures { get; set; }
+
+    public bool HasTracking => TrackingFeatures is { Services.Count: > 0 };
+    public bool HasServices => HasTracking || IsJellyfin;
+
+    partial void OnTrackingFeaturesChanged(Aster.Core.Tracking.TrackingFeatures? value) => OnPropertyChanged(nameof(HasTracking));
+
+    private async Task FindTrackingAsync() => TrackingFeatures = await navigator.Tracking;
+
+    [RelayCommand]
+    private void OpenTracking()
+    {
+        if (TrackingFeatures is { } features && navigator.Jellyfin is { } jellyfin) navigator.Push(new TrackingPageViewModel(navigator, jellyfin, features));
+    }
 
     /// <summary>General's Show Welcome Screen: the welcome screen again, with Aster's server plugins to switch on.</summary>
     [RelayCommand] private void ShowWelcome() => accounts.ShowWelcome();

@@ -68,7 +68,14 @@
                 </DockPanel>
             </Button>
 
-            <TextBlock Classes="section" Text="SERVICES" IsVisible="{Binding IsJellyfin}" />
+            <TextBlock Classes="section" Text="SERVICES" IsVisible="{Binding HasServices}" />
+            <Button Classes="row" Command="{Binding OpenTrackingCommand}" IsVisible="{Binding HasTracking}">
+                <DockPanel>
+                    <TextBlock Classes="chevron" />
+                    <TextBlock Classes="icon" Text="&#xE930;" />
+                    <TextBlock Text="Tracking" VerticalAlignment="Center" />
+                </DockPanel>
+            </Button>
             <Button Classes="row" Command="{Binding OpenServerPluginsCommand}" IsVisible="{Binding IsJellyfin}">
                 <DockPanel>
                     <TextBlock Classes="chevron" />

@@ -231,6 +231,28 @@ public sealed class JellyfinClient : IMediaServer, Channels.IChannelServer
         return Decode<T>(await SendRequiredAsync(request, ct).ConfigureAwait(false));
     }
 
+    /// <summary>
+    /// A request whose status is the answer (the tracking plugin's 202 "not
+    /// yet", 410 "ran out"): the status and body, rather than an exception
+    /// for a failure. Not reaching the server still throws.
+    /// </summary>
+    public async Task<(int Status, byte[] Body)> SendForStatusAsync(HttpMethod method, string path, object? body = null, CancellationToken ct = default)
+    {
+        using var request = AuthorizedRequest(Url(path), method);
+        if (body is not null) request.Content = JsonBody(body);
+        using var timer = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timer.CancelAfter(RequestTimeout);
+        try
+        {
+            using var response = await http.SendAsync(request, timer.Token).ConfigureAwait(false);
+            return ((int)response.StatusCode, await response.Content.ReadAsByteArrayAsync(timer.Token).ConfigureAwait(false));
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new TimeoutException("The server took too long to answer.");
+        }
+    }
+
     public async Task DeleteAsync(string path, Query? query = null, CancellationToken ct = default) =>
         await SendAsync(AuthorizedRequest(Url(path, query), HttpMethod.Delete), ct).ConfigureAwait(false);
 

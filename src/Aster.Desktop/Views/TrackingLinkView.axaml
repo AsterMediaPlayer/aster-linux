@@ -1,0 +1,61 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             x:Class="Aster.Desktop.Views.TrackingLinkView"
+             x:DataType="vm:TrackingLinkViewModel">
+
+    <UserControl.Styles>
+        <StyleInclude Source="avares://Aster.Desktop/Views/SettingsStyles.axaml" />
+    </UserControl.Styles>
+
+    <!-- Linking a service: the code to enter on its site, the approval to give there, or the code to paste
+         back, while the page asks every few seconds whether it's done. The Apple app's TrackingLinkSheet. -->
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="107,76,107,60" Spacing="18" MaxWidth="760" HorizontalAlignment="Left">
+            <TextBlock Classes="pageTitle" Text="{Binding Title}" />
+            <ProgressBar IsIndeterminate="True" Width="200" HorizontalAlignment="Left"
+                         IsVisible="{Binding Link, Converter={x:Static ObjectConverters.IsNull}}" />
+
+            <!-- A code to enter on the service's site. -->
+            <StackPanel Spacing="10" IsVisible="{Binding IsCode}">
+                <TextBlock Text="On a phone or computer, go to" Foreground="#99FFFFFF" />
+                <TextBlock Text="{Binding Address}" FontSize="22" FontWeight="SemiBold" />
+                <TextBlock Text="and enter" Foreground="#99FFFFFF" />
+                <SelectableTextBlock Text="{Binding Code}" FontSize="44" FontWeight="Bold" FontFamily="monospace" />
+            </StackPanel>
+
+            <!-- Approving Aster on the service's page. -->
+            <StackPanel Spacing="10" IsVisible="{Binding IsApprove}">
+                <TextBlock Text="{Binding ApproveHelp}" TextWrapping="Wrap" Foreground="#99FFFFFF" />
+                <TextBlock Text="{Binding Address}" FontSize="22" FontWeight="SemiBold" />
+            </StackPanel>
+
+            <!-- A code or token pasted back. -->
+            <StackPanel Spacing="12" IsVisible="{Binding IsPaste}">
+                <TextBlock Text="{Binding PasteHelp}" TextWrapping="Wrap" Foreground="#99FFFFFF" />
+                <TextBox Text="{Binding Pasted}" PlaceholderText="Paste the code" MaxWidth="460" HorizontalAlignment="Left" Width="460" />
+                <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding SubmitCommand}" HorizontalAlignment="Left"
+                        Content="{Binding ServiceTitle, StringFormat='Link {0}'}" />
+            </StackPanel>
+
+            <Button Theme="{StaticResource PillButton}" Command="{Binding OpenCommand}" HorizontalAlignment="Left"
+                    IsVisible="{Binding Link, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    Content="{Binding ServiceTitle, StringFormat='Open {0} in the Browser'}" />
+
+            <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsWaiting}">
+                <ProgressBar IsIndeterminate="True" Width="80" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding ServiceTitle, StringFormat='Waiting for {0}…'}" Foreground="#99FFFFFF" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <StackPanel Spacing="10" IsVisible="{Binding Expired}">
+                <TextBlock Text="That code ran out." Foreground="#99FFFFFF" />
+                <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding TryAgainCommand}" Content="Try Again" HorizontalAlignment="Left" />
+            </StackPanel>
+
+            <TextBlock Text="{Binding Problem}" Foreground="#FF8A80" TextWrapping="Wrap"
+                       IsVisible="{Binding Problem, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+            <Button Theme="{StaticResource PillButton}" Command="{Binding CancelCommand}" Content="Cancel" HorizontalAlignment="Left" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
