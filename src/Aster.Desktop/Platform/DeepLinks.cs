@@ -19,7 +19,8 @@ public static class DeepLinks
     /// <summary>In the session's runtime folder, which only the user can reach; else Aster's own data folder.</summary>
     private static string SocketPath => Path.Combine(
         Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR") is { Length: > 0 } runtime ? runtime : Aster.Core.Jellyfin.AppPaths.Data,
-        "aster.sock");
+        // Its own: the TV home screen's --play hand-off (InstanceChannel) has aster.sock.
+        "aster-links.sock");
 
     /// <summary>The link to the Aster that's running, if one is; false when none is (this launch is the app).</summary>
     public static bool HandOff(DeepLink link)
