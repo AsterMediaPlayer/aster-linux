@@ -74,10 +74,15 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
             CheckLock();
             // Who's watching, before anything of anyone's is used: decided from what's kept here, so
             // opening never waits on the server. After the lock; before the welcome screen.
-            if (development is null && CurrentPage is ShellViewModel or WelcomeViewModel
-                && Aster.Core.Profiles.ProfileGate.ShouldAsk(session, AppSettings.Current.ProfileGate,
-                    session.HouseholdKey is { } key ? Aster.Core.Profiles.ProfileGateCache.AskOnStartup(key) : null))
-                ShowProfilePicker(Aster.Core.Profiles.ProfilePickerReason.Launch);
+            if (development is null && CurrentPage is ShellViewModel or WelcomeViewModel)
+            {
+                if (Aster.Core.Profiles.ProfileGate.ShouldAsk(session, AppSettings.Current.ProfileGate,
+                        session.HouseholdKey is { } key ? Aster.Core.Profiles.ProfileGateCache.AskOnStartup(key) : null))
+                    ShowProfilePicker(Aster.Core.Profiles.ProfilePickerReason.Launch);
+                // Not asking who's watching: a profile with a PIN still asks it, as Aster opens (one without goes straight in).
+                else if (session.Household is not null || session.Plex is { HomeUserHasPin: true, HomeToken: not null })
+                    LockProfile();
+            }
         }
         else
         {

@@ -82,6 +82,14 @@ public sealed partial class ProfilePickerViewModel : ViewModelBase
 
     public bool IsLocked => Reason == ProfilePickerReason.Locked;
 
+    /// <summary>
+    /// Carrying on as the one signed in needs their PIN: locked, and as Aster
+    /// opens (Continue as … and their own tile ask it too), where the Apple
+    /// app lets them straight in.
+    /// </summary>
+    private bool CurrentNeedsPin(HouseholdProfile profile) =>
+        Reason is ProfilePickerReason.Locked or ProfilePickerReason.Launch && profile.IsCurrent && profile.RequiresPin;
+
     /// <summary>Its own copy: the tiles stay as they are while a switch goes through.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasTiles))]
@@ -104,7 +112,7 @@ public sealed partial class ProfilePickerViewModel : ViewModelBase
     public bool IsEnteringPin => PinFor is not null;
     public bool IsPicking => PinFor is null;
     public string PinPrompt => PinFor is { } profile
-        ? IsLocked && profile.IsCurrent ? $"Enter {profile.Name}'s PIN to carry on" : $"Enter {profile.Name}'s PIN"
+        ? CurrentNeedsPin(profile) ? $"Enter {profile.Name}'s PIN to carry on" : $"Enter {profile.Name}'s PIN"
         : "";
 
     [ObservableProperty]
@@ -143,10 +151,11 @@ public sealed partial class ProfilePickerViewModel : ViewModelBase
         // Opened to ask who's watching, and there's no one else to pick: straight in.
         if (Reason == ProfilePickerReason.Launch && household.Checked && (household.Provider is null || Tiles.Count <= 1)) dismiss();
         // Locked: the profile's own PIN at once; one that asks none now (the home network's skip) goes straight back.
-        if (Reason == ProfilePickerReason.Locked && household.Provider is not null)
+        if (Reason == ProfilePickerReason.Locked && household.Checked)
         {
             if (household.Current is { RequiresPin: true } current) PinFor = current;
-            else if (household.Current is not null) dismiss();
+            // No household after all (or the server can't be asked): nothing to check the PIN with.
+            else if (household.Current is not null || household.Provider is null) dismiss();
         }
     }
 
@@ -167,8 +176,8 @@ public sealed partial class ProfilePickerViewModel : ViewModelBase
         ErrorMessage = null;
         switch (ProfileSwitchPlan.Make(profile, accounts.ReusableSession(profile.Id)))
         {
-            // Locked, even the one signed in needs their PIN to carry on.
-            case ProfileSwitchPlan.AlreadyCurrent when IsLocked:
+            // Locked, or as Aster opens, even the one signed in needs their PIN to carry on.
+            case ProfileSwitchPlan.AlreadyCurrent when CurrentNeedsPin(profile):
                 Pin = "";
                 PinFor = profile;
                 break;
@@ -207,16 +216,26 @@ public sealed partial class ProfilePickerViewModel : ViewModelBase
 
     private bool NotSwitching() => !IsSwitching;
 
-    /// <summary>Continue as whoever's signed in, or Cancel.</summary>
+    /// <summary>Continue as whoever's signed in (with their PIN, when they have one), or Cancel.</summary>
     [RelayCommand(CanExecute = nameof(NotSwitching))]
-    private void Footer() => dismiss();
+    private void Footer()
+    {
+        if (household.Current is { } current && CurrentNeedsPin(current))
+        {
+            ErrorMessage = null;
+            Pin = "";
+            PinFor = current;
+        }
+        else dismiss();
+    }
 
     /// <summary>Back (Esc, a controller's B): leaves the PIN first, then the picker (not when locked: the tiles stay, to pick someone else).</summary>
     public void GoBack()
     {
         if (IsSwitching) return;
         if (IsEnteringPin) CancelPin();
-        else if (!IsLocked) dismiss();
+        // Locked, or as Aster opens with a PIN to give: Back isn't a way past it.
+        else if (!IsLocked && !(household.Current is { } current && CurrentNeedsPin(current))) dismiss();
     }
 
     /// <summary>Adding someone: the form over the picker; the row then shows them.</summary>
@@ -241,8 +260,8 @@ public sealed partial class ProfilePickerViewModel : ViewModelBase
         ErrorMessage = null;
         try
         {
-            // Locked: the one signed in carries on once the server says the PIN's right.
-            if (IsLocked && profile.IsCurrent)
+            // Locked, or as Aster opens: the one signed in carries on once the server says the PIN's right.
+            if (CurrentNeedsPin(profile))
             {
                 await provider.VerifyPinAsync(pin ?? "", profile);
                 DebugLog.Note("Profiles", "Unlocked");
