@@ -58,12 +58,14 @@ public sealed partial class MusicPlayer : ObservableObject, IDisposable
             output.Loaded += Started;
             output.Ended += TrackEnded;
             output.Failed += Fail;
+            if (output is AudioEngine gapless) gapless.Advanced += RanOn;
         }
         else
         {
             output.Loaded -= Started;
             output.Ended -= TrackEnded;
             output.Failed -= Fail;
+            if (output is AudioEngine gapless) gapless.Advanced -= RanOn;
         }
     }
 
@@ -80,6 +82,12 @@ public sealed partial class MusicPlayer : ObservableObject, IDisposable
     private string playSessionId = Guid.NewGuid().ToString("N");
     private DateTimeOffset lastReport;
     private bool hasStarted;
+
+    /// <summary>Save upcoming songs: the next few, saved as the one playing gets under way.</summary>
+    private readonly Aster.Core.Audio.MusicAhead ahead = new();
+
+    /// <summary>The song (by its place in the queue) the songs after it were last asked to be saved for; -1, none yet.</summary>
+    private int aheadFor = -1;
 
     public MusicPlayer()
     {
@@ -270,6 +278,8 @@ public sealed partial class MusicPlayer : ObservableObject, IDisposable
         engine.Stop();
         Queue = [];
         originalOrder = [];
+        ahead.Clear();
+        aheadFor = -1;
         Index = 0;
         IsPlaying = false;
         CurrentTime = 0;
@@ -294,8 +304,9 @@ public sealed partial class MusicPlayer : ObservableObject, IDisposable
         var about = new Aster.Core.Audio.SonosTrack(track.Name ?? "", track.AlbumArtist ?? track.Artists?.FirstOrDefault(), track.Album,
             client.ImageUrl(track.AlbumId ?? track.Id, ImageKind.Primary, track.AlbumId is null ? null : track.AlbumPrimaryImageTag, maxWidth: 600));
         if (engine.IsRemote) _ = LoadOnSpeakersAsync(engine, client, track, start, playing, about);
-        else engine.Load(client.UniversalAudioUrl(track.Id, playSessionId, AppSettings.Current.MaxBitrate), start, playing, about);
+        else engine.Load(SongUrl(client, track, playSessionId), start, playing, about);
         IsPlaying = playing;
+        QueueFollowing();
         clock.Start();
         _ = FetchLyricsAsync(track, client);
     }
@@ -335,6 +346,7 @@ public sealed partial class MusicPlayer : ObservableObject, IDisposable
     private void Tick()
     {
         if (engine.Position is { } seconds) CurrentTime = seconds;
+        SaveAhead();
         if (hasStarted && DateTimeOffset.UtcNow - lastReport >= TimeSpan.FromSeconds(10))
         {
             lastReport = DateTimeOffset.UtcNow;
@@ -343,13 +355,15 @@ public sealed partial class MusicPlayer : ObservableObject, IDisposable
     }
 
     /// <summary>Reports the song that's ending so the server records it, without touching the queue.</summary>
-    private void FinishCurrent()
+    /// <param name="atEnd">Played to its end, the next already playing: its length, rather than where the player is.</param>
+    private void FinishCurrent(bool atEnd = false)
     {
         if (!hasStarted || Current is not { } track || client is null) return;
         hasStarted = false;
         _ = client.ReportStoppedAsync(new PlaybackReport
         {
-            ItemId = track.Id, PlaySessionId = playSessionId, PositionTicks = PositionTicks, IsPaused = true, PlayMethod = "DirectPlay",
+            ItemId = track.Id, PlaySessionId = playSessionId, PlayMethod = "DirectPlay", IsPaused = true,
+            PositionTicks = atEnd ? track.RunTimeTicks ?? PositionTicks : PositionTicks,
         });
     }
 
@@ -358,6 +372,78 @@ public sealed partial class MusicPlayer : ObservableObject, IDisposable
         engine.Paused = true;
         IsPlaying = false;
         CurrentTime = 0;
+    }
+
+    /// <summary>Settings ▸ Music's streaming quality: the server converts songs over it; Original (0), none.</summary>
+    public static int MusicBitrate => AppSettings.Current.MusicMaxBitrate is > 0 and var cap ? cap : 999_000_000;
+
+    /// <summary>
+    /// Gapless playback (Settings ▸ Music): the song after this one queued
+    /// in mpv, to run on from it with no pause between; on this computer
+    /// only, and not with a song repeating.
+    /// </summary>
+    private void QueueFollowing()
+    {
+        if (engine is not AudioEngine local || client is null) return;
+        var following = !AppSettings.Current.GaplessMusic || RepeatMode == RepeatMode.One || Current is null ? -1
+            : Index + 1 < Queue.Count ? Index + 1
+            : RepeatMode == RepeatMode.All ? 0 : -1;
+        local.QueueNext(following >= 0 ? SongUrl(client, Queue[following], Guid.NewGuid().ToString("N")) : null);
+    }
+
+    /// <summary>The song's saved file, when Save upcoming songs has it; else its stream.</summary>
+    private Uri SongUrl(JellyfinClient from, BaseItem track, string session) =>
+        ahead.SavedFile(track.Id) is { } file ? new Uri(file) : from.UniversalAudioUrl(track.Id, session, MusicBitrate);
+
+    /// <summary>
+    /// Save upcoming songs (Settings ▸ Music, on unless turned off): once the
+    /// song playing is ten seconds in, the next five (round again with Repeat
+    /// All) are saved, on this computer only. Off, anything saved goes.
+    /// </summary>
+    private void SaveAhead()
+    {
+        if (!AppSettings.Current.SaveUpcomingSongs)
+        {
+            if (aheadFor != -2) ahead.Clear();
+            aheadFor = -2;
+            return;
+        }
+        if (engine is not AudioEngine || client is not { } from || !hasStarted || CurrentTime < 10 || aheadFor == Index || Current is not { } playing) return;
+        aheadFor = Index;
+        var upcoming = Enumerable.Range(1, Aster.Core.Audio.MusicAhead.Ahead)
+            .Select(step => Index + step < Queue.Count ? Index + step : RepeatMode == RepeatMode.All ? (Index + step) % Queue.Count : -1)
+            .TakeWhile(i => i >= 0 && i != Index)
+            .Select(i => (Queue[i].Id, from.SavedAudioUrl(Queue[i].Id, MusicBitrate)))
+            .ToList();
+        ahead.Want(upcoming, playing.Id);
+    }
+
+    partial void OnQueueChanged(IReadOnlyList<BaseItem> value)
+    {
+        QueueFollowing();
+        // Another order: what's coming up is asked again.
+        if (aheadFor >= 0) aheadFor = -1;
+    }
+    partial void OnRepeatModeChanged(RepeatMode value) => QueueFollowing();
+
+    /// <summary>The queued song ran on from the last, with no gap: the queue moves on to it, without loading it again.</summary>
+    private void RanOn()
+    {
+        if (Current is null || client is null) return;
+        FinishCurrent(atEnd: true);
+        Index = Index + 1 < Queue.Count ? Index + 1 : 0;
+        if (Current is not { } track) return;
+        playSessionId = Guid.NewGuid().ToString("N");
+        hasStarted = false;
+        CurrentTime = 0;
+        Duration = (track.RunTimeTicks ?? 0) / 10_000_000.0;
+        ErrorMessage = null;
+        // Opened ahead and playing already: started now (mpv's length may still be the last song's, so the list's is kept).
+        hasStarted = true;
+        lastReport = DateTimeOffset.UtcNow;
+        Report(paused: !IsPlaying, start: true);
+        QueueFollowing();
+        _ = FetchLyricsAsync(track, client);
     }
 
     private void TrackEnded()
@@ -388,5 +474,6 @@ public sealed partial class MusicPlayer : ObservableObject, IDisposable
     {
         Stop();
         local.Dispose();
+        ahead.Dispose();
     }
 }

@@ -21,6 +21,12 @@ public sealed class AudioEngine : IAudioOutput
     /// <summary>The file played to its end.</summary>
     public event Action? Ended;
 
+    /// <summary>The file played to its end, and the one queued after it (<see cref="QueueNext"/>) runs on from it, with no gap.</summary>
+    public event Action? Advanced;
+
+    /// <summary>What's queued to run on after the file playing, if anything.</summary>
+    private Uri? queued;
+
     /// <summary>The file couldn't be played; mpv's reason.</summary>
     public event Action<string>? Failed;
 
@@ -38,6 +44,10 @@ public sealed class AudioEngine : IAudioOutput
                 ["input-default-bindings"] = "no",
                 ["terminal"] = "no",
                 ["ytdl"] = "no",
+                // A song queued after the one playing runs on from it without a pause: an album's
+                // tracks as one. Weak: where the two differ (a FLAC after an MP3) the sound reopens.
+                ["gapless-audio"] = "weak",
+                ["prefetch-playlist"] = "yes",
                 ["user-agent"] = $"{JellyfinDevice.ClientName}/{JellyfinDevice.Version}",
 #if DEBUG
                 // ASTER_MUTE: silent, for trying the app without disturbing anyone.
@@ -48,7 +58,16 @@ public sealed class AudioEngine : IAudioOutput
             mpv.EndFile += end =>
             {
                 // A file replaced by the next one ends with Stop; that's not news.
-                if (end.Reason == MpvEndFileReason.Eof) Dispatcher.UIThread.Post(() => Ended?.Invoke());
+                if (end.Reason == MpvEndFileReason.Eof) Dispatcher.UIThread.Post(() =>
+                {
+                    // The queued one is playing now, mpv having moved on to it by itself.
+                    if (queued is not null)
+                    {
+                        queued = null;
+                        Advanced?.Invoke();
+                    }
+                    else Ended?.Invoke();
+                });
                 else if (end.Reason == MpvEndFileReason.Error) Dispatcher.UIThread.Post(() => Failed?.Invoke(end.ErrorMessage ?? "This can't be played."));
             };
             return mpv;
@@ -65,6 +84,8 @@ public sealed class AudioEngine : IAudioOutput
         try
         {
             Mpv.SetProperty("pause", !playing);
+            // Replacing it clears mpv's playlist, the queued one with it.
+            queued = null;
             var options = start > 0 ? "start=" + start.ToString("0.###", CultureInfo.InvariantCulture) : "";
             _ = Mpv.CommandAsync("loadfile", url.AbsoluteUri, "replace", "-1", options).ContinueWith(_ => { });
         }
@@ -72,6 +93,23 @@ public sealed class AudioEngine : IAudioOutput
         {
             Failed?.Invoke(error.Message);
         }
+    }
+
+    /// <summary>
+    /// <paramref name="url"/> to play on from the file playing as it ends, with
+    /// no gap (mpv opens it ahead); null for nothing, as it ends.
+    /// </summary>
+    public void QueueNext(Uri? url)
+    {
+        if (mpv is null || url == queued) return;
+        try
+        {
+            // Everything but the file playing goes.
+            mpv.Command("playlist-clear");
+            if (url is not null) _ = mpv.CommandAsync("loadfile", url.AbsoluteUri, "append").ContinueWith(_ => { });
+            queued = url;
+        }
+        catch (MpvException) { queued = null; }
     }
 
     public bool Paused

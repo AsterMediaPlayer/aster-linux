@@ -28,6 +28,13 @@
                     <TextBlock Text="Video" VerticalAlignment="Center" />
                 </DockPanel>
             </Button>
+            <Button Classes="row" Command="{Binding OpenCommand}" CommandParameter="{x:Static vm:SettingsPage.Music}">
+                <DockPanel>
+                    <TextBlock Classes="chevron" />
+                    <TextBlock Classes="icon" Text="&#xE8D6;" />
+                    <TextBlock Text="Music" VerticalAlignment="Center" />
+                </DockPanel>
+            </Button>
 
             <TextBlock Classes="section" Text="LIBRARY" />
             <Button Classes="row" Command="{Binding OpenCommand}" CommandParameter="{x:Static vm:SettingsPage.Anime}">

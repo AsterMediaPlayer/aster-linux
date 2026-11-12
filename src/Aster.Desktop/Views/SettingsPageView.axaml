@@ -242,6 +242,44 @@
                     </Border>
                 </StackPanel>
 
+                <!-- Music -->
+                <StackPanel IsVisible="{Binding $parent[UserControl].((vm:SettingsPageViewModel)DataContext).IsMusic}">
+                    <TextBlock Classes="section" Text="MUSIC QUALITY" />
+                    <Button Classes="row" AutomationProperties.Name="Streaming quality">
+                        <DockPanel>
+                            <TextBlock Classes="chevron" />
+                            <TextBlock Classes="value" Text="{Binding MusicBitrate.Title}" />
+                            <TextBlock Text="Streaming quality" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedRight" ItemsSource="{Binding MusicBitrateChoices}" ItemContainerTheme="{StaticResource SettingChoice}" />
+                        </Button.Flyout>
+                    </Button>
+                    <Border Classes="note">
+                        <TextBlock Text="Original plays songs as they are, FLAC included. A lower choice has the server convert songs over it. Audiobooks stream at this quality too." />
+                    </Border>
+
+                    <Button Classes="row" Command="{Binding FlipCommand}" CommandParameter="GaplessMusic" Margin="0,16,0,0">
+                        <DockPanel>
+                            <TextBlock Classes="value" Text="{Binding GaplessMusic, Converter={x:Static c:Converters.OnOff}}" />
+                            <TextBlock Text="Gapless playback" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Button>
+                    <Border Classes="note">
+                        <TextBlock Text="The next song loads while one plays, so an album or a mix runs on without a pause between tracks. After a song in another format, there's a short gap. Not while a song repeats, or on a Sonos." />
+                    </Border>
+
+                    <Button Classes="row" Command="{Binding FlipCommand}" CommandParameter="SaveUpcomingSongs" Margin="0,16,0,0">
+                        <DockPanel>
+                            <TextBlock Classes="value" Text="{Binding SaveUpcomingSongs, Converter={x:Static c:Converters.OnOff}}" />
+                            <TextBlock Text="Save upcoming songs" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Button>
+                    <Border Classes="note">
+                        <TextBlock Text="The next five songs in the queue are saved as they come up, once the song playing is under way, so they start at once and play on if the connection drops. They're kept in Aster's folder, and let go once heard." />
+                    </Border>
+                </StackPanel>
+
                 <!-- Anime -->
                 <StackPanel IsVisible="{Binding $parent[UserControl].((vm:SettingsPageViewModel)DataContext).IsAnime}">
                     <TextBlock Classes="section" Text="OPENINGS AND ENDINGS" />

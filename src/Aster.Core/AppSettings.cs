@@ -88,6 +88,15 @@ public sealed record AppSettings
     /// </summary>
     public bool SongLookups { get; init; } = true;
 
+    /// <summary>Songs and audiobooks stream at no more than this (bits a second), the server converting those over it; 0, as they are.</summary>
+    public int MusicMaxBitrate { get; init; }
+
+    /// <summary>The next song loads while one plays, so an album runs on without a pause between tracks.</summary>
+    public bool GaplessMusic { get; init; } = true;
+
+    /// <summary>The next songs in the queue saved as they come up, so they start at once and play on if the connection drops.</summary>
+    public bool SaveUpcomingSongs { get; init; } = true;
+
     /// <summary>A controller's A and B, and X and Y, trade places: Nintendo's layout (the right button opens, the bottom one goes back, Y pauses).</summary>
     public bool SwapControllerButtons { get; init; }
 

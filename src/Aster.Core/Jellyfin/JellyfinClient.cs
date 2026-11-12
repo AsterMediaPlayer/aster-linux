@@ -1062,6 +1062,25 @@ public sealed class JellyfinClient : IMediaServer, Channels.IChannelServer
         });
 
     /// <summary>
+    /// A song as one file to save ahead (Save upcoming songs): the file
+    /// itself when it's within <paramref name="maxBitrate"/>, else converted
+    /// to an MP3 at it, sent whole rather than as HLS's pieces.
+    /// </summary>
+    public Uri SavedAudioUrl(string itemId, int maxBitrate) =>
+        TokenUrl($"/Audio/{itemId}/universal", new()
+        {
+            ["userId"] = UserId,
+            ["deviceId"] = JellyfinDevice.DeviceId,
+            ["container"] = "mp3,aac,m4a,m4b,flac,alac,wav,aiff,ogg,oga,opus,webma,wma,ape,wv,mka,dsf",
+            ["transcodingContainer"] = "mp3",
+            ["transcodingProtocol"] = "http",
+            ["audioCodec"] = "mp3",
+            ["maxStreamingBitrate"] = Number(maxBitrate),
+            ["enableRedirection"] = "true",
+            ["enableRemoteMedia"] = "false",
+        });
+
+    /// <summary>
     /// A stream a Sonos speaker fetches and plays itself: the file as it is,
     /// at an address ending in an extension Sonos knows (it refuses one it
     /// can't place, as /universal), for a format Sonos plays; else an MP3.

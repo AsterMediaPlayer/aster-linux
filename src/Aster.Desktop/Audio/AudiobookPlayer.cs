@@ -293,7 +293,7 @@ public sealed partial class AudiobookPlayer : ObservableObject, IDisposable
         ErrorMessage = null;
         var about = new SonosTrack(book.Title, book.Author, book.Series, client.ImageUrl(book.Cover.Id, ImageKind.Primary, maxWidth: 600), IsBook: true);
         if (engine.IsRemote) _ = LoadOnSpeakersAsync(engine, client, book, part, seconds, playing, about);
-        else engine.Load(client.UniversalAudioUrl(book.Parts[part].Id, playSessionId, AppSettings.Current.MaxBitrate), seconds, playing, about);
+        else engine.Load(client.UniversalAudioUrl(book.Parts[part].Id, playSessionId, MusicPlayer.MusicBitrate), seconds, playing, about);
         IsPlaying = playing;
         clock.Start();
     }

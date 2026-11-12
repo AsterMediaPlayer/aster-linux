@@ -35,6 +35,7 @@ public enum SettingsPage
     Video,
     AudioSubtitles,
     DiscMenus,
+    Music,
     Anime,
     TitlePages,
     General,
@@ -135,6 +136,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
             case nameof(OpeningSound): OpeningSound = !OpeningSound; break;
             case nameof(SongLookups): SongLookups = !SongLookups; break;
             case nameof(SwapControllerButtons): SwapControllerButtons = !SwapControllerButtons; break;
+            case nameof(GaplessMusic): GaplessMusic = !GaplessMusic; break;
+            case nameof(SaveUpcomingSongs): SaveUpcomingSongs = !SaveUpcomingSongs; break;
             case nameof(ThemePanel): ThemePanel = !ThemePanel; break;
             case nameof(AudioPassthrough): AudioPassthrough = !AudioPassthrough; break;
             case nameof(EvenVolume): EvenVolume = !EvenVolume; break;
@@ -165,6 +168,28 @@ public sealed partial class SettingsViewModel : ViewModelBase
     public partial SettingOption<int>? Bitrate { get; set; }
 
     public IReadOnlyList<TrackChoice> BitrateChoices => Choices(Bitrates, Bitrate, b => Bitrate = b);
+
+    /// <summary>Music's own quality, as the Apple app lists it: Original plays songs as they are, FLAC included.</summary>
+    public IReadOnlyList<SettingOption<int>> MusicBitrates { get; } =
+    [
+        new("Original (no conversion)", 0), new("320 kbps", 320_000), new("256 kbps", 256_000), new("192 kbps", 192_000), new("128 kbps", 128_000),
+    ];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MusicBitrateChoices))]
+    public partial SettingOption<int>? MusicBitrate { get; set; }
+
+    public IReadOnlyList<TrackChoice> MusicBitrateChoices => Choices(MusicBitrates, MusicBitrate, b => MusicBitrate = b);
+
+    partial void OnMusicBitrateChanged(SettingOption<int>? value)
+    {
+        if (value is not null) Change(s => s with { MusicMaxBitrate = value.Value });
+    }
+
+    [ObservableProperty] public partial bool GaplessMusic { get; set; }
+    [ObservableProperty] public partial bool SaveUpcomingSongs { get; set; }
+    partial void OnGaplessMusicChanged(bool value) => Change(s => s with { GaplessMusic = value });
+    partial void OnSaveUpcomingSongsChanged(bool value) => Change(s => s with { SaveUpcomingSongs = value });
 
     public IReadOnlyList<SettingOption<VideoBack>> VideoBacks { get; } =
     [
@@ -300,6 +325,9 @@ public sealed partial class SettingsViewModel : ViewModelBase
         var settings = AppSettings.Current;
         showing = true;
         Bitrate = Bitrates.FirstOrDefault(b => b.Value == settings.MaxBitrate) ?? Bitrates[0];
+        MusicBitrate = MusicBitrates.FirstOrDefault(b => b.Value == settings.MusicMaxBitrate) ?? MusicBitrates[0];
+        GaplessMusic = settings.GaplessMusic;
+        SaveUpcomingSongs = settings.SaveUpcomingSongs;
         VideoBack = VideoBacks.FirstOrDefault(b => b.Value == settings.BackInVideo) ?? VideoBacks[0];
         FullScreenPlayback = settings.FullScreenPlayback;
         AutoplayNext = settings.AutoplayNext;
@@ -570,6 +598,7 @@ public sealed class SettingsPageViewModel(SettingsViewModel settings, SettingsPa
         SettingsPage.Video => "Video",
         SettingsPage.AudioSubtitles => "Audio & Subtitles",
         SettingsPage.DiscMenus => "Disc Menus",
+        SettingsPage.Music => "Music",
         SettingsPage.Anime => "Anime",
         SettingsPage.TitlePages => "Title Pages",
         SettingsPage.General => "General",
@@ -580,6 +609,7 @@ public sealed class SettingsPageViewModel(SettingsViewModel settings, SettingsPa
     public bool IsStreaming => page == SettingsPage.Streaming;
     public bool IsVideo => page == SettingsPage.Video;
     public bool IsAnime => page == SettingsPage.Anime;
+    public bool IsMusic => page == SettingsPage.Music;
     public bool IsGeneral => page == SettingsPage.General;
     public bool IsAudioSubtitles => page == SettingsPage.AudioSubtitles;
     public bool IsDiscMenus => page == SettingsPage.DiscMenus;
