@@ -267,11 +267,76 @@ public static class ProfileGate
     }
 }
 
-/// <summary>Why the picker is up: the app opened, or someone asked to switch.</summary>
+/// <summary>Why the picker is up: the app opened, someone asked to switch, or the profile's PIN is asked again (away, or idle, too long).</summary>
 public enum ProfilePickerReason
 {
     Launch,
     Switcher,
+    Locked,
+}
+
+/// <summary>
+/// When a profile with a PIN was left, and whether it's locked until its PIN
+/// is given: kept in files beside the server's own (AwayClock), so neither
+/// is got past by quitting.
+/// </summary>
+public static class ProfileLockClock
+{
+    private static string LeftPath => Path.Combine(AppPaths.Data, "profile-left-at");
+    private static string LockedPath => Path.Combine(AppPaths.Data, "locked-profile");
+
+    /// <summary>The choices offered, in minutes; 0 is Never.</summary>
+    public static IReadOnlyList<int> Choices { get; } = [5, 15, 30, 60, 0];
+
+    /// <summary>The sign-in (<see cref="SavedServer.Id"/>) locked until its profile's PIN is given.</summary>
+    public static string? Locked
+    {
+        get
+        {
+            try { return File.Exists(LockedPath) ? File.ReadAllText(LockedPath) : null; }
+            catch (IOException) { return null; }
+        }
+        set
+        {
+            try
+            {
+                if (value is null) File.Delete(LockedPath);
+                else File.WriteAllText(LockedPath, value);
+            }
+            catch (IOException) { }
+        }
+    }
+
+    /// <summary>When Aster was left, with a profile that has a PIN.</summary>
+    public static DateTimeOffset? LeftAt
+    {
+        get
+        {
+            try { return File.Exists(LeftPath) && DateTimeOffset.TryParse(File.ReadAllText(LeftPath), CultureInfo.InvariantCulture, DateTimeStyles.None, out var left) ? left : null; }
+            catch (IOException) { return null; }
+        }
+    }
+
+    /// <summary>The clock starts, unless it's already running.</summary>
+    public static void NoteLeft()
+    {
+        if (LeftAt is not null) return;
+        try { File.WriteAllText(LeftPath, DateTimeOffset.UtcNow.ToString("O")); }
+        catch (IOException) { }
+    }
+
+    /// <summary>Back in time (or unlocked): the clock stops.</summary>
+    public static void ClearLeft()
+    {
+        try { File.Delete(LeftPath); }
+        catch (IOException) { }
+    }
+
+    /// <summary>Whether coming back at <paramref name="now"/> asks the PIN again: away at least <paramref name="minutes"/> (never with 0).</summary>
+    public static bool Overdue(DateTimeOffset? leftAt, DateTimeOffset now, int minutes) =>
+        minutes > 0 && leftAt is { } left && now - left >= TimeSpan.FromMinutes(minutes);
+
+    public static string Title(int minutes) => minutes <= 0 ? "Never" : SavedServer.LockTitle(minutes);
 }
 
 /// <summary>Each household's "ask on startup" as last read, so the decision on a cold launch needs no network. The Apple app's ProfileGateCache.</summary>

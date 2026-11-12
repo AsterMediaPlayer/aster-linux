@@ -273,3 +273,20 @@ public class ProfileGateTests
         Assert.Equal("password", new SavedServer { Session = Plain }.CredentialName);
     }
 }
+
+/// <summary>A profile's PIN asked again after a while away.</summary>
+public class ProfileLockTests
+{
+    [Fact]
+    public void AwayLongEnoughAsksAgain()
+    {
+        var now = DateTimeOffset.UtcNow;
+        Assert.True(ProfileLockClock.Overdue(now.AddMinutes(-5), now, 5));
+        Assert.False(ProfileLockClock.Overdue(now.AddMinutes(-4), now, 5));
+        // Never left, or set to Never: not asked.
+        Assert.False(ProfileLockClock.Overdue(null, now, 5));
+        Assert.False(ProfileLockClock.Overdue(now.AddHours(-3), now, 0));
+        Assert.Equal("Never", ProfileLockClock.Title(0));
+        Assert.Equal("5 Minutes", ProfileLockClock.Title(5));
+    }
+}

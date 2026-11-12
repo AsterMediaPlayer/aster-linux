@@ -134,9 +134,10 @@
 
                 <!-- The way out: Continue as whoever's signed in as the app opens, or Cancel. -->
                 <StackPanel Spacing="14" HorizontalAlignment="Center" IsVisible="{Binding IsPicking}">
+                    <TextBlock Text="Locked: pick a profile, and enter its PIN." Foreground="#99FFFFFF" HorizontalAlignment="Center" IsVisible="{Binding IsLocked}" />
                     <TextBlock Text="{Binding ErrorMessage}" Foreground="#FF8A80" FontWeight="SemiBold" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="460"
                                IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}" />
-                    <Button Theme="{StaticResource PillButton}" Content="{Binding FooterTitle}" Command="{Binding FooterCommand}" HorizontalAlignment="Center" />
+                    <Button Theme="{StaticResource PillButton}" Content="{Binding FooterTitle}" Command="{Binding FooterCommand}" HorizontalAlignment="Center" IsVisible="{Binding HasFooter}" />
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>

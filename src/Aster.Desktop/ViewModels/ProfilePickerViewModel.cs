@@ -77,6 +77,11 @@ public sealed partial class ProfilePickerViewModel : ViewModelBase
     /// <summary>The footer's way out: carrying on as whoever's signed in as the app opens, or not switching after all.</summary>
     public string FooterTitle => Reason == ProfilePickerReason.Launch ? $"Continue as {UserName}" : "Cancel";
 
+    /// <summary>Locked, there's no way out but a PIN (or another profile).</summary>
+    public bool HasFooter => Reason != ProfilePickerReason.Locked;
+
+    public bool IsLocked => Reason == ProfilePickerReason.Locked;
+
     /// <summary>Its own copy: the tiles stay as they are while a switch goes through.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasTiles))]
@@ -85,7 +90,7 @@ public sealed partial class ProfilePickerViewModel : ViewModelBase
     public bool HasTiles => Tiles.Count > 0;
 
     /// <summary>The main account, signed in, can add someone: an Add Profile tile at the end of the row.</summary>
-    public bool CanAdd => household.CanCreateProfiles;
+    public bool CanAdd => household.CanCreateProfiles && Reason != ProfilePickerReason.Locked;
 
     [ObservableProperty] public partial bool IsLoading { get; private set; }
     [ObservableProperty] public partial string? LoadError { get; private set; }
@@ -98,7 +103,9 @@ public sealed partial class ProfilePickerViewModel : ViewModelBase
 
     public bool IsEnteringPin => PinFor is not null;
     public bool IsPicking => PinFor is null;
-    public string PinPrompt => PinFor is { } profile ? $"Enter {profile.Name}'s PIN" : "";
+    public string PinPrompt => PinFor is { } profile
+        ? IsLocked && profile.IsCurrent ? $"Enter {profile.Name}'s PIN to carry on" : $"Enter {profile.Name}'s PIN"
+        : "";
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SubmitPinCommand))]
@@ -135,6 +142,12 @@ public sealed partial class ProfilePickerViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanAdd));
         // Opened to ask who's watching, and there's no one else to pick: straight in.
         if (Reason == ProfilePickerReason.Launch && household.Checked && (household.Provider is null || Tiles.Count <= 1)) dismiss();
+        // Locked: the profile's own PIN at once; one that asks none now (the home network's skip) goes straight back.
+        if (Reason == ProfilePickerReason.Locked && household.Provider is not null)
+        {
+            if (household.Current is { RequiresPin: true } current) PinFor = current;
+            else if (household.Current is not null) dismiss();
+        }
     }
 
     /// <summary>The household as the server has it now (someone was just added).</summary>
@@ -154,6 +167,11 @@ public sealed partial class ProfilePickerViewModel : ViewModelBase
         ErrorMessage = null;
         switch (ProfileSwitchPlan.Make(profile, accounts.ReusableSession(profile.Id)))
         {
+            // Locked, even the one signed in needs their PIN to carry on.
+            case ProfileSwitchPlan.AlreadyCurrent when IsLocked:
+                Pin = "";
+                PinFor = profile;
+                break;
             case ProfileSwitchPlan.AlreadyCurrent:
                 dismiss();
                 break;
@@ -193,12 +211,12 @@ public sealed partial class ProfilePickerViewModel : ViewModelBase
     [RelayCommand(CanExecute = nameof(NotSwitching))]
     private void Footer() => dismiss();
 
-    /// <summary>Back (Esc, a controller's B): leaves the PIN first, then the picker.</summary>
+    /// <summary>Back (Esc, a controller's B): leaves the PIN first, then the picker (not when locked: the tiles stay, to pick someone else).</summary>
     public void GoBack()
     {
         if (IsSwitching) return;
         if (IsEnteringPin) CancelPin();
-        else dismiss();
+        else if (!IsLocked) dismiss();
     }
 
     /// <summary>Adding someone: the form over the picker; the row then shows them.</summary>
@@ -223,6 +241,14 @@ public sealed partial class ProfilePickerViewModel : ViewModelBase
         ErrorMessage = null;
         try
         {
+            // Locked: the one signed in carries on once the server says the PIN's right.
+            if (IsLocked && profile.IsCurrent)
+            {
+                await provider.VerifyPinAsync(pin ?? "", profile);
+                DebugLog.Note("Profiles", "Unlocked");
+                dismiss();
+                return;
+            }
             var fresh = await provider.SwitchSessionAsync(profile, pin);
             accounts.SwitchProfile(fresh);
         }

@@ -176,6 +176,19 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     partial void OnProfileGateChanged(Aster.Core.Profiles.ProfileGateMode value) => Change(s => s with { ProfileGate = value });
 
+    /// <summary>Ask for PIN After: minutes away from Aster, or idle, before a profile's PIN is asked again; 0 for never.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProfileLockChoices), nameof(ProfileLockTitle))]
+    public partial int ProfileLockMinutes { get; set; }
+
+    partial void OnProfileLockMinutesChanged(int value) => Change(s => s with { ProfileLockMinutes = value });
+
+    public string ProfileLockTitle => Aster.Core.Profiles.ProfileLockClock.Title(ProfileLockMinutes);
+
+    public IReadOnlyList<TrackChoice> ProfileLockChoices => Aster.Core.Profiles.ProfileLockClock.Choices
+        .Select((minutes, i) => new TrackChoice(i, Aster.Core.Profiles.ProfileLockClock.Title(minutes), minutes == ProfileLockMinutes,
+            new RelayCommand(() => ProfileLockMinutes = minutes))).ToList();
+
     /// <summary>General's Show Welcome Screen: the welcome screen again, with Aster's server plugins to switch on.</summary>
     [RelayCommand] private void ShowWelcome() => accounts.ShowWelcome();
 
@@ -418,6 +431,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         SongLookups = settings.SongLookups;
         SwapControllerButtons = settings.SwapControllerButtons;
         ProfileGate = settings.ProfileGate;
+        ProfileLockMinutes = settings.ProfileLockMinutes;
         MdbListKey = Aster.Core.Ratings.MdbList.ApiKey ?? "";
         ThemePanel = settings.ThemePanel;
         AudioPassthrough = settings.AudioPassthrough;

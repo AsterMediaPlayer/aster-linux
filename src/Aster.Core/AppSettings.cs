@@ -103,6 +103,13 @@ public sealed record AppSettings
     /// <summary>When Aster asks who's watching as it opens, for a household (Bonfire profiles, a Plex Home): as the server is set, by default.</summary>
     public Profiles.ProfileGateMode ProfileGate { get; init; } = Profiles.ProfileGateMode.Server;
 
+    /// <summary>
+    /// A profile with a PIN asks for it again after this many minutes away
+    /// from Aster, or with nothing pressed (a video playing doesn't count);
+    /// 0 for never.
+    /// </summary>
+    public int ProfileLockMinutes { get; init; } = 5;
+
     /// <summary>Each household's "ask on startup" as last read (by <see cref="Jellyfin.StoredSession.HouseholdKey"/>), so a cold launch decides without the network.</summary>
     public IReadOnlyDictionary<string, bool> ProfileAskOnStartup { get; init; } = new Dictionary<string, bool>();
 

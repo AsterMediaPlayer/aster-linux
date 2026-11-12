@@ -6,6 +6,7 @@ using Aster.Core;
 using Aster.Core.Jellyfin;
 using Aster.Core.Playback;
 using Aster.Core.Plex;
+using Aster.Core.Profiles;
 using Aster.Core.Server;
 using Aster.Desktop.Images;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -82,6 +83,9 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
         {
             ShowSignIn();
         }
+        // A profile with a PIN asks it again after a while with nothing pressed.
+        idleCheck.Tick += (_, _) => CheckIdle();
+        idleCheck.Start();
     }
 
     /// <summary>
@@ -214,6 +218,10 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
     public void SwitchProfile(StoredSession fresh)
     {
         Aster.Core.Diagnostics.DebugLog.Note("Profiles", $"Switching to {fresh.UserName}");
+        // Whoever was locked is left behind: the profile switched to starts afresh.
+        ProfileLockClock.Locked = null;
+        ProfileLockClock.ClearLeft();
+        lastInput = DateTimeOffset.UtcNow;
         // The household's welcome (what Aster's plugins do) was seen by whoever signed in; a profile isn't shown it again.
         var id = SavedServer.IdOf(fresh);
         var settings = AppSettings.Current;
@@ -296,6 +304,61 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
     public void NoteLeft(bool closing = false)
     {
         if ((closing ? shell is not null : CurrentPage is ShellViewModel or WelcomeViewModel) && CurrentServer?.LockAfterMinutes is not null) AwayClock.NoteLeft();
+        // The profile's clock too, with a PIN to ask (a video's page counts: it paused as the window went).
+        if ((closing ? shell is not null : CurrentPage is ShellViewModel or WelcomeViewModel or PlayerViewModel) && ProfileAsksPin && AppSettings.Current.ProfileLockMinutes > 0)
+            ProfileLockClock.NoteLeft();
+    }
+
+    // ---- The profile's PIN, again after a while ----
+
+    private readonly Avalonia.Threading.DispatcherTimer idleCheck = new() { Interval = TimeSpan.FromSeconds(15) };
+    private DateTimeOffset lastInput = DateTimeOffset.UtcNow;
+
+    /// <summary>A key, a click, the pointer moving, a controller's press: not idle.</summary>
+    public void NoteInput() => lastInput = DateTimeOffset.UtcNow;
+
+    /// <summary>The profile signed in asks a PIN to switch to it (now: not one skipping it on the home network).</summary>
+    private bool ProfileAsksPin => shell?.Household.Current is { RequiresPin: true }
+        || (shell?.Household.Current is null && CurrentServer?.Session.Plex is { HomeUserHasPin: true });
+
+    /// <summary>
+    /// Nothing pressed for the setting's minutes, with a profile that has a
+    /// PIN: it's asked again. Not while a video plays (paused, it counts),
+    /// nor over a sign-in, a server's lock or the picker itself.
+    /// </summary>
+    private void CheckIdle()
+    {
+        var minutes = AppSettings.Current.ProfileLockMinutes;
+        if (minutes <= 0 || shell is null || !ProfileAsksPin) return;
+        if (CurrentPage is not (ShellViewModel or WelcomeViewModel or PlayerViewModel or ProfileCreateViewModel)) return;
+        if (Aster.Desktop.Audio.VideoMedia.Current?.NowPlaying is { IsPlaying: true })
+        {
+            lastInput = DateTimeOffset.UtcNow;
+            return;
+        }
+        if (DateTimeOffset.UtcNow - lastInput >= TimeSpan.FromMinutes(minutes)) LockProfile();
+    }
+
+    /// <summary>
+    /// The profile's PIN before carrying on: "Who's watching?" over the app,
+    /// on the profile's PIN, with no way past it but the PIN (or another
+    /// profile). A video pauses under it; the page comes back as it was.
+    /// </summary>
+    private void LockProfile()
+    {
+        if (shell is not { } app || CurrentId is not { } id || CurrentPage is ProfilePickerViewModel { IsLocked: true }) return;
+        ProfileLockClock.Locked = id;
+        ProfileLockClock.ClearLeft();
+        Aster.Desktop.Audio.VideoMedia.Current?.Run(Aster.Desktop.Audio.MediaCommand.Pause);
+        Aster.Core.Diagnostics.DebugLog.Note("Profiles", "Locked: the PIN is asked again");
+        var back = CurrentPage is ProfilePickerViewModel or ProfileCreateViewModel ? app : CurrentPage;
+        CurrentPage = new ProfilePickerViewModel(Aster.Core.Profiles.ProfilePickerReason.Locked, app.Household, this, app.UserName, app.ServerName, () =>
+        {
+            ProfileLockClock.Locked = null;
+            ProfileLockClock.ClearLeft();
+            lastInput = DateTimeOffset.UtcNow;
+            if (shell == app) CurrentPage = back ?? app;
+        }, page => CurrentPage = page);
     }
 
     /// <summary>The window is back (or Aster just opened): locks the server in use if it was away past its Lock After.</summary>
@@ -308,6 +371,11 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
             return;
         }
         AwayClock.Clear();
+        // The profile's own PIN, after a while away (or still locked when Aster closed).
+        if (ProfileLockClock.Locked == CurrentId
+            || ProfileLockClock.Overdue(ProfileLockClock.LeftAt, DateTimeOffset.UtcNow, AppSettings.Current.ProfileLockMinutes))
+            LockProfile();
+        else ProfileLockClock.ClearLeft();
         _ = FindPlexAgainAsync();
     }
 

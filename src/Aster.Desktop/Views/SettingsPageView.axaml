@@ -479,6 +479,19 @@
                         <Border Classes="note">
                             <TextBlock Text="{Binding ProfileGateNote}" />
                         </Border>
+                        <Button Classes="row" AutomationProperties.Name="Ask for PIN After">
+                            <DockPanel>
+                                <TextBlock Classes="chevron" />
+                                <TextBlock Classes="value" Text="{Binding ProfileLockTitle}" />
+                                <TextBlock Text="Ask for PIN After" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <Button.Flyout>
+                                <MenuFlyout Placement="BottomEdgeAlignedRight" ItemsSource="{Binding ProfileLockChoices}" ItemContainerTheme="{StaticResource SettingChoice}" />
+                            </Button.Flyout>
+                        </Button>
+                        <Border Classes="note">
+                            <TextBlock Text="A profile with a PIN asks for it again after this long away from Aster, or with nothing pressed. A video playing doesn't count; paused, it does." />
+                        </Border>
                     </StackPanel>
 
                     <TextBlock Classes="section" Text="SERVERS" />

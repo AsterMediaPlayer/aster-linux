@@ -28,6 +28,11 @@ public partial class MainWindow : Window
             if (!Aster.Desktop.Platform.SteamSession.InGamescope) Aster.Desktop.Audio.VideoMedia.Current?.Run(Aster.Desktop.Audio.MediaCommand.Pause);
         };
         Activated += (_, _) => (DataContext as MainViewModel)?.CheckLock();
+        // Anything pressed or moved (a controller's buttons come as keys): not idle, for the profile's PIN.
+        AddHandler(KeyDownEvent, (_, _) => (DataContext as MainViewModel)?.NoteInput(), RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerMovedEvent, (_, _) => (DataContext as MainViewModel)?.NoteInput(), RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerPressedEvent, (_, _) => (DataContext as MainViewModel)?.NoteInput(), RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerWheelChangedEvent, (_, _) => (DataContext as MainViewModel)?.NoteInput(), RoutingStrategies.Tunnel, handledEventsToo: true);
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
