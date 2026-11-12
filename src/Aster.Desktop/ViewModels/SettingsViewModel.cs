@@ -28,20 +28,25 @@ public sealed record ServerRow(string Name, string Detail, bool IsCurrent, bool 
 }
 
 /// <summary>A page of Settings, opened from its list.</summary>
+/// <summary>Settings' pages, as the Apple app's SettingsCategory (Audio &amp; Subtitles and Disc Menus open from Video).</summary>
 public enum SettingsPage
 {
-    Playback,
+    Streaming,
+    Video,
     AudioSubtitles,
     DiscMenus,
+    Anime,
     TitlePages,
+    General,
     Account,
     About,
 }
 
 /// <summary>
-/// The Settings tab, as the Apple TV's: a list of pages (Playback, Audio
-/// &amp; Subtitles, Disc Menus, Title Pages, Account, About), each opened
-/// over it. This holds what they all show and change. The Up Next, intro,
+/// The Settings tab, as the Apple app's: its pages under headings (Playback:
+/// Streaming &amp; Data and Video; Library: Anime, Title Pages and Channels;
+/// This Device: General; Services: Server Plugins; then Account and About),
+/// each opened over it. This holds what they all show and change. The Up Next, intro,
 /// theme, disc menu and styled-subtitle switches follow the user between
 /// devices (<see cref="SettingsSync"/>); the languages are the user's own
 /// Jellyfin settings, shared with the web app.
@@ -104,7 +109,10 @@ public sealed partial class SettingsViewModel : ViewModelBase
     [RelayCommand] private void Open(SettingsPage page) => navigator.Push(new SettingsPageViewModel(this, page));
 
     /// <summary>Aster's companion plugins on the server: the welcome screen's switches, any time.</summary>
-    [RelayCommand] private void OpenServerPlugins() => navigator.Push(new ServerPluginsPageViewModel(navigator.JellyfinOnly, accounts.ShowWelcome));
+    [RelayCommand] private void OpenServerPlugins() => navigator.Push(new ServerPluginsPageViewModel(navigator.JellyfinOnly));
+
+    /// <summary>General's Show Welcome Screen: the welcome screen again, with Aster's server plugins to switch on.</summary>
+    [RelayCommand] private void ShowWelcome() => accounts.ShowWelcome();
 
     /// <summary>Edit Channels, where an administrator makes the first channel (the Channels tab shows only once there's one).</summary>
     [RelayCommand] private void OpenChannels() => navigator.Push(new EditChannelsViewModel(navigator));
@@ -554,15 +562,21 @@ public sealed class SettingsPageViewModel(SettingsViewModel settings, SettingsPa
 
     public string Title => page switch
     {
-        SettingsPage.Playback => "Playback",
+        SettingsPage.Streaming => "Streaming & Data",
+        SettingsPage.Video => "Video",
         SettingsPage.AudioSubtitles => "Audio & Subtitles",
         SettingsPage.DiscMenus => "Disc Menus",
+        SettingsPage.Anime => "Anime",
         SettingsPage.TitlePages => "Title Pages",
+        SettingsPage.General => "General",
         SettingsPage.Account => "Account",
         _ => "About",
     };
 
-    public bool IsPlayback => page == SettingsPage.Playback;
+    public bool IsStreaming => page == SettingsPage.Streaming;
+    public bool IsVideo => page == SettingsPage.Video;
+    public bool IsAnime => page == SettingsPage.Anime;
+    public bool IsGeneral => page == SettingsPage.General;
     public bool IsAudioSubtitles => page == SettingsPage.AudioSubtitles;
     public bool IsDiscMenus => page == SettingsPage.DiscMenus;
     public bool IsTitlePages => page == SettingsPage.TitlePages;
