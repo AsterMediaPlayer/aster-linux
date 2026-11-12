@@ -68,8 +68,6 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
             if (tab is { } startTab) shell!.ShowTab(startTab);
             if (sort is { } startSort && shell!.CurrentPage is BrowsePageViewModel page) page.SortIndex = (int)startSort;
             if (section is not null && shell!.CurrentPage is LiveTVViewModel live) live.ShowSection(section);
-            if (openItemId is not null) _ = OpenByIdAsync(client, openItemId, section);
-            if (playItemId is not null) _ = PlayByIdAsync(client, playItemId, maxBitrate, startSeconds);
             // Closed while away, or while locked: it's still locked (or its Plex address is looked into).
             CheckLock();
             // Who's watching, before anything of anyone's is used: decided from what's kept here, so
@@ -83,6 +81,9 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
                 else if (session.Household is not null || session.Plex is { HomeUserHasPin: true, HomeToken: not null })
                     LockProfile();
             }
+            // A title to open or play as Aster opens (the TV home screen's Continue Watching): once the PIN's given.
+            if (openItemId is not null) RunWhenUnlocked(() => _ = OpenByIdAsync(client, openItemId, section));
+            if (playItemId is not null) RunWhenUnlocked(() => _ = PlayByIdAsync(client, playItemId, maxBitrate, startSeconds));
         }
         else
         {
@@ -210,6 +211,7 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
             CurrentPage = app;
             // The welcome screen, once, after who's watching was asked as the app opened.
             if (reason == Aster.Core.Profiles.ProfilePickerReason.Launch && CurrentId is { } id && !AppSettings.Current.WelcomeSeen.Contains(id)) ShowWelcome();
+            RunAfterUnlock();
         }, page => CurrentPage = page);
     }
 
@@ -223,7 +225,8 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
     public void SwitchProfile(StoredSession fresh)
     {
         Aster.Core.Diagnostics.DebugLog.Note("Profiles", $"Switching to {fresh.UserName}");
-        // Whoever was locked is left behind: the profile switched to starts afresh.
+        // Whoever was locked is left behind: the profile switched to starts afresh, without what waited on the PIN.
+        afterUnlock = null;
         ProfileLockClock.Locked = null;
         ProfileLockClock.ClearLeft();
         lastInput = DateTimeOffset.UtcNow;
@@ -314,6 +317,34 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
             ProfileLockClock.NoteLeft();
     }
 
+    // ---- Waiting on the PIN ----
+
+    /// <summary>What was asked for while the PIN was: done once it's given; dropped for another profile.</summary>
+    private Action? afterUnlock;
+
+    /// <summary>
+    /// Does <paramref name="action"/> (a title handed over to play, say) now,
+    /// or, while "Who's watching?" waits on a PIN (as Aster opens, or locked),
+    /// once it's given; never past it.
+    /// </summary>
+    public void RunWhenUnlocked(Action action)
+    {
+        if (CurrentPage is ProfilePickerViewModel { Reason: ProfilePickerReason.Launch or ProfilePickerReason.Locked })
+        {
+            afterUnlock = action;
+            return;
+        }
+        action();
+    }
+
+    /// <summary>The picker let the one signed in carry on: what waited on it, now.</summary>
+    private void RunAfterUnlock()
+    {
+        var waiting = afterUnlock;
+        afterUnlock = null;
+        waiting?.Invoke();
+    }
+
     // ---- The profile's PIN, again after a while ----
 
     private readonly Avalonia.Threading.DispatcherTimer idleCheck = new() { Interval = TimeSpan.FromSeconds(15) };
@@ -362,7 +393,9 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
             ProfileLockClock.Locked = null;
             ProfileLockClock.ClearLeft();
             lastInput = DateTimeOffset.UtcNow;
-            if (shell == app) CurrentPage = back ?? app;
+            if (shell != app) return;
+            CurrentPage = back ?? app;
+            RunAfterUnlock();
         }, page => CurrentPage = page);
     }
 
