@@ -34,7 +34,7 @@ public sealed class PinPad : UserControl
     private readonly List<List<Button>> rows = [];
     private readonly TextBlock dots = new()
     {
-        FontSize = 26, LetterSpacing = 10, HorizontalAlignment = HorizontalAlignment.Center, Height = 36, Foreground = Brushes.White,
+        FontSize = 24, LetterSpacing = 10, HorizontalAlignment = HorizontalAlignment.Center, Height = 32, Foreground = Brushes.White,
     };
 
     public PinPad()
@@ -102,7 +102,7 @@ public sealed class PinPad : UserControl
     {
         var key = new Button
         {
-            Content = label, Width = 72, Height = 50, MinHeight = 0, Padding = new Thickness(0), CornerRadius = new CornerRadius(12),
+            Content = label, Width = 70, Height = 46, MinHeight = 0, Padding = new Thickness(0), CornerRadius = new CornerRadius(12),
             FontSize = 22, HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
         };
         if (Application.Current?.FindResource("PillButton") is ControlTheme pill) key.Theme = pill;
