@@ -63,12 +63,44 @@ public sealed partial class ProfileCreateViewModel : ViewModelBase
     public string Initial => new ProfileDraft { Name = Name }.Initial;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasPin), nameof(PinNote))]
+    [NotifyPropertyChangedFor(nameof(HasPin), nameof(PinNote), nameof(PinShown))]
     public partial string Pin { get; set; } = "";
 
-    [ObservableProperty] public partial string ConfirmPin { get; set; } = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ConfirmPinShown))]
+    public partial string ConfirmPin { get; set; } = "";
+
     [ObservableProperty] public partial bool BypassPinOnLocalNetwork { get; set; }
-    [ObservableProperty] public partial string MasterPin { get; set; } = "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MasterPinShown))]
+    public partial string MasterPin { get; set; } = "";
+
+    // ---- The PINs, each on a pad under its row (a controller types on it): one open at a time ----
+
+    /// <summary>The PIN being typed: "Pin", "ConfirmPin" or "MasterPin"; null with every pad shut.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EditsPin), nameof(EditsConfirmPin), nameof(EditsMasterPin))]
+    public partial string? EditingPin { get; private set; }
+
+    public bool EditsPin => EditingPin == nameof(Pin);
+    public bool EditsConfirmPin => EditingPin == nameof(ConfirmPin);
+    public bool EditsMasterPin => EditingPin == nameof(MasterPin);
+
+    /// <summary>Each row's digits as dots, or what it's for while empty.</summary>
+    public string PinShown => Dots(Pin, "PIN (optional)");
+    public string ConfirmPinShown => Dots(ConfirmPin, "Confirm PIN");
+    public string MasterPinShown => Dots(MasterPin, "Your own PIN");
+
+    private static string Dots(string pin, string empty) => pin.Length == 0 ? empty : new string('●', pin.Length);
+
+    /// <summary>A row pressed: its pad opens (another's shuts); pressed again, it shuts.</summary>
+    [RelayCommand]
+    private void EditPin(string field) => EditingPin = EditingPin == field ? null : field;
+
+    /// <summary>A pad's OK: shut.</summary>
+    [RelayCommand]
+    private void ClosePin() => EditingPin = null;
 
     public bool HasPin => Pin.Length > 0;
 

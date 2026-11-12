@@ -38,6 +38,13 @@
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="#99FFFFFF" />
         </Style>
+        <!-- A PIN's row: like a text box, its digits as dots; pressing it opens its pad. -->
+        <Style Selector="Button.pinRow">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="FontSize" Value="18" />
+        </Style>
         <Style Selector="TextBlock.note">
             <Setter Property="FontSize" Value="13" />
             <Setter Property="Foreground" Value="#99FFFFFF" />
@@ -113,8 +120,18 @@
 
                 <StackPanel Spacing="10">
                     <TextBlock Classes="heading" Text="PIN" />
-                    <TextBox Text="{Binding Pin}" PasswordChar="•" PlaceholderText="PIN (optional)" FontSize="18" />
-                    <TextBox Text="{Binding ConfirmPin}" PasswordChar="•" PlaceholderText="Confirm PIN" FontSize="18" IsVisible="{Binding HasPin}" />
+                    <StackPanel Spacing="10">
+                        <Button Classes="pinRow" Command="{Binding EditPinCommand}" CommandParameter="Pin" Tag="Pin">
+                            <TextBlock Text="{Binding PinShown}" />
+                        </Button>
+                        <c:PinPad Tag="Pin" Text="{Binding Pin}" SubmitCommand="{Binding ClosePinCommand}" IsVisible="{Binding EditsPin}" />
+                    </StackPanel>
+                    <StackPanel Spacing="10" IsVisible="{Binding HasPin}">
+                        <Button Classes="pinRow" Command="{Binding EditPinCommand}" CommandParameter="ConfirmPin" Tag="ConfirmPin">
+                            <TextBlock Text="{Binding ConfirmPinShown}" />
+                        </Button>
+                        <c:PinPad Tag="ConfirmPin" Text="{Binding ConfirmPin}" SubmitCommand="{Binding ClosePinCommand}" IsVisible="{Binding EditsConfirmPin}" />
+                    </StackPanel>
                     <CheckBox Content="Skip the PIN on the home network" IsChecked="{Binding BypassPinOnLocalNetwork}" IsVisible="{Binding HasPin}" />
                     <TextBlock Classes="note" Text="{Binding PinNote}" />
                 </StackPanel>
@@ -153,7 +170,12 @@
 
                 <StackPanel Spacing="10" IsVisible="{Binding AsksMasterPin}">
                     <TextBlock Classes="heading" Text="Your PIN" />
-                    <TextBox Text="{Binding MasterPin}" PasswordChar="•" PlaceholderText="Your own PIN" FontSize="18" />
+                    <StackPanel Spacing="10">
+                        <Button Classes="pinRow" Command="{Binding EditPinCommand}" CommandParameter="MasterPin" Tag="MasterPin">
+                            <TextBlock Text="{Binding MasterPinShown}" />
+                        </Button>
+                        <c:PinPad Tag="MasterPin" Text="{Binding MasterPin}" SubmitCommand="{Binding ClosePinCommand}" IsVisible="{Binding EditsMasterPin}" />
+                    </StackPanel>
                     <TextBlock Classes="note" Text="The main account's PIN, to confirm it's you adding a profile." />
                 </StackPanel>
 
