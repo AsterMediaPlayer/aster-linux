@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Globalization;
-using System.Text;
 using System.Text.Json;
 using Aster.Core.Jellyfin;
 
@@ -91,12 +90,13 @@ public static class MdbList
     /// <summary>The key; null when none's been given. Setting it (empty to clear) forgets the scores asked for with the last.</summary>
     public static string? ApiKey
     {
-        get => CredentialStore.Load(Account) is { Length: > 0 } data ? Encoding.UTF8.GetString(data) : null;
+        // Secrets, not CredentialStore's own calls: those are Windows' Credential Manager alone.
+        get => Secrets.Read(Account) is { Length: > 0 } key ? key : null;
         set
         {
             var trimmed = value?.Trim() ?? "";
-            if (trimmed.Length == 0) CredentialStore.Delete(Account);
-            else CredentialStore.Save(Encoding.UTF8.GetBytes(trimmed), Account);
+            if (trimmed.Length == 0) Secrets.Delete(Account);
+            else Secrets.Write(Account, trimmed);
             Kept.Clear();
         }
     }
