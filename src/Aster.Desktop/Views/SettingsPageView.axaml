@@ -444,6 +444,12 @@
                             <TextBlock Text="User" />
                         </DockPanel>
                     </Border>
+                    <Button Classes="row" Command="{Binding SwitchProfileCommand}" IsVisible="{Binding Household.IsAvailable}">
+                        <DockPanel>
+                            <TextBlock Classes="chevron" />
+                            <TextBlock Text="Switch Profile" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Button>
                     <!-- Asks first: the server in use is signed out of (and forgotten), and its users listed to sign in as. -->
                     <Button Classes="row">
                         <TextBlock Text="Switch User" VerticalAlignment="Center" />
@@ -456,6 +462,24 @@
                             </Flyout>
                         </Button.Flyout>
                     </Button>
+
+                    <!-- With a household (Bonfire, a Plex Home): whether Aster asks who's watching as it opens. -->
+                    <StackPanel IsVisible="{Binding Household.HasService}">
+                        <TextBlock Classes="section" Text="WHO'S WATCHING" />
+                        <Button Classes="row" AutomationProperties.Name="Ask on Opening">
+                            <DockPanel>
+                                <TextBlock Classes="chevron" />
+                                <TextBlock Classes="value" Text="{Binding ProfileGateTitle}" />
+                                <TextBlock Text="Ask on Opening" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <Button.Flyout>
+                                <MenuFlyout Placement="BottomEdgeAlignedRight" ItemsSource="{Binding ProfileGateChoices}" ItemContainerTheme="{StaticResource SettingChoice}" />
+                            </Button.Flyout>
+                        </Button>
+                        <Border Classes="note">
+                            <TextBlock Text="{Binding ProfileGateNote}" />
+                        </Border>
+                    </StackPanel>
 
                     <TextBlock Classes="section" Text="SERVERS" />
                     <ItemsControl ItemsSource="{Binding Servers}">

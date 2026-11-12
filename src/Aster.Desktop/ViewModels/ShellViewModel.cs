@@ -38,6 +38,9 @@ public interface INavigator
     /// <summary>The song or book playing.</summary>
     Aster.Desktop.Audio.AudioSession Audio { get; }
 
+    /// <summary>The household of the server in use (Bonfire profiles, a Plex Home), to switch between.</summary>
+    HouseholdModel Household { get; }
+
     /// <summary>Title pages' theme music and videos.</summary>
     Aster.Desktop.Audio.ThemePlayer Theme { get; }
 
@@ -162,6 +165,22 @@ public interface IServerAccounts
 
     /// <summary>The welcome screen again, for the server in use.</summary>
     void ShowWelcome();
+
+    /// <summary>"Who's watching?" over the app, to switch to another of the household's profiles.</summary>
+    void ShowProfilePicker(Aster.Core.Profiles.ProfilePickerReason reason);
+
+    /// <summary>
+    /// A sign-in already saved for this user on the server in use, to switch to
+    /// without asking the server. It never stands in for a PIN: the picker only
+    /// reuses it where none is asked.
+    /// </summary>
+    StoredSession? ReusableSession(string userId);
+
+    /// <summary>A profile switched to: another saved sign-in on the same server, with its own token. The app starts afresh on it.</summary>
+    void SwitchProfile(StoredSession fresh);
+
+    /// <summary>The sign-in in use learned which household it belongs to (made before this was kept, or through the sign-in screen).</summary>
+    void NoteHousehold(StoredHousehold household);
 }
 
 /// <summary>
@@ -220,6 +239,26 @@ public partial class ShellViewModel : ViewModelBase, INavigator, IDisposable
         // The Seerr sign-in the Apple and Android apps sync through the server (Discover's, and Search's requests).
         Tracking = client is JellyfinClient plugin ? Aster.Core.Tracking.AsterTracking.FeaturesAsync(plugin) : Task.FromResult<Aster.Core.Tracking.TrackingFeatures?>(null);
         if (client is JellyfinClient synced) _ = LoadSeerrAsync(synced);
+        // The household (Bonfire profiles, a Plex Home): who else there is to switch to, and whether it asks on opening.
+        Household = new HouseholdModel(client, session, accounts.NoteHousehold);
+        _ = LoadHouseholdAsync();
+    }
+
+    /// <summary>The household of the server in use, for the picker, the sidebar's avatar and Settings › Account.</summary>
+    public HouseholdModel Household { get; }
+
+    private async Task LoadHouseholdAsync()
+    {
+        await Household.RestoreCachedAsync();
+        await Household.RefreshAsync();
+    }
+
+    /// <summary>The sidebar's avatar: who's watching, which asks who's watching.</summary>
+    [RelayCommand]
+    private void ShowProfiles()
+    {
+        IsSidebarOpen = false;
+        accounts.ShowProfilePicker(Aster.Core.Profiles.ProfilePickerReason.Switcher);
     }
 
     public IMediaServer Client { get; }

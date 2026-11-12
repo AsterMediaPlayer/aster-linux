@@ -74,6 +74,14 @@ public sealed partial class SettingsViewModel : ViewModelBase
         _ = LoadAsync();
         _ = ShowAnimeMusicVideosAsync();
         _ = FindTrackingAsync();
+        // Bonfire or a Plex Home turning out to be there changes Ask on Opening's choices and words.
+        navigator.Household.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != nameof(HouseholdModel.Provider)) return;
+            OnPropertyChanged(nameof(ProfileGateChoices));
+            OnPropertyChanged(nameof(ProfileGateTitle));
+            OnPropertyChanged(nameof(ProfileGateNote));
+        };
     }
 
     /// <summary>
@@ -130,6 +138,43 @@ public sealed partial class SettingsViewModel : ViewModelBase
     {
         if (TrackingFeatures is { } features && navigator.Jellyfin is { } jellyfin) navigator.Push(new TrackingPageViewModel(navigator, jellyfin, features));
     }
+
+    // ---- Account: household profiles ----
+
+    /// <summary>The household of the server in use, for Switch Profile and Who's Watching.</summary>
+    public HouseholdModel Household => navigator.Household;
+
+    /// <summary>Who's watching, over the app.</summary>
+    [RelayCommand] private void SwitchProfile() => accounts.ShowProfilePicker(Aster.Core.Profiles.ProfilePickerReason.Switcher);
+
+    /// <summary>Ask on Opening's choices: As the Server Is Set only where the server has a setting to follow (Bonfire's; a Plex Home hasn't).</summary>
+    public IReadOnlyList<TrackChoice> ProfileGateChoices => Choices(
+        Enum.GetValues<Aster.Core.Profiles.ProfileGateMode>()
+            .Where(mode => mode != Aster.Core.Profiles.ProfileGateMode.Server || Household.IsBonfire)
+            .Select(mode => new SettingOption<Aster.Core.Profiles.ProfileGateMode>(Aster.Core.Profiles.ProfileGate.Title(mode), mode)).ToList(),
+        ProfileGateOption, option => ProfileGate = option.Value);
+
+    /// <summary>The setting, as shown: a Plex Home set to follow the server shows Never, which is what that means there.</summary>
+    private SettingOption<Aster.Core.Profiles.ProfileGateMode> ProfileGateOption
+    {
+        get
+        {
+            var mode = ProfileGate == Aster.Core.Profiles.ProfileGateMode.Server && !Household.IsBonfire ? Aster.Core.Profiles.ProfileGateMode.Never : ProfileGate;
+            return new(Aster.Core.Profiles.ProfileGate.Title(mode), mode);
+        }
+    }
+
+    public string ProfileGateTitle => ProfileGateOption.Title;
+
+    public string ProfileGateNote => Household.IsBonfire
+        ? "Whether Aster asks who's watching as it opens. As the Server Is Set follows the household's Ask on startup setting in Bonfire, as Jellyfin's own apps do."
+        : "Whether Aster asks who's watching as it opens, like Plex's own apps.";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProfileGateChoices), nameof(ProfileGateTitle))]
+    public partial Aster.Core.Profiles.ProfileGateMode ProfileGate { get; set; }
+
+    partial void OnProfileGateChanged(Aster.Core.Profiles.ProfileGateMode value) => Change(s => s with { ProfileGate = value });
 
     /// <summary>General's Show Welcome Screen: the welcome screen again, with Aster's server plugins to switch on.</summary>
     [RelayCommand] private void ShowWelcome() => accounts.ShowWelcome();
@@ -372,6 +417,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         OpeningSound = settings.OpeningSound;
         SongLookups = settings.SongLookups;
         SwapControllerButtons = settings.SwapControllerButtons;
+        ProfileGate = settings.ProfileGate;
         MdbListKey = Aster.Core.Ratings.MdbList.ApiKey ?? "";
         ThemePanel = settings.ThemePanel;
         AudioPassthrough = settings.AudioPassthrough;

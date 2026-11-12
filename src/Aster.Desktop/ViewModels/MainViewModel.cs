@@ -71,6 +71,12 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
             if (playItemId is not null) _ = PlayByIdAsync(client, playItemId, maxBitrate, startSeconds);
             // Closed while away, or while locked: it's still locked (or its Plex address is looked into).
             CheckLock();
+            // Who's watching, before anything of anyone's is used: decided from what's kept here, so
+            // opening never waits on the server. After the lock; before the welcome screen.
+            if (development is null && CurrentPage is ShellViewModel or WelcomeViewModel
+                && Aster.Core.Profiles.ProfileGate.ShouldAsk(session, AppSettings.Current.ProfileGate,
+                    session.HouseholdKey is { } key ? Aster.Core.Profiles.ProfileGateCache.AskOnStartup(key) : null))
+                ShowProfilePicker(Aster.Core.Profiles.ProfilePickerReason.Launch);
         }
         else
         {
@@ -180,6 +186,48 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
             // Signed out, switched or locked meanwhile: leave it.
             if (shell == app) CurrentPage = app;
         });
+    }
+
+    // ---- Household profiles ----
+
+    public void ShowProfilePicker(Aster.Core.Profiles.ProfilePickerReason reason)
+    {
+        if (shell is not { } app) return;
+        if (reason == Aster.Core.Profiles.ProfilePickerReason.Switcher && !app.Household.IsAvailable) return;
+        CurrentPage = new ProfilePickerViewModel(reason, app.Household, this, app.UserName, app.ServerName, () =>
+        {
+            // Switched meanwhile: the new sign-in's own screen is up already.
+            if (shell != app) return;
+            CurrentPage = app;
+            // The welcome screen, once, after who's watching was asked as the app opened.
+            if (reason == Aster.Core.Profiles.ProfilePickerReason.Launch && CurrentId is { } id && !AppSettings.Current.WelcomeSeen.Contains(id)) ShowWelcome();
+        }, page => CurrentPage = page);
+    }
+
+    public StoredSession? ReusableSession(string userId)
+    {
+        if (shell is null || StoredSession.Load() is not { } current) return null;
+        var id = current.Plex is { } plex ? $"plex:{plex.MachineId}|{userId}" : current.ServerUrl.AbsoluteUri + "|" + userId;
+        return Servers.FirstOrDefault(s => s.Id == id)?.Session;
+    }
+
+    public void SwitchProfile(StoredSession fresh)
+    {
+        Aster.Core.Diagnostics.DebugLog.Note("Profiles", $"Switching to {fresh.UserName}");
+        // The household's welcome (what Aster's plugins do) was seen by whoever signed in; a profile isn't shown it again.
+        var id = SavedServer.IdOf(fresh);
+        var settings = AppSettings.Current;
+        if (!settings.WelcomeSeen.Contains(id)) AppSettings.Save(settings with { WelcomeSeen = [.. settings.WelcomeSeen, id] });
+        Use(fresh);
+    }
+
+    public void NoteHousehold(StoredHousehold household)
+    {
+        if (developmentSession || StoredSession.Load() is not { } stored || SavedServer.IdOf(stored) != CurrentId || stored.Household == household) return;
+        stored = stored with { Household = household };
+        stored.Save();
+        Servers = SavedServers.Remember(Servers, stored);
+        SavedServers.Save(Servers);
     }
 
     /// <summary>Uses a saved server, asking for its password first when it's set to, or locked.</summary>

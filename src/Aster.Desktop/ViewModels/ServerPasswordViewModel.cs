@@ -29,8 +29,8 @@ public sealed partial class ServerPasswordViewModel(SavedServer server, bool loc
         ? $"Enter {server.Session.UserName}'s {Credential} to carry on."
         : $"Enter {server.Session.UserName}'s {Credential} to switch to this {server.Session.Kind} server.";
 
-    /// <summary>"password", or a Plex Home profile's "Plex Home PIN".</summary>
-    private string Credential => server.Session.Kind == ServerKind.Plex ? "Plex Home PIN" : "password";
+    /// <summary>"password", a Plex Home profile's "Plex Home PIN", or a Bonfire profile's "PIN" (its password on the server).</summary>
+    private string Credential => server.Session.Kind == ServerKind.Plex ? "Plex Home PIN" : server.IsHouseholdProfile ? "PIN" : "password";
 
     public string Placeholder => server.Session.Kind == ServerKind.Plex ? "PIN" : "Password";
 

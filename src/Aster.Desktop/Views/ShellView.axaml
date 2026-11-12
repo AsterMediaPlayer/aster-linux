@@ -247,6 +247,16 @@
                                 Padding="10" CornerRadius="22" Foreground="{StaticResource Secondary}" ToolTip.Tip="Stop" />
                     </Grid>
                 </Border>
+                <!-- Who's watching, above the tabs, with a household to switch in: pressing it asks. -->
+                <StackPanel DockPanel.Dock="Top" IsVisible="{Binding Household.IsAvailable}">
+                    <Button Classes="nav" Command="{Binding ShowProfilesCommand}" AutomationProperties.Name="Switch profile" ToolTip.Tip="Switch profile">
+                        <StackPanel Orientation="Horizontal" Spacing="14">
+                            <c:ProfileAvatar Size="34" Initial="{Binding Household.AvatarInitial}" Fill="{Binding Household.AvatarBrush}" ImageUrl="{Binding Household.AvatarImage}" />
+                            <TextBlock Text="{Binding Household.AvatarName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Button>
+                    <Border Height="1" Background="#1FFFFFFF" Margin="14,8" />
+                </StackPanel>
                 <!-- Every tab, Settings and Search at the foot; they scroll when a short window has no room for them all. -->
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                     <ItemsControl x:Name="TabList" ItemsSource="{Binding Tabs}">
