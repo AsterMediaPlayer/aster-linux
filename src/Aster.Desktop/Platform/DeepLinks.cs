@@ -16,9 +16,15 @@ namespace Aster.Desktop.Platform;
 /// </summary>
 public static class DeepLinks
 {
-    /// <summary>In the session's runtime folder, which only the user can reach; else Aster's own data folder.</summary>
+    /// <summary>
+    /// In the session's runtime folder, which only the user can reach; else
+    /// Aster's own data folder. In a Flatpak, the app's own folder there:
+    /// each launch's sandbox has a runtime folder of its own, but they share that.
+    /// </summary>
     private static string SocketPath => Path.Combine(
-        Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR") is { Length: > 0 } runtime ? runtime : Aster.Core.Jellyfin.AppPaths.Data,
+        Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR") is not { Length: > 0 } runtime ? Aster.Core.Jellyfin.AppPaths.Data
+            : Environment.GetEnvironmentVariable("FLATPAK_ID") is { Length: > 0 } flatpak ? Path.Combine(runtime, "app", flatpak)
+            : runtime,
         // Its own: the TV home screen's --play hand-off (InstanceChannel) has aster.sock.
         "aster-links.sock");
 
