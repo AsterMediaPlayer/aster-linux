@@ -31,9 +31,6 @@ public static class Converters
     /// <summary>A profile tile while another is being switched to: faded back.</summary>
     public static readonly IValueConverter DimmedOpacity = new FuncValueConverter<bool, double>(dimmed => dimmed ? 0.35 : 1);
 
-    /// <summary>The ring round the profile signed in now, faint; none round the others (focus brings one).</summary>
-    public static readonly IValueConverter CurrentRing = new FuncValueConverter<bool, IBrush>(current => current ? new SolidColorBrush(Color.FromArgb(0x73, 0xFF, 0xFF, 0xFF)) : Brushes.Transparent);
-
     /// <summary>A disc menu's Back button: a step back, or closing the menu from its first screen.</summary>
     public static readonly IValueConverter BackTip = new FuncValueConverter<bool, string>(canGoBack => canGoBack ? "Back" : "Close");
 

@@ -14,7 +14,7 @@ namespace Aster.Desktop.Views;
 
 /// <summary>
 /// The picker's keys and focus: the first tile has it as the picker opens (the
-/// controller picks at once), the PIN box while one is asked (again after a
+/// controller picks at once), the PIN pad while one is asked (again after a
 /// wrong one); Esc or a controller's B leaves the PIN first, then the picker.
 /// </summary>
 public partial class ProfilePickerView : UserControl
@@ -25,7 +25,12 @@ public partial class ProfilePickerView : UserControl
     {
         InitializeComponent();
         AddHandler(KeyDownEvent, OnKey, RoutingStrategies.Tunnel);
-        TileRow.LayoutUpdated += (_, _) => FocusFirstTile();
+    }
+
+    protected override void OnLoaded(RoutedEventArgs e)
+    {
+        base.OnLoaded(e);
+        Dispatcher.UIThread.Post(FocusFirstTile, DispatcherPriority.Background);
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -44,14 +49,12 @@ public partial class ProfilePickerView : UserControl
         }
     }
 
-    private bool focusedTile;
-
-    /// <summary>The first tile, once the tiles are there and nothing else has the focus.</summary>
+    /// <summary>The first tile, once the tiles are there, unless something of the picker's has the focus already.</summary>
     private void FocusFirstTile()
     {
-        if (focusedTile || model is not { HasTiles: true, IsPicking: true }) return;
+        if (model is not { HasTiles: true, IsPicking: true }) return;
+        if (TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is Visual focused && this.IsVisualAncestorOf(focused) && focused != this) return;
         if (TileRow.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.IsEffectivelyVisible && b.IsEffectivelyEnabled) is not { } first) return;
-        focusedTile = true;
         KeyFocus.Move(first);
     }
 
@@ -60,16 +63,15 @@ public partial class ProfilePickerView : UserControl
         if (e.PropertyName == nameof(ProfilePickerViewModel.IsEnteringPin))
         {
             if (model?.IsEnteringPin == true) FocusPin();
-            else
-            {
-                focusedTile = false;
-                Dispatcher.UIThread.Post(FocusFirstTile, DispatcherPriority.Loaded);
-            }
+            // Back from the PIN: the tiles again (the pad that had the focus is hidden).
+            else Dispatcher.UIThread.Post(() => { if (TileRow.GetVisualDescendants().OfType<Button>().FirstOrDefault() is { } first) KeyFocus.Move(first); }, DispatcherPriority.Background);
         }
+        // The tiles came (or changed): onto the first, once they're laid out.
+        else if (e.PropertyName == nameof(ProfilePickerViewModel.Tiles)) Dispatcher.UIThread.Post(FocusFirstTile, DispatcherPriority.Background);
     }
 
-    /// <summary>To the PIN box once it's on screen.</summary>
-    private void FocusPin() => Dispatcher.UIThread.Post(() => PinBox.Focus(NavigationMethod.Directional), DispatcherPriority.Loaded);
+    /// <summary>To the pad's 1 once it's on screen.</summary>
+    private void FocusPin() => Dispatcher.UIThread.Post(() => KeyFocus.Move(Pad.First), DispatcherPriority.Loaded);
 
     private void OnKey(object? sender, KeyEventArgs e)
     {
