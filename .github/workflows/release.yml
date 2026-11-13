@@ -142,10 +142,12 @@ jobs:
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.41.0
           for pair in linux-x64:amd64 linux-arm64:arm64; do
             rid="${pair%%:*}"
-            export ARCH="${pair##*:}" VERSION
+            export ARCH="${pair##*:}"
             rm -rf stage/package && cp -a "stage/Aster-$VERSION-$rid/aster" stage/package
+            # A pre-release sorts before its release: 0.11.0~beta for dpkg and rpm, 0.11.0beta for pacman (no hyphens there).
             for packager in deb rpm archlinux; do
-              "$(go env GOPATH)/bin/nfpm" package -f packaging/linux/nfpm.yaml -p $packager -t dist/
+              if [ $packager = archlinux ]; then pkgversion="${VERSION/-/}"; else pkgversion="${VERSION/-/\~}"; fi
+              VERSION="$pkgversion" "$(go env GOPATH)/bin/nfpm" package -f packaging/linux/nfpm.yaml -p $packager -t dist/
             done
           done
           ls -la dist

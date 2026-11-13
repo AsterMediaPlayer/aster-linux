@@ -7,7 +7,9 @@
 # for trailers (without them they open in the browser), libsecret only for
 # keeping sign-ins in the keyring (without it, a file only this user can read).
 name: aster
+# As the workflow writes it for each: a beta as 0.11.0~beta (dpkg, rpm) or 0.11.0beta (pacman), before 0.11.0.
 version: ${VERSION}
+version_schema: none
 arch: ${ARCH}
 platform: linux
 section: video
