@@ -1,6 +1,6 @@
 # The .deb, .rpm and Arch package, from one description (nfpm). The release
-# workflow sets VERSION, ARCH (amd64, arm64) and STAGE (the self-contained
-# app, published for that architecture), then runs:
+# workflow sets VERSION and ARCH (amd64, arm64), copies the self-contained
+# app published for that architecture to stage/package, then runs:
 #   nfpm package -f packaging/linux/nfpm.yaml -p deb|rpm|archlinux -t dist/
 # The app goes in /opt/aster with "aster" on the path; it plays with the
 # distribution's libmpv. WebKitGTK and GStreamer's good plugins are only
@@ -23,7 +23,7 @@ description: |
   profiles.
 
 contents:
-  - src: ${STAGE}
+  - src: stage/package
     dst: /opt/aster
     type: tree
   - src: /opt/aster/Aster.Desktop

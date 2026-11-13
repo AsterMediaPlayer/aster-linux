@@ -27,6 +27,8 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.version.outputs.version }}
+    permissions:
+      contents: write
     steps:
       - id: version
         env:
@@ -36,10 +38,36 @@ jobs:
           version="${TAG#v}"
           [ -n "$version" ] || version="$INPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+      # On a tag: the release, as a draft, for the builds to put their files on as they finish
+      # (straight there, not through Actions' artifact storage, whose quota a release can hit).
+      - name: Draft the release
+        if: github.ref_type == 'tag'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          case "$VERSION" in *-*) prerelease="--prerelease" ;; esac
+          cat > notes.md <<'NOTES'
+          **Windows:** `…-windows-x64-setup.exe` installs Aster for you (no administrator needed); the `.zip` runs from any folder. The app isn't signed yet, so Windows SmartScreen may warn the first time: choose **More info → Run anyway**.
+
+          **Linux** (x64, and ARM64 for a Raspberry Pi 5 or an ARM laptop):
+          - **Debian, Ubuntu, Mint, Pop!_OS:** the `.deb`: `sudo apt install ./aster_…_amd64.deb` (it brings the mpv library).
+          - **Fedora, openSUSE:** the `.rpm`: `sudo dnf install ./aster-….x86_64.rpm` (or `zypper install`).
+          - **Arch, Manjaro, CachyOS:** the `.pkg.tar.zst`: `sudo pacman -U aster-….pkg.tar.zst`.
+          - **Anything else:** unpack the `.tar.gz` and run `./install.sh` (it needs the mpv library).
+          - **Flatpak**, where attached: `flatpak install --user Aster-….flatpak`; it brings mpv and the trailer player with it.
+
+          Trailers play in the app with WebKitGTK 4.1 and GStreamer's good plugins installed (`webkit2gtk-4.1` and `gst-plugins-good` on Arch); without them they open in the browser.
+          NOTES
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
+            --title "Aster $VERSION" --notes-file notes.md --generate-notes $prerelease
 
   windows:
     name: Windows
     needs: version
+    permissions:
+      contents: write
     runs-on: windows-latest
     timeout-minutes: 30
     env:
@@ -67,16 +95,17 @@ jobs:
           choco install innosetup --no-progress -y
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Q "/DAppVersion=$env:VERSION" "/DSourceDir=$PWD\publish\win-x64" "/DOutputDir=$PWD\dist" installer\aster.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows
-          path: dist/*
-          if-no-files-found: error
-          retention-days: 1
+      - name: Onto the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$env:GITHUB_REF_NAME" (Get-ChildItem dist).FullName --repo "$env:GITHUB_REPOSITORY" --clobber
 
   linux:
     name: Linux
     needs: version
+    permissions:
+      contents: write
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -113,18 +142,26 @@ jobs:
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.41.0
           for pair in linux-x64:amd64 linux-arm64:arm64; do
             rid="${pair%%:*}"
-            export ARCH="${pair##*:}" STAGE="stage/Aster-$VERSION-$rid/aster" VERSION
+            export ARCH="${pair##*:}" VERSION
+            rm -rf stage/package && cp -a "stage/Aster-$VERSION-$rid/aster" stage/package
             for packager in deb rpm archlinux; do
               "$(go env GOPATH)/bin/nfpm" package -f packaging/linux/nfpm.yaml -p $packager -t dist/
             done
           done
           ls -la dist
-      - uses: actions/upload-artifact@v4
-        with:
-          name: linux
-          path: dist/*
-          if-no-files-found: error
-          retention-days: 1
+      # What each package holds and asks for, in the log: a trial run's only look at them.
+      - name: Inspect
+        run: |
+          command -v rpm >/dev/null || sudo apt-get install -y -qq rpm >/dev/null
+          for f in dist/*.deb; do echo "== $f"; dpkg-deb -I "$f"; dpkg-deb -c "$f" | grep -v '/opt/aster/.*\.dll$'; done
+          for f in dist/*.rpm; do echo "== $f"; rpm -qip "$f" 2>/dev/null; echo "-- requires:"; rpm -qp --requires "$f" 2>/dev/null; echo "-- recommends:"; rpm -qp --recommends "$f" 2>/dev/null; done
+          for f in dist/*.pkg.tar.zst; do echo "== $f"; tar --zstd -xOf "$f" .PKGINFO; done
+          ls -la dist
+      - name: Onto the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --clobber
 
   release:
     name: Release
@@ -134,28 +171,7 @@ jobs:
     permissions:
       contents: write
     env:
-      VERSION: ${{ needs.version.outputs.version }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: dist
-          merge-multiple: true
       - name: Publish the release
-        run: |
-          prerelease=""
-          case "$VERSION" in *-*) prerelease="--prerelease" ;; esac
-          cat > notes.md <<'NOTES'
-          **Windows:** `…-windows-x64-setup.exe` installs Aster for you (no administrator needed); the `.zip` runs from any folder. The app isn't signed yet, so Windows SmartScreen may warn the first time: choose **More info → Run anyway**.
-
-          **Linux** (x64, and ARM64 for a Raspberry Pi 5 or an ARM laptop):
-          - **Debian, Ubuntu, Mint, Pop!_OS:** the `.deb`: `sudo apt install ./aster_…_amd64.deb` (it brings the mpv library).
-          - **Fedora, openSUSE:** the `.rpm`: `sudo dnf install ./aster-….x86_64.rpm` (or `zypper install`).
-          - **Arch, Manjaro, CachyOS:** the `.pkg.tar.zst`: `sudo pacman -U aster-….pkg.tar.zst`.
-          - **Anything else:** unpack the `.tar.gz` and run `./install.sh` (it needs the mpv library).
-          - **Flatpak**, where attached: `flatpak install --user Aster-….flatpak`; it brings mpv and the trailer player with it.
-
-          Trailers play in the app with WebKitGTK 4.1 and GStreamer's good plugins installed (`webkit2gtk-4.1` and `gst-plugins-good` on Arch); without them they open in the browser.
-          NOTES
-          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" \
-            --title "Aster $VERSION" --notes-file notes.md --generate-notes $prerelease
+        run: gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false
