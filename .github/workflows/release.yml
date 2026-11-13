@@ -1,5 +1,6 @@
-# Builds the downloads: a Windows installer and portable zip, and a Linux
-# tarball, all self-contained (no .NET needed). Pushing a tag like
+# Builds the downloads: a Windows installer and portable zip, and for Linux
+# (x64 and ARM64) a .deb, an .rpm, an Arch package and a tarball, all
+# self-contained (no .NET needed). Pushing a tag like
 # v0.10.0-beta publishes them as a GitHub release (a pre-release when the
 # version has a suffix); running it by hand only builds them, to try.
 name: Release
@@ -85,18 +86,39 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
+      # ARM64 is published from here too: .NET builds for it across, and the packages bring its native libraries.
       - name: Publish
         run: |
-          dotnet publish src/Aster.Desktop -c Release -r linux-x64 --self-contained -p:Version=$VERSION -p:DebugType=none -o "stage/Aster-$VERSION-linux-x64/aster"
+          for rid in linux-x64 linux-arm64; do
+            dotnet publish src/Aster.Desktop -c Release -r $rid --self-contained -p:Version=$VERSION -p:DebugType=none -o "stage/Aster-$VERSION-$rid/aster"
+          done
           find stage -name '*.pdb' -delete
-      - name: Tarball
+      - name: Tarballs
         run: |
-          dir="stage/Aster-$VERSION-linux-x64"
-          cp packaging/linux/aster.desktop packaging/linux/install.sh "$dir/"
-          cp src/Aster.Desktop/Assets/aster.png "$dir/aster.png"
-          chmod +x "$dir/install.sh" "$dir/aster/Aster.Desktop"
           mkdir -p dist
-          tar -C stage -czf "dist/Aster-$VERSION-linux-x64.tar.gz" "Aster-$VERSION-linux-x64"
+          for rid in linux-x64 linux-arm64; do
+            dir="stage/Aster-$VERSION-$rid"
+            cp packaging/linux/aster.desktop packaging/linux/install.sh "$dir/"
+            cp src/Aster.Desktop/Assets/aster.png "$dir/aster.png"
+            chmod +x "$dir/install.sh" "$dir/aster/Aster.Desktop"
+            tar -C stage -czf "dist/Aster-$VERSION-$rid.tar.gz" "Aster-$VERSION-$rid"
+          done
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+      - name: Packages
+        # .deb, .rpm and Arch, from packaging/linux/nfpm.yaml; nfpm names each file as its distribution expects.
+        run: |
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.41.0
+          for pair in linux-x64:amd64 linux-arm64:arm64; do
+            rid="${pair%%:*}"
+            export ARCH="${pair##*:}" STAGE="stage/Aster-$VERSION-$rid/aster" VERSION
+            for packager in deb rpm archlinux; do
+              "$(go env GOPATH)/bin/nfpm" package -f packaging/linux/nfpm.yaml -p $packager -t dist/
+            done
+          done
+          ls -la dist
       - uses: actions/upload-artifact@v4
         with:
           name: linux
@@ -126,7 +148,14 @@ jobs:
           cat > notes.md <<'NOTES'
           **Windows:** `…-windows-x64-setup.exe` installs Aster for you (no administrator needed); the `.zip` runs from any folder. The app isn't signed yet, so Windows SmartScreen may warn the first time: choose **More info → Run anyway**.
 
-          **Linux:** unpack the `.tar.gz` and run `./install.sh` (it needs the mpv library: `sudo apt install libmpv2`).
+          **Linux** (x64, and ARM64 for a Raspberry Pi 5 or an ARM laptop):
+          - **Debian, Ubuntu, Mint, Pop!_OS:** the `.deb`: `sudo apt install ./aster_…_amd64.deb` (it brings the mpv library).
+          - **Fedora, openSUSE:** the `.rpm`: `sudo dnf install ./aster-….x86_64.rpm` (or `zypper install`).
+          - **Arch, Manjaro, CachyOS:** the `.pkg.tar.zst`: `sudo pacman -U aster-….pkg.tar.zst`.
+          - **Anything else:** unpack the `.tar.gz` and run `./install.sh` (it needs the mpv library).
+          - **Flatpak**, where attached: `flatpak install --user Aster-….flatpak`; it brings mpv and the trailer player with it.
+
+          Trailers play in the app with WebKitGTK 4.1 and GStreamer's good plugins installed (`webkit2gtk-4.1` and `gst-plugins-good` on Arch); without them they open in the browser.
           NOTES
           gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" \
             --title "Aster $VERSION" --notes-file notes.md --generate-notes $prerelease
