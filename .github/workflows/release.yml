@@ -1,6 +1,6 @@
-# Builds the downloads: a Windows installer and portable zip, and for Linux
-# (x64 and ARM64) a .deb, an .rpm, an Arch package and a tarball, all
-# self-contained (no .NET needed). Pushing a tag like
+# Builds the downloads for Linux (x64 and ARM64): a .deb, an .rpm, an Arch
+# package and a tarball, all self-contained (no .NET needed). Windows builds
+# and releases are aster-windows'. Pushing a tag like
 # v0.10.0-beta publishes them as a GitHub release (a pre-release when the
 # version has a suffix); running it by hand only builds them, to try.
 name: Release
@@ -49,8 +49,6 @@ jobs:
           prerelease=""
           case "$VERSION" in *-*) prerelease="--prerelease" ;; esac
           cat > notes.md <<'NOTES'
-          **Windows:** `…-windows-x64-setup.exe` installs Aster for you (no administrator needed); the `.zip` runs from any folder. The app isn't signed yet, so Windows SmartScreen may warn the first time: choose **More info → Run anyway**.
-
           **Linux** (x64, and ARM64 for a Raspberry Pi 5 or an ARM laptop):
           - **Debian, Ubuntu, Mint, Pop!_OS:** the `.deb`: `sudo apt install ./aster_…_amd64.deb` (it brings the mpv library).
           - **Fedora, openSUSE:** the `.rpm`: `sudo dnf install ./aster-….x86_64.rpm` (or `zypper install`).
@@ -59,47 +57,11 @@ jobs:
           - **Flatpak**, where attached: `flatpak install --user Aster-….flatpak`; it brings mpv and the trailer player with it.
 
           Trailers play in the app with WebKitGTK 4.1 and GStreamer's good plugins installed (`webkit2gtk-4.1` and `gst-plugins-good` on Arch); without them they open in the browser.
+
+          Aster for Windows has its own releases, at [aster-windows](https://github.com/AsterMediaPlayer/aster-windows/releases).
           NOTES
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
             --title "Aster $VERSION" --notes-file notes.md --generate-notes $prerelease
-
-  windows:
-    name: Windows
-    needs: version
-    permissions:
-      contents: write
-    runs-on: windows-latest
-    timeout-minutes: 30
-    env:
-      VERSION: ${{ needs.version.outputs.version }}
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: 10.0.x
-      - uses: actions/cache@v4
-        with:
-          path: native
-          key: libmpv-${{ hashFiles('tools/fetch-libmpv.ps1') }}
-      - name: Publish
-        # DebugType=none covers our own projects; packages' native debug files (SkiaSharp's, some 100 MB) go too.
-        run: |
-          dotnet publish src/Aster.Desktop -c Release -r win-x64 --self-contained -p:Version=$env:VERSION -p:DebugType=none -o publish/win-x64
-          Remove-Item publish/win-x64/*.pdb -ErrorAction SilentlyContinue
-      - name: Zip
-        run: |
-          New-Item -ItemType Directory -Force dist | Out-Null
-          Compress-Archive -Path publish/win-x64/* -DestinationPath "dist/Aster-$env:VERSION-windows-x64.zip"
-      - name: Installer
-        run: |
-          choco install innosetup --no-progress -y
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Q "/DAppVersion=$env:VERSION" "/DSourceDir=$PWD\publish\win-x64" "/DOutputDir=$PWD\dist" installer\aster.iss
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Onto the release
-        if: github.ref_type == 'tag'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$env:GITHUB_REF_NAME" (Get-ChildItem dist).FullName --repo "$env:GITHUB_REPOSITORY" --clobber
 
   linux:
     name: Linux
@@ -168,7 +130,7 @@ jobs:
   release:
     name: Release
     if: github.ref_type == 'tag'
-    needs: [version, windows, linux]
+    needs: [version, linux]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

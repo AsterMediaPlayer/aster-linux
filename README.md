@@ -4,7 +4,7 @@
 
 # Aster Media Player for Linux
 
-A client for Jellyfin, Emby and Plex on Linux (and Windows), made for the couch: a game controller works everywhere, and it runs full screen from Steam, gamescope or Plasma Bigscreen. Written in C# with Avalonia, as a port of the [Apple app](https://github.com/AsterMediaPlayer/aster-apple).
+A client for Jellyfin, Emby and Plex on Linux, made for the couch: a game controller works everywhere, and it runs full screen from Steam, gamescope or Plasma Bigscreen. Written in C# with Avalonia, as a port of the [Apple app](https://github.com/AsterMediaPlayer/aster-apple). Aster for Windows has its own home, at [aster-windows](https://github.com/AsterMediaPlayer/aster-windows).
 
 Aster covers movies, TV, anime, music, audiobooks and live TV, and can turn your playlists into TV-style channels. Title pages are laid out like the Apple TV app, with theme music, theme videos and trailers, and Aster plays DVD/Blu-ray-style disc menus. Videos play in **mpv**, from the original file, with every audio and subtitle track switchable on the spot.
 
@@ -21,7 +21,6 @@ Aster Media Player is free, and always will be: on every platform, with every fe
 - **Arch, Manjaro, CachyOS:** the `.pkg.tar.zst`: `sudo pacman -U aster-….pkg.tar.zst`.
 - **Flatpak**, on any distribution: `flatpak install --user Aster-….flatpak`, with mpv and the trailer player inside it.
 - **Anything else:** unpack the `.tar.gz` and run `./install.sh`, which puts Aster in `~/.local/opt/aster` with a menu entry (`./install.sh --uninstall` removes it). It needs your distribution's mpv library (`libmpv2`, `mpv-libs` or `mpv`).
-- **Windows 10 (1809) or later:** `…-windows-x64-setup.exe` installs it for you alone (no administrator needed); the `.zip` runs from any folder. The app isn't signed yet, so SmartScreen may warn the first time: choose **More info → Run anyway**.
 - **Build it yourself:** see [Building](#building) below.
 
 Trailers play in the app with WebKitGTK 4.1 and GStreamer's good plugins installed (the packages recommend them, and the Flatpak has them); without them they open in the browser. Updating or uninstalling keeps your sign-ins and settings.
@@ -41,21 +40,18 @@ Full screen at 1920×1080, from a demo Jellyfin server of openly licensed films,
 
 ## Platforms
 
-| | Linux | Windows |
-| --- | :---: | :---: |
-| Browsing, title pages, search | ✓ | ✓ |
-| mpv player, with hardware decoding (VA-API, NVDEC; D3D11 on Windows) | ✓ | ✓ |
-| Music and audiobooks, with the system's media controls (MPRIS; Windows' overlay) | ✓ | ✓ |
-| Live TV and Channels | ✓ | ✓ |
-| Discover and Seerr requests, tracking and watchlists | ✓ | ✓ |
-| Household profiles and the PIN lock | ✓ | ✓ |
-| Disc menus | ✓ | ✓ |
-| Trailers in the app | ✓ (WebKitGTK) | ✓ (WebView2) |
-| Game controllers, Steam Big Picture and gamescope (full screen, for good) | ✓ | ✓ (Big Picture) |
-| Continue Watching on Plasma Bigscreen's home screen | ✓ | |
-| Surround sound to a receiver (Dolby, DTS, Atmos), and Sonos for music | ✓ | ✓ |
-| `.deb`, `.rpm`, Arch package, Flatpak, tarball; x64 and ARM64 | ✓ | |
-| Installer and portable zip | | ✓ |
+| | Desktop (KDE, GNOME, …) | Steam Big Picture, gamescope (Steam Deck) | Plasma Bigscreen |
+| --- | :---: | :---: | :---: |
+| Browsing, title pages, search, Live TV, Channels, music and audiobooks | ✓ | ✓ | ✓ |
+| mpv player, with hardware decoding (VA-API, NVDEC) | ✓ | ✓ | ✓ |
+| Game controllers, everywhere in the app | ✓ | ✓ | ✓ |
+| Full screen for good, sized for the TV | | ✓ | |
+| Continue Watching on the home screen | | | ✓ |
+| The system's media controls (MPRIS) | ✓ | | ✓ |
+| Trailers in the app (WebKitGTK) | ✓ | ✓ | ✓ |
+| Surround sound to a receiver (Dolby, DTS, Atmos), and Sonos for music | ✓ | ✓ | ✓ |
+
+Packages for x64 and ARM64: `.deb`, `.rpm`, Arch, Flatpak (x64) and a tarball.
 
 ## Features
 
@@ -75,7 +71,7 @@ Full screen at 1920×1080, from a demo Jellyfin server of openly licensed films,
 - **Controls:** Space or K to pause, ← → to skip 10 seconds, ↑ ↓ for volume, A and S for the next audio and subtitle track, F for full screen, and Fill Screen to zoom a wide film to the edges. A controller's buttons do the same, and Y sends a video to a mini player in the corner while you browse.
 - **Chapters and previews:** chapters are marked on the timeline and listed in a menu, and scrubbing shows the frame, from Jellyfin's trickplay images or Emby's BIF previews.
 - **Pause screen:** the title's logo and details, with a long description scrolling slowly; on a channel, what's on and what's next. A video also pauses when Aster goes behind another window.
-- **System media controls:** the video, song or book playing shows in KDE's and GNOME's media applets (MPRIS) and Windows' overlay, and their buttons work it.
+- **System media controls:** the video, song or book playing shows in KDE's and GNOME's media applets (MPRIS), and their buttons work it.
 - **Sound:** Dolby and DTS (Atmos and DTS:X included) pass through to a receiver or soundbar as they are (and on Linux, Aster says which app is holding the output when one is in the way). Or even out the volume, or mix surround down to stereo with the dialogue clear.
 
 ### Subtitles
@@ -193,11 +189,11 @@ dotnet run --project src/Aster.Desktop
 dotnet test
 ```
 
-A self-contained build (no .NET needed where it runs) is `dotnet publish src/Aster.Desktop -c Release -r linux-x64 --self-contained -o publish/linux` (or `linux-arm64`). On Windows, the first build downloads libmpv into `native/` with `tools/fetch-libmpv.ps1`.
+A self-contained build (no .NET needed where it runs) is `dotnet publish src/Aster.Desktop -c Release -r linux-x64 --self-contained -o publish/linux` (or `linux-arm64`).
 
 The Flatpak builds with `flatpak-builder --user --install --force-clean build-dir packaging/flatpak/com.astermediaplayer.Aster.yml`. It builds mpv and WebKitGTK inside it, so the first build takes a while (WebKit alone is the better part of an hour); after that it's cached.
 
-A release is made by pushing a version tag (`git tag v0.11.0-beta`, then `git push origin v0.11.0-beta`): the Release workflow builds the Windows installer and zip, and for x64 and ARM64 the tarball, `.deb`, `.rpm` and Arch package (`packaging/linux/nfpm.yaml`), and publishes them, as a pre-release when the version has a suffix. Run by hand from the Actions tab, it only builds them.
+A release is made by pushing a version tag (`git tag v0.11.0-beta`, then `git push origin v0.11.0-beta`): the Release workflow builds, for x64 and ARM64, the tarball, `.deb`, `.rpm` and Arch package (`packaging/linux/nfpm.yaml`), and publishes them, as a pre-release when the version has a suffix. Run by hand from the Actions tab, it only builds them.
 
 How the app is put together screen by screen, and the switches for trying it against a server, are in [docs/development.md](docs/development.md).
 
@@ -210,7 +206,6 @@ How the app is put together screen by screen, and the switches for trying it aga
 | `src/Aster.Desktop` | The Avalonia app: every screen, the video player, the music, audiobook and theme players, Sonos, game controllers, the system's media controls |
 | `tests/Aster.Core.Tests` | Unit tests, the disc menu and channel tag conformance vectors, and libmpv against a clip made by ffmpeg |
 | `packaging` | The Flatpak, the `.deb`/`.rpm`/Arch description, the tarball's installer, and the menu entries |
-| `installer` | The Windows installer (Inno Setup) |
 
 ## Known limitations
 
@@ -228,7 +223,7 @@ How the app is put together screen by screen, and the switches for trying it aga
 
 | Component | License |
 | --- | --- |
-| [mpv](https://mpv.io) (libmpv: your system's, or inside the Flatpak and the Windows build) | GPL-2.0-or-later / LGPL-2.1-or-later |
+| [mpv](https://mpv.io) (libmpv: your system's, or inside the Flatpak) | GPL-2.0-or-later / LGPL-2.1-or-later |
 | ↳ [FFmpeg](https://ffmpeg.org), [libass](https://github.com/libass/libass), [libplacebo](https://code.videolan.org/videolan/libplacebo) | LGPL-2.1 / GPL (FFmpeg), ISC (libass), LGPL-2.1 (libplacebo) |
 | [WebKitGTK](https://webkitgtk.org) (inside the Flatpak; your system's otherwise) | LGPL-2.1 / BSD |
 | [Avalonia](https://avaloniaui.net), [SkiaSharp and HarfBuzzSharp](https://github.com/mono/SkiaSharp) | MIT |
