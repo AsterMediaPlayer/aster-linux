@@ -57,6 +57,13 @@ public sealed record AppSettings
     /// <summary>ASS and SSA subtitles drawn as styled; off, as plain text at the bottom.</summary>
     public bool StyledSubtitles { get; init; } = true;
 
+    /// <summary>Subtitles' size, colour and background (<see cref="SubtitleStyle"/>).</summary>
+    public SubtitleSize SubtitleSize { get; init; } = SubtitleSize.Normal;
+
+    public SubtitleColor SubtitleColor { get; init; }
+
+    public SubtitleBackground SubtitleBackground { get; init; }
+
     /// <summary>The song card as an anime episode's opening or ending plays, and on music videos.</summary>
     public bool ThemeCards { get; init; } = true;
 
@@ -74,6 +81,40 @@ public sealed record AppSettings
 
     /// <summary>An anime opening looping behind a show's page (with no theme video of its own) plays its sound, quietly.</summary>
     public bool OpeningSound { get; init; }
+
+    /// <summary>
+    /// An opening's or ending's song named from AnimeThemes (animethemes.moe)
+    /// where the server doesn't name it; off, AnimeThemes is asked nothing.
+    /// </summary>
+    public bool SongLookups { get; init; } = true;
+
+    /// <summary>Songs and audiobooks stream at no more than this (bits a second), the server converting those over it; 0, as they are.</summary>
+    public int MusicMaxBitrate { get; init; }
+
+    /// <summary>The next song loads while one plays, so an album runs on without a pause between tracks.</summary>
+    public bool GaplessMusic { get; init; } = true;
+
+    /// <summary>The next songs in the queue saved as they come up, so they start at once and play on if the connection drops.</summary>
+    public bool SaveUpcomingSongs { get; init; } = true;
+
+    /// <summary>A controller's A and B, and X and Y, trade places: Nintendo's layout (the right button opens, the bottom one goes back, Y pauses).</summary>
+    public bool SwapControllerButtons { get; init; }
+
+    /// <summary>When Aster asks who's watching as it opens, for a household (Bonfire profiles, a Plex Home): as the server is set, by default.</summary>
+    public Profiles.ProfileGateMode ProfileGate { get; init; } = Profiles.ProfileGateMode.Server;
+
+    /// <summary>
+    /// A profile with a PIN asks for it again after this many minutes away
+    /// from Aster, or with nothing pressed (a video playing doesn't count);
+    /// 0 for never.
+    /// </summary>
+    public int ProfileLockMinutes { get; init; } = 5;
+
+    /// <summary>Each household's "ask on startup" as last read (by <see cref="Jellyfin.StoredSession.HouseholdKey"/>), so a cold launch decides without the network.</summary>
+    public IReadOnlyDictionary<string, bool> ProfileAskOnStartup { get; init; } = new Dictionary<string, bool>();
+
+    /// <summary>Music video libraries (by name) with a shelf in the Anime tab, besides the OP/ED plugin's.</summary>
+    public IReadOnlyList<string> AnimeMusicVideoLibraries { get; init; } = [];
 
     /// <summary>Play on a title with a JellyDisc menu opens its menu, like putting in the disc.</summary>
     public bool PreferDiscMenu { get; init; }

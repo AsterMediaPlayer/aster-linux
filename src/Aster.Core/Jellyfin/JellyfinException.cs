@@ -44,6 +44,35 @@ public sealed class JellyfinException : Exception
     public static JellyfinException Explained(int? code, string message) =>
         new(JellyfinErrorKind.Http, message, code);
 
+    /// <summary>
+    /// Why a server address couldn't be reached, in words that say what to
+    /// check: a name that doesn't exist, nothing answering, no network, or a
+    /// refused certificate (the Apple app's). Anything else keeps its own words.
+    /// </summary>
+    public static string Unreachable(Exception error)
+    {
+        const string NothingAnswered = "Nothing answered at that address. Check it, and that the server is running.";
+        if (error is TimeoutException) return NothingAnswered;
+        if (error is not HttpRequestException http) return error.Message;
+        var socket = FindInner<System.Net.Sockets.SocketException>(error)?.SocketErrorCode;
+        if (socket is System.Net.Sockets.SocketError.NetworkUnreachable or System.Net.Sockets.SocketError.NetworkDown)
+            return "This computer isn't connected to a network.";
+        return http.HttpRequestError switch
+        {
+            HttpRequestError.NameResolutionError => "No server has that name. Check the address for typos.",
+            HttpRequestError.SecureConnectionError => "The server's https:// certificate wasn't accepted. Try its http:// address.",
+            HttpRequestError.ConnectionError => NothingAnswered,
+            _ => $"Couldn't reach a Jellyfin or Emby server at that address: {error.Message}",
+        };
+    }
+
+    private static T? FindInner<T>(Exception? error) where T : Exception
+    {
+        for (; error is not null; error = error.InnerException)
+            if (error is T found) return found;
+        return null;
+    }
+
     public static JellyfinException NotSignedIn() =>
         new(JellyfinErrorKind.NotSignedIn, "You are not signed in.");
 

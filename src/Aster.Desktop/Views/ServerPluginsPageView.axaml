@@ -68,10 +68,6 @@
                         <SelectableTextBlock Classes="address" Text="{Binding RepositoryUrl}" />
                     </StackPanel>
                 </Border>
-
-                <Button Classes="row" Margin="0,16,0,8" Command="{Binding $parent[UserControl].((vm:ServerPluginsPageViewModel)DataContext).ShowWelcomeCommand}">
-                    <TextBlock Text="Show Welcome Screen" VerticalAlignment="Center" />
-                </Button>
             </StackPanel>
         </ScrollViewer>
         <!-- Back, for the pointer: the page sits over its tab. -->

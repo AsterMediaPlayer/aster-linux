@@ -223,6 +223,61 @@ public sealed class JellyfinClient : IMediaServer, Channels.IChannelServer
         await SendAsync(request, ct).ConfigureAwait(false);
     }
 
+    /// <summary>A request with a JSON body by any method (a DELETE with one, say), decoded.</summary>
+    public async Task<T> SendJsonAsync<T>(HttpMethod method, string path, object body, Query? query = null, CancellationToken ct = default)
+    {
+        var request = AuthorizedRequest(Url(path, query), method);
+        request.Content = JsonBody(body);
+        return Decode<T>(await SendRequiredAsync(request, ct).ConfigureAwait(false));
+    }
+
+    /// <summary>
+    /// A request whose status is the answer (the tracking plugin's 202 "not
+    /// yet", 410 "ran out"): the status and body, rather than an exception
+    /// for a failure. Not reaching the server still throws.
+    /// </summary>
+    public async Task<(int Status, byte[] Body)> SendForStatusAsync(HttpMethod method, string path, object? body = null, CancellationToken ct = default)
+    {
+        using var request = AuthorizedRequest(Url(path), method);
+        if (body is not null) request.Content = JsonBody(body);
+        using var timer = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timer.CancelAfter(RequestTimeout);
+        try
+        {
+            using var response = await http.SendAsync(request, timer.Token).ConfigureAwait(false);
+            return ((int)response.StatusCode, await response.Content.ReadAsByteArrayAsync(timer.Token).ConfigureAwait(false));
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new TimeoutException("The server took too long to answer.");
+        }
+    }
+
+    /// <summary>
+    /// A plugin's route whose answer is in its status and one header as well
+    /// as its body (Bonfire's X-Bonfire-Error): all three, rather than an
+    /// exception for a refusal. <paramref name="json"/> is sent as it is.
+    /// Not reaching the server still throws.
+    /// </summary>
+    public async Task<(int Status, byte[] Body, string? Header)> SendForAnswerAsync(HttpMethod method, string path, string? json, string header,
+        TimeSpan? timeout = null, CancellationToken ct = default)
+    {
+        using var request = AuthorizedRequest(Url(path), method);
+        if (json is not null) request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var timer = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timer.CancelAfter(timeout ?? RequestTimeout);
+        try
+        {
+            using var response = await http.SendAsync(request, timer.Token).ConfigureAwait(false);
+            var value = response.Headers.TryGetValues(header, out var values) ? values.FirstOrDefault() : null;
+            return ((int)response.StatusCode, await response.Content.ReadAsByteArrayAsync(timer.Token).ConfigureAwait(false), value);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new TimeoutException("The server took too long to answer.");
+        }
+    }
+
     public async Task DeleteAsync(string path, Query? query = null, CancellationToken ct = default) =>
         await SendAsync(AuthorizedRequest(Url(path, query), HttpMethod.Delete), ct).ConfigureAwait(false);
 
@@ -294,7 +349,7 @@ public sealed class JellyfinClient : IMediaServer, Channels.IChannelServer
 
     // ---- Library ----
 
-    public const string ListFields = "SortName,PrimaryImageAspectRatio,Overview,Genres,ProductionYear,OfficialRating,CommunityRating,RunTimeTicks,ParentId,Status,EndDate,ChildCount,DateCreated,MediaStreams,ProviderIds";
+    public const string ListFields = "SortName,PrimaryImageAspectRatio,Overview,Genres,ProductionYear,OfficialRating,CommunityRating,RunTimeTicks,ParentId,Status,EndDate,ChildCount,DateCreated,Width,Height,ProviderIds";
     public const string DetailFields = "Trickplay,PrimaryImageAspectRatio,Overview,Genres,Studios,People,Taglines,ProductionYear,OfficialRating,CommunityRating,CriticRating,RunTimeTicks,ParentId,Status,EndDate,ChildCount,RecursiveItemCount,Chapters,MediaSources,MediaStreams,ProviderIds,RemoteTrailers,DateCreated";
 
     private string RequireUser() => UserId ?? throw JellyfinException.NotSignedIn();
@@ -1049,6 +1104,25 @@ public sealed class JellyfinClient : IMediaServer, Channels.IChannelServer
             ["audioCodec"] = "aac",
             ["maxStreamingBitrate"] = Number(maxBitrate),
             ["startTimeTicks"] = "0",
+            ["enableRedirection"] = "true",
+            ["enableRemoteMedia"] = "false",
+        });
+
+    /// <summary>
+    /// A song as one file to save ahead (Save upcoming songs): the file
+    /// itself when it's within <paramref name="maxBitrate"/>, else converted
+    /// to an MP3 at it, sent whole rather than as HLS's pieces.
+    /// </summary>
+    public Uri SavedAudioUrl(string itemId, int maxBitrate) =>
+        TokenUrl($"/Audio/{itemId}/universal", new()
+        {
+            ["userId"] = UserId,
+            ["deviceId"] = JellyfinDevice.DeviceId,
+            ["container"] = "mp3,aac,m4a,m4b,flac,alac,wav,aiff,ogg,oga,opus,webma,wma,ape,wv,mka,dsf",
+            ["transcodingContainer"] = "mp3",
+            ["transcodingProtocol"] = "http",
+            ["audioCodec"] = "mp3",
+            ["maxStreamingBitrate"] = Number(maxBitrate),
             ["enableRedirection"] = "true",
             ["enableRemoteMedia"] = "false",
         });

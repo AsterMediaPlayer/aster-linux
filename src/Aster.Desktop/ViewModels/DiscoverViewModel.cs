@@ -301,7 +301,8 @@ public sealed class DiscoverViewModel : BrowsePageViewModel
             // absolute file:// address, so only http and https count as complete.
             if (Uri.TryCreate(i.Poster, UriKind.Absolute, out var absolute) && absolute.Scheme is "http" or "https") poster = absolute;
             else if (i.Poster is { Length: > 0 } relative && server is not null) poster = new Uri(server, relative);
-            return (object)new SeerrCard(Navigator, title, badge: i.InLibrary is not null ? "On Server" : null, subtitle: subtitle, poster: poster);
+            return (object)new SeerrCard(Navigator, title, badge: i.InLibrary is not null ? "On Server" : null, subtitle: subtitle, poster: poster,
+                trackingIds: i.Ids, anime: i.Anime);
         }).ToList();
         return Shelf(row.Title, cards, CardStyle.Seerr);
     }

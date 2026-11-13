@@ -6,6 +6,7 @@ using Aster.Core;
 using Aster.Core.Jellyfin;
 using Aster.Core.Playback;
 using Aster.Core.Plex;
+using Aster.Core.Profiles;
 using Aster.Core.Server;
 using Aster.Desktop.Images;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -19,6 +20,14 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
     public partial ViewModelBase? CurrentPage { get; set; }
 
     private ShellViewModel? shell;
+
+    /// <summary>The server the shell is showing, for titles handed over by a later launch.</summary>
+    private IMediaServer? shellClient;
+
+
+    /// <summary>The last run's crash has been offered this run (it stays on disk until sent or put aside).</summary>
+
+    private bool crashOffered;
 
     /// <summary>Every server signed in to, to switch between (the development session isn't one).</summary>
     public IReadOnlyList<SavedServer> Servers { get; private set; } = [];
@@ -62,15 +71,30 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
             if (tab is { } startTab) shell!.ShowTab(startTab);
             if (sort is { } startSort && shell!.CurrentPage is BrowsePageViewModel page) page.SortIndex = (int)startSort;
             if (section is not null && shell!.CurrentPage is LiveTVViewModel live) live.ShowSection(section);
-            if (openItemId is not null) _ = OpenByIdAsync(client, openItemId, section);
-            if (playItemId is not null) _ = PlayByIdAsync(client, playItemId, maxBitrate, startSeconds);
             // Closed while away, or while locked: it's still locked (or its Plex address is looked into).
             CheckLock();
+            // Who's watching, before anything of anyone's is used: decided from what's kept here, so
+            // opening never waits on the server. After the lock; before the welcome screen.
+            if (development is null && CurrentPage is ShellViewModel or WelcomeViewModel)
+            {
+                if (Aster.Core.Profiles.ProfileGate.ShouldAsk(session, AppSettings.Current.ProfileGate,
+                        session.HouseholdKey is { } key ? Aster.Core.Profiles.ProfileGateCache.AskOnStartup(key) : null))
+                    ShowProfilePicker(Aster.Core.Profiles.ProfilePickerReason.Launch);
+                // Not asking who's watching: a profile with a PIN still asks it, as Aster opens (one without goes straight in).
+                else if (session.Household is not null || session.Plex is { HomeUserHasPin: true, HomeToken: not null })
+                    LockProfile();
+            }
+            // A title to open or play as Aster opens (the TV home screen's Continue Watching): once the PIN's given.
+            if (openItemId is not null) RunWhenUnlocked(() => _ = OpenByIdAsync(client, openItemId, section));
+            if (playItemId is not null) RunWhenUnlocked(() => _ = PlayByIdAsync(client, playItemId, maxBitrate, startSeconds));
         }
         else
         {
             ShowSignIn();
         }
+        // A profile with a PIN asks it again after a while with nothing pressed.
+        idleCheck.Tick += (_, _) => CheckIdle();
+        idleCheck.Start();
     }
 
     /// <summary>
@@ -101,6 +125,8 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
         shell = null;
         ImageLoader.Client = null;
         CurrentId = null;
+        shellClient = null;
+        Aster.Core.Integration.HomeScreenExport.Write(null);
         CurrentPage = new SignInViewModel(SignedIn, Servers, SwitchTo, ShowPlexSignIn) { Message = message, ServerAddress = serverAddress ?? "" };
     }
 
@@ -140,10 +166,24 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
         shell?.Dispose();
         ImageLoader.Client = client;
         CurrentId = developmentSession ? null : SavedServer.IdOf(session);
+        shellClient = client;
+        // The TV home screen follows the server in use.
+        Aster.Core.Integration.HomeScreenExport.Write(CurrentServer);
         shell = new ShellViewModel(client, session, (entry, closed) => Play(client, entry, closed),
             // Disc menus come from Aster's Jellyfin plugin.
             (document, itemId, closed) => ShowDiscMenu((JellyfinClient)client, document, itemId, closed), kind => SignOutAsync(client, kind), this);
         CurrentPage = shell;
+        // The last run ended in a crash: offered once, to send with a report.
+        if (!crashOffered && Aster.Core.Diagnostics.DebugLog.LastCrash() is not null)
+        {
+            crashOffered = true;
+            // After the first tab is chosen, which would clear it away.
+            var offering = shell;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                if (shell == offering) offering.OpenDebugReport(afterCrash: true);
+            }, Avalonia.Threading.DispatcherPriority.Background);
+        }
         // Once for each Jellyfin server, people signed in before it included.
         if (CurrentId is { } id && !AppSettings.Current.WelcomeSeen.Contains(id)) ShowWelcome();
     }
@@ -164,6 +204,54 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
             // Signed out, switched or locked meanwhile: leave it.
             if (shell == app) CurrentPage = app;
         });
+    }
+
+    // ---- Household profiles ----
+
+    public void ShowProfilePicker(Aster.Core.Profiles.ProfilePickerReason reason)
+    {
+        if (shell is not { } app) return;
+        if (reason == Aster.Core.Profiles.ProfilePickerReason.Switcher && !app.Household.IsAvailable) return;
+        CurrentPage = new ProfilePickerViewModel(reason, app.Household, this, app.UserName, app.ServerName, () =>
+        {
+            // Switched meanwhile: the new sign-in's own screen is up already.
+            if (shell != app) return;
+            CurrentPage = app;
+            // The welcome screen, once, after who's watching was asked as the app opened.
+            if (reason == Aster.Core.Profiles.ProfilePickerReason.Launch && CurrentId is { } id && !AppSettings.Current.WelcomeSeen.Contains(id)) ShowWelcome();
+            RunAfterUnlock();
+        }, page => CurrentPage = page);
+    }
+
+    public StoredSession? ReusableSession(string userId)
+    {
+        if (shell is null || StoredSession.Load() is not { } current) return null;
+        var id = current.Plex is { } plex ? $"plex:{plex.MachineId}|{userId}" : current.ServerUrl.AbsoluteUri + "|" + userId;
+        return Servers.FirstOrDefault(s => s.Id == id)?.Session;
+    }
+
+    public void SwitchProfile(StoredSession fresh)
+    {
+        Aster.Core.Diagnostics.DebugLog.Note("Profiles", $"Switching to {fresh.UserName}");
+        // Whoever was locked is left behind: the profile switched to starts afresh, without what waited on the PIN.
+        afterUnlock = null;
+        ProfileLockClock.Locked = null;
+        ProfileLockClock.ClearLeft();
+        lastInput = DateTimeOffset.UtcNow;
+        // The household's welcome (what Aster's plugins do) was seen by whoever signed in; a profile isn't shown it again.
+        var id = SavedServer.IdOf(fresh);
+        var settings = AppSettings.Current;
+        if (!settings.WelcomeSeen.Contains(id)) AppSettings.Save(settings with { WelcomeSeen = [.. settings.WelcomeSeen, id] });
+        Use(fresh);
+    }
+
+    public void NoteHousehold(StoredHousehold household)
+    {
+        if (developmentSession || StoredSession.Load() is not { } stored || SavedServer.IdOf(stored) != CurrentId || stored.Household == household) return;
+        stored = stored with { Household = household };
+        stored.Save();
+        Servers = SavedServers.Remember(Servers, stored);
+        SavedServers.Save(Servers);
     }
 
     /// <summary>Uses a saved server, asking for its password first when it's set to, or locked.</summary>
@@ -197,6 +285,7 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
     {
         Servers = SavedServers.Change(Servers, id, change);
         SavedServers.Save(Servers);
+        if (id == CurrentId) Aster.Core.Integration.HomeScreenExport.Write(CurrentServer);
     }
 
     /// <summary>A saved sign-in, or a fresh one from its password: the app starts afresh on it.</summary>
@@ -232,6 +321,91 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
     public void NoteLeft(bool closing = false)
     {
         if ((closing ? shell is not null : CurrentPage is ShellViewModel or WelcomeViewModel) && CurrentServer?.LockAfterMinutes is not null) AwayClock.NoteLeft();
+        // The profile's clock too, with a PIN to ask (a video's page counts: it paused as the window went).
+        if ((closing ? shell is not null : CurrentPage is ShellViewModel or WelcomeViewModel or PlayerViewModel) && ProfileAsksPin && AppSettings.Current.ProfileLockMinutes > 0)
+            ProfileLockClock.NoteLeft();
+    }
+
+    // ---- Waiting on the PIN ----
+
+    /// <summary>What was asked for while the PIN was: done once it's given; dropped for another profile.</summary>
+    private Action? afterUnlock;
+
+    /// <summary>
+    /// Does <paramref name="action"/> (a title handed over to play, say) now,
+    /// or, while "Who's watching?" waits on a PIN (as Aster opens, or locked),
+    /// once it's given; never past it.
+    /// </summary>
+    public void RunWhenUnlocked(Action action)
+    {
+        if (CurrentPage is ProfilePickerViewModel { Reason: ProfilePickerReason.Launch or ProfilePickerReason.Locked })
+        {
+            afterUnlock = action;
+            return;
+        }
+        action();
+    }
+
+    /// <summary>The picker let the one signed in carry on: what waited on it, now.</summary>
+    private void RunAfterUnlock()
+    {
+        var waiting = afterUnlock;
+        afterUnlock = null;
+        waiting?.Invoke();
+    }
+
+    // ---- The profile's PIN, again after a while ----
+
+    private readonly Avalonia.Threading.DispatcherTimer idleCheck = new() { Interval = TimeSpan.FromSeconds(15) };
+    private DateTimeOffset lastInput = DateTimeOffset.UtcNow;
+
+    /// <summary>A key, a click, the pointer moving, a controller's press: not idle.</summary>
+    public void NoteInput() => lastInput = DateTimeOffset.UtcNow;
+
+    /// <summary>The profile signed in asks a PIN to switch to it (now: not one skipping it on the home network).</summary>
+    private bool ProfileAsksPin => shell?.Household.Current is { RequiresPin: true }
+        || (shell?.Household.Current is null && CurrentServer?.Session.Plex is { HomeUserHasPin: true });
+
+    /// <summary>
+    /// Nothing pressed for the setting's minutes, with a profile that has a
+    /// PIN: it's asked again. Not while a video plays (paused, it counts),
+    /// nor over a sign-in, a server's lock or the picker itself.
+    /// </summary>
+    private void CheckIdle()
+    {
+        var minutes = AppSettings.Current.ProfileLockMinutes;
+        if (minutes <= 0 || shell is null || !ProfileAsksPin) return;
+        if (CurrentPage is not (ShellViewModel or WelcomeViewModel or PlayerViewModel or ProfileCreateViewModel)) return;
+        if (Aster.Desktop.Audio.VideoMedia.Current?.NowPlaying is { IsPlaying: true })
+        {
+            lastInput = DateTimeOffset.UtcNow;
+            return;
+        }
+        if (DateTimeOffset.UtcNow - lastInput >= TimeSpan.FromMinutes(minutes)) LockProfile();
+    }
+
+    /// <summary>
+    /// The profile's PIN before carrying on: "Who's watching?" over the app,
+    /// on the profile's PIN, with no way past it but the PIN (or another
+    /// profile). A video pauses under it; the page comes back as it was.
+    /// </summary>
+    private void LockProfile()
+    {
+        if (shell is not { } app || CurrentId is not { } id || CurrentPage is ProfilePickerViewModel { IsLocked: true }) return;
+        ProfileLockClock.Locked = id;
+        ProfileLockClock.ClearLeft();
+        Aster.Desktop.Audio.VideoMedia.Current?.Run(Aster.Desktop.Audio.MediaCommand.Pause);
+        Aster.Core.Diagnostics.DebugLog.Note("Profiles", "Locked: the PIN is asked again");
+        var back = CurrentPage is ProfilePickerViewModel or ProfileCreateViewModel ? app : CurrentPage;
+        CurrentPage = new ProfilePickerViewModel(Aster.Core.Profiles.ProfilePickerReason.Locked, app.Household, this, app.UserName, app.ServerName, () =>
+        {
+            ProfileLockClock.Locked = null;
+            ProfileLockClock.ClearLeft();
+            lastInput = DateTimeOffset.UtcNow;
+            if (shell != app) return;
+            CurrentPage = back ?? app;
+            RunAfterUnlock();
+        }, page => CurrentPage = page);
     }
 
     /// <summary>The window is back (or Aster just opened): locks the server in use if it was away past its Lock After.</summary>
@@ -244,6 +418,11 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
             return;
         }
         AwayClock.Clear();
+        // The profile's own PIN, after a while away (or still locked when Aster closed).
+        if (ProfileLockClock.Locked == CurrentId
+            || ProfileLockClock.Overdue(ProfileLockClock.LeftAt, DateTimeOffset.UtcNow, AppSettings.Current.ProfileLockMinutes))
+            LockProfile();
+        else ProfileLockClock.ClearLeft();
         _ = FindPlexAgainAsync();
     }
 
@@ -395,6 +574,33 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
         if (Aster.Core.Channels.ChannelTuner.OrderedChannels.FirstOrDefault(c => c.Number == number) is { } channel) channels.PlayChannel(channel.Id);
     }
 
+    /// <summary>
+    /// An <c>aster://</c> link, opened at launch or handed on by a later one:
+    /// a title's page, the title playing, or a Channels-tab channel tuned in.
+    /// Signed out, it's dropped.
+    /// </summary>
+    public async void Follow(Aster.Core.DeepLink link)
+    {
+        if (shell is not { } open) return;
+        System.Diagnostics.Trace.WriteLine($"Links: {link.Kind}");
+        switch (link.Kind)
+        {
+            case Aster.Core.DeepLinkKind.Item:
+                await OpenByIdAsync(open.Client, link.Id, null);
+                break;
+            case Aster.Core.DeepLinkKind.Play:
+                await PlayByIdAsync(open.Client, link.Id, null, null);
+                break;
+            case Aster.Core.DeepLinkKind.Channel:
+                if (open.Client is not Aster.Core.Channels.IChannelServer) return;
+                open.ShowTab(AppTab.Channels);
+                if (open.CurrentPage is not ChannelsViewModel channels) return;
+                await channels.Loaded;
+                channels.PlayChannel(link.Id);
+                break;
+        }
+    }
+
     /// <param name="section">A tab of the title's page to show once it has something in it (<c>--section music</c>).</param>
     private async Task OpenByIdAsync(IMediaServer client, string itemId, string? section)
     {
@@ -414,6 +620,13 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
     /// for <c>--play</c>: a song or album in the music player, a book in the
     /// book player, anything else in the video player.
     /// </summary>
+    /// <summary>A title handed over by a later launch (<c>Aster --play &lt;id&gt;</c>, from the TV home screen), on the server in use.</summary>
+    public void PlayFromLauncher(string itemId)
+    {
+        // Locked, or Aster asking who's watching: played once the PIN's given.
+        if (shell is not null && shellClient is { } client) RunWhenUnlocked(() => _ = PlayByIdAsync(client, itemId, null, null));
+    }
+
     private async Task PlayByIdAsync(IMediaServer client, string itemId, int? maxBitrate, double? startSeconds)
     {
         try
@@ -463,6 +676,8 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
             catch (Exception error) when (error is JellyfinException or System.Net.Http.HttpRequestException or TimeoutException) { }
         }
         StoredSession.Clear();
+        // Last time's screens, kept to show at once, go with the sign-in.
+        if (kind != SignOutKind.AddServer) Aster.Core.Snapshots.Clear();
         ShowSignIn(kind == SignOutKind.Expired ? "Your session has ended. Please sign in again." : null, address);
     }
 

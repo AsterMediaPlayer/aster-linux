@@ -263,21 +263,16 @@ public sealed partial class ServerPluginsViewModel : ObservableObject
 }
 
 /// <summary>
-/// Settings ▸ Server Plugins: the welcome screen's switches, any time, and
-/// the welcome screen itself again. The Apple app's ServerPluginsSettingsView.
+/// Settings ▸ Server Plugins: the welcome screen's switches, any time (the
+/// welcome screen itself is under General). The Apple app's ServerPluginsSettingsView.
 /// </summary>
 public sealed partial class ServerPluginsPageViewModel : ViewModelBase
 {
-    private readonly Action showWelcome;
-
-    public ServerPluginsPageViewModel(JellyfinClient client, Action showWelcome)
+    public ServerPluginsPageViewModel(JellyfinClient client)
     {
-        this.showWelcome = showWelcome;
         Plugins = new ServerPluginsViewModel(client);
         _ = Plugins.LoadAsync();
     }
 
     public ServerPluginsViewModel Plugins { get; }
-
-    [RelayCommand] private void ShowWelcome() => showWelcome();
 }

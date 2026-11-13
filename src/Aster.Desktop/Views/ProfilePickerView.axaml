@@ -1,0 +1,145 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             xmlns:c="using:Aster.Desktop.Controls"
+             x:Class="Aster.Desktop.Views.ProfilePickerView"
+             x:DataType="vm:ProfilePickerViewModel">
+
+    <UserControl.Resources>
+        <!-- A tile draws its own lift and ring, so the button is only a press. -->
+        <ControlTheme x:Key="ProfileTileButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18" />
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.25" />
+                </Transitions>
+            </Setter>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <ContentPresenter Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" Content="{TemplateBinding Content}" />
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^:pointerover, ^:focus-visible">
+                <Setter Property="RenderTransform" Value="scale(1.08)" />
+            </Style>
+            <Style Selector="^:pressed">
+                <Setter Property="RenderTransform" Value="scale(0.96)" />
+            </Style>
+        </ControlTheme>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <!-- The ring: none round a profile, faint round the one signed in and the Add tile; lit when lifted. -->
+        <Style Selector="Border.ring">
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.ring.current">
+            <Setter Property="BorderBrush" Value="#73FFFFFF" />
+        </Style>
+        <Style Selector="Border.ring.dashed">
+            <Setter Property="BorderBrush" Value="#59FFFFFF" />
+        </Style>
+        <!-- Lifted (focus, the pointer): the ring round the picture lit, the name bright. -->
+        <Style Selector="Button.profileTile:pointerover Border.ring, Button.profileTile:focus-visible Border.ring">
+            <Setter Property="BorderBrush" Value="#E6FFFFFF" />
+            <Setter Property="BorderThickness" Value="4" />
+        </Style>
+        <Style Selector="Button.profileTile:pointerover TextBlock.name, Button.profileTile:focus-visible TextBlock.name">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- "Who's watching?": the household's people as tiles, a PIN under them for a locked one,
+         and the way out. The Apple app's ProfilePickerView. -->
+    <Panel Background="#F2101315">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="18" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="40,16">
+                <StackPanel Spacing="8" HorizontalAlignment="Center">
+                    <TextBlock Text="Who's watching?" FontSize="38" FontWeight="Bold" HorizontalAlignment="Center" />
+                    <TextBlock Text="{Binding ServerName}" FontSize="18" Foreground="#99FFFFFF" HorizontalAlignment="Center" />
+                </StackPanel>
+
+                <ProgressBar IsIndeterminate="True" Width="200" HorizontalAlignment="Center" IsVisible="{Binding IsLoading}" />
+                <TextBlock Text="{Binding LoadError}" Foreground="#99FFFFFF" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="460"
+                           IsVisible="{Binding LoadError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+                <!-- The tiles: centred when they fit, scrolling sideways when they don't. -->
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" HorizontalAlignment="Center" IsVisible="{Binding HasTiles}">
+                    <StackPanel x:Name="TileRow" Orientation="Horizontal" Spacing="12" Margin="20,4">
+                        <ItemsControl ItemsSource="{Binding Tiles}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="12" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ProfileTileViewModel">
+                                    <Button Theme="{StaticResource ProfileTileButton}" Classes="profileTile" Command="{Binding PickCommand}"
+                                            AutomationProperties.Name="{Binding Description}" Opacity="{Binding IsDimmed, Converter={x:Static c:Converters.DimmedOpacity}}">
+                                        <StackPanel Spacing="10" Width="140">
+                                            <Panel Width="100" Height="100" HorizontalAlignment="Center">
+                                                <c:ProfileAvatar Size="100" Initial="{Binding Initial}" Fill="{Binding Background}" ImageUrl="{Binding ImageUrl}" />
+                                                <!-- Being switched to: a spinner over the picture. -->
+                                                <Ellipse Fill="#73000000" IsVisible="{Binding IsSwitching}" />
+                                                <ProgressBar IsIndeterminate="True" Width="60" MinWidth="60" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding IsSwitching}" />
+                                                <Border Classes="ring" Classes.current="{Binding IsCurrent}" CornerRadius="50" BorderThickness="2.5" />
+                                                <!-- Locked: a PIN is asked. -->
+                                                <Border Width="30" Height="30" CornerRadius="15" Background="#262626" BorderBrush="#99FFFFFF" BorderThickness="1"
+                                                        HorizontalAlignment="Right" VerticalAlignment="Bottom" IsVisible="{Binding ShowsLock}">
+                                                    <TextBlock Text="&#xE72E;" FontFamily="{StaticResource IconFont}" FontSize="14" Foreground="White"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                            </Panel>
+                                            <StackPanel Spacing="2">
+                                                <TextBlock Classes="name" Text="{Binding Name}" FontSize="18" FontWeight="SemiBold" Foreground="#B3FFFFFF"
+                                                           HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="Watching now" FontSize="13" Foreground="#66FFFFFF" HorizontalAlignment="Center" IsVisible="{Binding IsCurrent}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <!-- Adding someone, for the main account. -->
+                        <Button Theme="{StaticResource ProfileTileButton}" Classes="profileTile" Command="{Binding AddCommand}" IsVisible="{Binding CanAdd}" AutomationProperties.Name="Add a profile">
+                            <StackPanel Spacing="10" Width="140">
+                                <Panel Width="100" Height="100" HorizontalAlignment="Center">
+                                    <Ellipse Fill="#12FFFFFF" />
+                                    <Border Classes="ring dashed" CornerRadius="50" BorderThickness="2.5" />
+                                    <TextBlock Text="+" FontSize="46" FontWeight="Light" Foreground="#B3FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Panel>
+                                <TextBlock Classes="name" Text="Add Profile" FontSize="18" FontWeight="SemiBold" Foreground="#B3FFFFFF" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- A locked profile's PIN, on a pad the controller can type on (a keyboard too): checked by
+                     the server (or plex.tv) with OK; a wrong one clears it. -->
+                <StackPanel Spacing="10" HorizontalAlignment="Center" Width="380" IsVisible="{Binding IsEnteringPin}">
+                    <TextBlock Text="{Binding PinPrompt}" FontSize="18" Foreground="#99FFFFFF" HorizontalAlignment="Center" />
+                    <c:PinPad x:Name="Pad" Text="{Binding Pin}" SubmitCommand="{Binding SubmitPinCommand}" IsEnabled="{Binding !IsSwitching}" />
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#FF8A80" FontWeight="SemiBold" TextWrapping="Wrap" TextAlignment="Center"
+                               IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+                        <ProgressBar IsIndeterminate="True" Width="24" MinWidth="24" IsVisible="{Binding IsSwitching}" VerticalAlignment="Center" />
+                        <Button Theme="{StaticResource PillButton}" Content="Cancel" Command="{Binding CancelPinCommand}" IsEnabled="{Binding !IsSwitching}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- The way out: Continue as whoever's signed in as the app opens, or Cancel. -->
+                <StackPanel Spacing="14" HorizontalAlignment="Center" IsVisible="{Binding IsPicking}">
+                    <TextBlock Text="Locked: pick a profile, and enter its PIN." Foreground="#99FFFFFF" HorizontalAlignment="Center" IsVisible="{Binding IsLocked}" />
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#FF8A80" FontWeight="SemiBold" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="460"
+                               IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <Button Theme="{StaticResource PillButton}" Content="{Binding FooterTitle}" Command="{Binding FooterCommand}" HorizontalAlignment="Center" IsVisible="{Binding HasFooter}" />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Panel>
+</UserControl>

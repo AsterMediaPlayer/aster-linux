@@ -1,3 +1,4 @@
+using Aster.Core;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -62,12 +63,36 @@ public sealed unsafe class Gamepads : IDisposable
     private Key? right;
     private DateTime nextRightRepeat;
 
+    /// <summary>
+    /// Whether the app holds the controllers now: while its window is in
+    /// front (or always, as <see cref="Wanted"/> says). Let go, they're
+    /// closed, so the system has them back: Plasma Bigscreen's own controller
+    /// navigation stands aside while any other app holds one open, and Home
+    /// from its overlay would find the controller dead with this app behind.
+    /// </summary>
+    private volatile bool wanted = true;
+
     private Gamepads(Window window)
     {
         this.window = window;
+        // Checked steadily as well as on the window's activation, as a trailer's player window coming and going changes it too.
+        window.Activated += (_, _) => wanted = Wanted();
+        window.Deactivated += (_, _) => wanted = Wanted();
+        new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Background, (_, _) => wanted = Wanted()).Start();
         thread = new Thread(Run) { IsBackground = true, Name = "Gamepads" };
         thread.Start();
     }
+
+    /// <summary>
+    /// The app wants the controllers when its window is in front, and always
+    /// in a couch session (gamescope doesn't always say the one window is
+    /// focused), but Plasma Bigscreen's, which does and needs them back for its
+    /// own menus; and while a trailer's player window has the focus.
+    /// </summary>
+    private bool Wanted() =>
+        window.IsActive
+        || (Aster.Desktop.Controls.FullScreen.Pinned && !Aster.Desktop.Platform.SteamSession.InBigscreen)
+        || Aster.Desktop.Views.TrailerView.IsShowing;
 
     /// <summary>Starts listening for controllers for <paramref name="window"/>.</summary>
     public static Gamepads Start(Window window) => new(window);
@@ -110,6 +135,7 @@ public sealed unsafe class Gamepads : IDisposable
                 // Awake often enough to repeat a held direction, and to notice stopping.
                 if (SDL_WaitEventTimeout(&e, 30)) Handle(ref e);
                 while (!stopping && SDL_PollEvent(&e)) Handle(ref e);
+                Hold(wanted);
                 Repeat();
 #if DEBUG
                 Script();
@@ -135,11 +161,8 @@ public sealed unsafe class Gamepads : IDisposable
                 // A scripted run hears only its pretend controller, not one someone's holding.
                 if (Environment.GetEnvironmentVariable("ASTER_GAMEPAD_SCRIPT") is { Length: > 0 } && !SDL_IsJoystickVirtual(id)) break;
 #endif
-                if (!open.ContainsKey(id) && SDL_OpenGamepad(id) is var gamepad && gamepad != null)
-                {
-                    open[id] = (IntPtr)gamepad;
-                    Trace.WriteLine($"Gamepads: {SDL_GetGamepadName(gamepad)} connected");
-                }
+                // Let go, one plugged in now waits to be opened until the app's in front again.
+                if (holding) Open(id);
                 break;
             case SDL_EventType.SDL_EVENT_GAMEPAD_REMOVED:
                 if (open.Remove(e.gdevice.which, out var removed))
@@ -162,6 +185,51 @@ public sealed unsafe class Gamepads : IDisposable
         }
     }
 
+    private void Open(SDL_JoystickID id)
+    {
+        if (!open.ContainsKey(id) && SDL_OpenGamepad(id) is var gamepad && gamepad != null)
+        {
+            open[id] = (IntPtr)gamepad;
+            Trace.WriteLine($"Gamepads: {SDL_GetGamepadName(gamepad)} connected");
+        }
+    }
+
+    /// <summary>Whether the controllers are open now, as <see cref="wanted"/> asks.</summary>
+    private bool holding = true;
+
+    /// <summary>The controllers taken (every one plugged in) or let go (each closed, and anything held let go of), as asked.</summary>
+    private void Hold(bool want)
+    {
+        if (want == holding) return;
+        holding = want;
+        if (want)
+        {
+            int count;
+            var ids = SDL_GetGamepads(&count);
+            if (ids != null)
+            {
+                for (var i = 0; i < count; i++)
+                {
+#if DEBUG
+                    if (Environment.GetEnvironmentVariable("ASTER_GAMEPAD_SCRIPT") is { Length: > 0 } && !SDL_IsJoystickVirtual(ids[i])) continue;
+#endif
+                    Open(ids[i]);
+                }
+                SDL_free(ids);
+            }
+            Trace.WriteLine("Gamepads: the app's in front, controllers taken");
+        }
+        else
+        {
+            foreach (var gamepad in open.Values) SDL_CloseGamepad((SDL_Gamepad*)gamepad);
+            open.Clear();
+            dpad = stick = right = null;
+            stickX = stickY = rightX = rightY = 0;
+            Held();
+            Trace.WriteLine("Gamepads: the app's behind, controllers let go");
+        }
+    }
+
     private void Button(SDL_GamepadButton button, bool down)
     {
         Key? direction = button switch
@@ -180,6 +248,17 @@ public sealed unsafe class Gamepads : IDisposable
             return;
         }
         if (!down) return;
+        // Settings ▸ General ▸ Swap A/B and X/Y: Nintendo's layout, the right button opening and the
+        // bottom one going back. Read at each press, so a change applies at once.
+        if (AppSettings.Current.SwapControllerButtons)
+            button = button switch
+            {
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH => SDL_GamepadButton.SDL_GAMEPAD_BUTTON_EAST,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_EAST => SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_WEST => SDL_GamepadButton.SDL_GAMEPAD_BUTTON_NORTH,
+                SDL_GamepadButton.SDL_GAMEPAD_BUTTON_NORTH => SDL_GamepadButton.SDL_GAMEPAD_BUTTON_WEST,
+                _ => button,
+            };
         Key? key = button switch
         {
             SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH => Key.Enter,

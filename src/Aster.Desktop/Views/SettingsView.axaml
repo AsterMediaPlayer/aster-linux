@@ -8,30 +8,40 @@
         <StyleInclude Source="avares://Aster.Desktop/Views/SettingsStyles.axaml" />
     </UserControl.Styles>
 
-    <!-- Settings' pages, as the Apple TV lists them: each opens over the list. -->
+    <!-- Settings' pages under their headings, as the Apple app lists them: each opens over the list. -->
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="107,76,107,60">
             <TextBlock Classes="pageTitle" Text="Settings" />
 
-            <Button Classes="row" Command="{Binding OpenCommand}" CommandParameter="{x:Static vm:SettingsPage.Playback}">
+            <TextBlock Classes="section" Text="PLAYBACK" />
+            <Button Classes="row" Command="{Binding OpenCommand}" CommandParameter="{x:Static vm:SettingsPage.Streaming}">
+                <DockPanel>
+                    <TextBlock Classes="chevron" />
+                    <TextBlock Classes="icon" Text="&#xEC05;" />
+                    <TextBlock Text="Streaming &amp; Data" VerticalAlignment="Center" />
+                </DockPanel>
+            </Button>
+            <Button Classes="row" Command="{Binding OpenCommand}" CommandParameter="{x:Static vm:SettingsPage.Video}">
                 <DockPanel>
                     <TextBlock Classes="chevron" />
                     <TextBlock Classes="icon" Text="&#xE768;" />
-                    <TextBlock Text="Playback" VerticalAlignment="Center" />
+                    <TextBlock Text="Video" VerticalAlignment="Center" />
                 </DockPanel>
             </Button>
-            <Button Classes="row" Command="{Binding OpenCommand}" CommandParameter="{x:Static vm:SettingsPage.AudioSubtitles}">
+            <Button Classes="row" Command="{Binding OpenCommand}" CommandParameter="{x:Static vm:SettingsPage.Music}">
                 <DockPanel>
                     <TextBlock Classes="chevron" />
-                    <TextBlock Classes="icon" Text="&#xE7F0;" />
-                    <TextBlock Text="Audio &amp; Subtitles" VerticalAlignment="Center" />
+                    <TextBlock Classes="icon" Text="&#xE8D6;" />
+                    <TextBlock Text="Music" VerticalAlignment="Center" />
                 </DockPanel>
             </Button>
-            <Button Classes="row" Command="{Binding OpenCommand}" CommandParameter="{x:Static vm:SettingsPage.DiscMenus}" IsVisible="{Binding IsJellyfin}">
+
+            <TextBlock Classes="section" Text="LIBRARY" />
+            <Button Classes="row" Command="{Binding OpenCommand}" CommandParameter="{x:Static vm:SettingsPage.Anime}">
                 <DockPanel>
                     <TextBlock Classes="chevron" />
-                    <TextBlock Classes="icon" Text="&#xE8B2;" />
-                    <TextBlock Text="Disc Menus" VerticalAlignment="Center" />
+                    <TextBlock Classes="icon" Text="&#xE734;" />
+                    <TextBlock Text="Anime" VerticalAlignment="Center" />
                 </DockPanel>
             </Button>
             <Button Classes="row" Command="{Binding OpenCommand}" CommandParameter="{x:Static vm:SettingsPage.TitlePages}">
@@ -48,6 +58,24 @@
                     <TextBlock Text="Channels" VerticalAlignment="Center" />
                 </DockPanel>
             </Button>
+
+            <TextBlock Classes="section" Text="THIS DEVICE" />
+            <Button Classes="row" Command="{Binding OpenCommand}" CommandParameter="{x:Static vm:SettingsPage.General}">
+                <DockPanel>
+                    <TextBlock Classes="chevron" />
+                    <TextBlock Classes="icon" Text="&#xE713;" />
+                    <TextBlock Text="General" VerticalAlignment="Center" />
+                </DockPanel>
+            </Button>
+
+            <TextBlock Classes="section" Text="SERVICES" IsVisible="{Binding HasServices}" />
+            <Button Classes="row" Command="{Binding OpenTrackingCommand}" IsVisible="{Binding HasTracking}">
+                <DockPanel>
+                    <TextBlock Classes="chevron" />
+                    <TextBlock Classes="icon" Text="&#xE930;" />
+                    <TextBlock Text="Tracking" VerticalAlignment="Center" />
+                </DockPanel>
+            </Button>
             <Button Classes="row" Command="{Binding OpenServerPluginsCommand}" IsVisible="{Binding IsJellyfin}">
                 <DockPanel>
                     <TextBlock Classes="chevron" />
@@ -56,7 +84,7 @@
                 </DockPanel>
             </Button>
 
-            <Button Classes="row" Command="{Binding OpenCommand}" CommandParameter="{x:Static vm:SettingsPage.Account}" Margin="0,16,0,8">
+            <Button Classes="row" Command="{Binding OpenCommand}" CommandParameter="{x:Static vm:SettingsPage.Account}" Margin="0,24,0,0">
                 <DockPanel>
                     <TextBlock Classes="chevron" />
                     <TextBlock Classes="value" Text="{Binding UserName}" />

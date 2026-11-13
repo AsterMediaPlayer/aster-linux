@@ -119,10 +119,34 @@
             <Border IsVisible="{Binding HasBadge}" BorderBrush="#99FFFFFF" BorderThickness="1.5" CornerRadius="4" Padding="6,1" VerticalAlignment="Center">
                 <TextBlock Text="{Binding Badge}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Secondary}" />
             </Border>
-            <StackPanel IsVisible="{Binding HasRating}" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                <TextBlock Text="&#xE735;" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="{StaticResource Secondary}" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding Rating}" Foreground="{StaticResource Secondary}" />
-            </StackPanel>
+            <!-- Each site's score with its mark, as the Apple app's TitleScoreRow. -->
+            <ItemsControl ItemsSource="{Binding Scores}" VerticalAlignment="Center">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="14" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ScoreBadge">
+                        <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center" ToolTip.Tip="{Binding Tip}">
+                            <Border IsVisible="{Binding IsImdb}" Background="#F5C518" CornerRadius="3" Padding="4,0" VerticalAlignment="Center">
+                                <TextBlock Text="IMDb" FontSize="11" FontWeight="Black" Foreground="Black" />
+                            </Border>
+                            <Border IsVisible="{Binding IsTag}" Background="{Binding TagBackground}" CornerRadius="3" Padding="4,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding TagText}" FontSize="11" FontWeight="Black" Foreground="{Binding TagForeground}" />
+                            </Border>
+                            <TextBlock IsVisible="{Binding IsTmdb}" Text="TMDB" FontSize="11" FontWeight="Black" Foreground="#01D277" VerticalAlignment="Center" />
+                            <StackPanel IsVisible="{Binding IsLetterboxd}" Orientation="Horizontal" Spacing="1" VerticalAlignment="Center">
+                                <Ellipse Width="7" Height="7" Fill="#FF8000" />
+                                <Ellipse Width="7" Height="7" Fill="#00E054" />
+                                <Ellipse Width="7" Height="7" Fill="#40BCF4" />
+                            </StackPanel>
+                            <TextBlock IsVisible="{Binding IsCommunity}" Text="&#xE735;" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="{StaticResource Secondary}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding Text}" Foreground="{StaticResource Secondary}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </StackPanel>
     </DataTemplate>
 

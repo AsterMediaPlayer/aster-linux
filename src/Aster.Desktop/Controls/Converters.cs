@@ -2,6 +2,7 @@ using Aster.Desktop.ViewModels;
 using Avalonia;
 using Avalonia.Controls.Templates;
 using Avalonia.Data.Converters;
+using Avalonia.Media;
 
 namespace Aster.Desktop.Controls;
 
@@ -26,6 +27,9 @@ public static class Converters
 
     /// <summary>A switch's state on a settings row.</summary>
     public static readonly IValueConverter OnOff = new FuncValueConverter<bool, string>(on => on ? "On" : "Off");
+
+    /// <summary>A profile tile while another is being switched to: faded back.</summary>
+    public static readonly IValueConverter DimmedOpacity = new FuncValueConverter<bool, double>(dimmed => dimmed ? 0.35 : 1);
 
     /// <summary>A disc menu's Back button: a step back, or closing the menu from its first screen.</summary>
     public static readonly IValueConverter BackTip = new FuncValueConverter<bool, string>(canGoBack => canGoBack ? "Back" : "Close");

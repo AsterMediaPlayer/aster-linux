@@ -469,6 +469,10 @@ public sealed record BaseItem
 
     public IReadOnlyList<MediaSourceInfo>? MediaSources { get; init; }
     public IReadOnlyList<MediaStream>? MediaStreams { get; init; }
+
+    /// <summary>The video's size, which a list asks for in place of every file and track (for the HD and 4K badges).</summary>
+    public int? Width { get; init; }
+    public int? Height { get; init; }
     public IReadOnlyDictionary<string, string>? ProviderIds { get; init; }
     public IReadOnlyList<RemoteTrailer>? RemoteTrailers { get; init; }
     public string? LocationType { get; init; }
@@ -775,8 +779,10 @@ public static class BaseItemExtensions
         private MediaStream? VideoStream =>
             (item.MediaStreams ?? item.MediaSources?.FirstOrDefault()?.MediaStreams)?.FirstOrDefault(s => s.Type == "Video");
 
-        public bool IsHD => (item.VideoStream?.Width ?? 0) >= 1280;
-        public bool Is4K => (item.VideoStream?.Width ?? 0) >= 3800;
+        private int VideoWidth => item.VideoStream?.Width ?? item.Width ?? 0;
+
+        public bool IsHD => item.VideoWidth >= 1280;
+        public bool Is4K => item.VideoWidth >= 3800;
 
         public IReadOnlyList<string> Directors =>
             (item.People ?? []).Where(p => p.Type == "Director").Select(p => p.Name).OfType<string>().ToList();

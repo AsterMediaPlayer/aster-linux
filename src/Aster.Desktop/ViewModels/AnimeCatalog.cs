@@ -11,12 +11,22 @@ namespace Aster.Desktop.ViewModels;
 /// <summary>
 /// Which libraries hold anime, found once per sign-in as the Apple app's
 /// session does: the TV and movie libraries Shoko matched, every title in
-/// them (so Movies and TV Shows can leave them out), and the music video
-/// library of the OP/ED plugin's openings and endings.
+/// them (so Movies and TV Shows can leave them out), the music video
+/// library of the OP/ED plugin's openings and endings, and the other music
+/// video libraries (AMVs, say), which Settings can add to the Anime tab.
 /// </summary>
-public sealed record AnimeCatalog(IReadOnlyList<BaseItem> Libraries, IReadOnlySet<string> ItemIds, IReadOnlyList<BaseItem> MusicVideoLibraries)
+public sealed record AnimeCatalog(IReadOnlyList<BaseItem> Libraries, IReadOnlySet<string> ItemIds, IReadOnlyList<BaseItem> OpEdLibraries,
+    IReadOnlyList<BaseItem> OtherMusicVideoLibraries)
 {
-    public static readonly AnimeCatalog Empty = new([], new HashSet<string>(), []);
+    public static readonly AnimeCatalog Empty = new([], new HashSet<string>(), [], []);
+
+    /// <summary>
+    /// The music video libraries in the Anime tab: the OP/ED plugin's always,
+    /// and those picked in Settings ▸ Title Pages ▸ Music Videos in Anime (by
+    /// name, as the Apple app keeps them).
+    /// </summary>
+    public IReadOnlyList<BaseItem> MusicVideoLibraries =>
+        [.. OpEdLibraries, .. OtherMusicVideoLibraries.Where(l => Aster.Core.AppSettings.Current.AnimeMusicVideoLibraries.Contains(l.Name ?? ""))];
 
     public bool HasAnime => Libraries.Count > 0;
 
@@ -30,8 +40,9 @@ public sealed record AnimeCatalog(IReadOnlyList<BaseItem> Libraries, IReadOnlySe
             // The OP/ED plugin's music videos, on Jellyfin.
             var opEd = client is JellyfinClient jellyfin && jellyfin.Can(ServerCapabilities.Plugins)
                 && (await jellyfin.OpEdLibrariesAsync())?.VideosLibraryId is { } videos ? PlainId(videos) : null;
-            var musicVideos = views.Where(v => v.CollectionType == "musicvideos" && PlainId(v.Id) == opEd).ToList();
-            return new AnimeCatalog(libraries, await ids, musicVideos);
+            var musicVideos = views.Where(v => v.CollectionType == "musicvideos").ToList();
+            return new AnimeCatalog(libraries, await ids, musicVideos.Where(v => PlainId(v.Id) == opEd).ToList(),
+                musicVideos.Where(v => PlainId(v.Id) != opEd).ToList());
         }
         catch (Exception error) when (error is JellyfinException or HttpRequestException or TimeoutException)
         {

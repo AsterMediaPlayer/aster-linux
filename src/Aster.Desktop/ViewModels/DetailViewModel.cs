@@ -47,6 +47,7 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
         this.navigator = navigator;
         this.playOnOpen = playOnOpen;
         Item = item;
+        Watchlist = new WatchlistModel(navigator);
         _ = LoadAsync(item);
     }
 
@@ -56,7 +57,8 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
     [NotifyPropertyChangedFor(nameof(Backdrop), nameof(Logo), nameof(SeriesLogo), nameof(SeriesName), nameof(Title), nameof(EpisodeCode),
         nameof(Metadata), nameof(Tagline), nameof(Overview), nameof(IsFavorite), nameof(IsPlayed), nameof(ShowsWatched), nameof(Remaining),
         nameof(CanGoToSeries), nameof(UsesSections), nameof(PlayLabel), nameof(Resumable), nameof(Information), nameof(HasInformation),
-        nameof(ShowsEpisodes), nameof(ShowsExtras), nameof(ShowsRelated), nameof(ShowsDetails), nameof(CanAddToPlaylist))]
+        nameof(ShowsEpisodes), nameof(ShowsExtras), nameof(ShowsRelated), nameof(ShowsDetails), nameof(CanAddToPlaylist),
+        nameof(CanDeleteRecording), nameof(HasMore))]
     public partial BaseItem Item { get; set; }
 
     [ObservableProperty]
@@ -164,7 +166,12 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
     public string? SeriesName => Item.Kind is ItemKind.Episode or ItemKind.Season ? Item.SeriesName : null;
     public string Title => Item.DisplayTitle;
     public string? EpisodeCode => Item.Kind == ItemKind.Episode ? Item.EpisodeCode : null;
-    public MetadataLine Metadata => MetadataLine.For(Item, showsUnwatched: true);
+    public MetadataLine Metadata => MetadataLine.For(Item, showsUnwatched: true, AddedScores);
+
+    /// <summary>The title's scores from MDBList, with a key in Settings ▸ Title Pages ▸ Ratings.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Metadata))]
+    public partial IReadOnlyList<Aster.Core.Ratings.TitleScore> AddedScores { get; set; } = [];
     public string? Tagline => Item.Taglines?.FirstOrDefault();
     public string? Overview => Item.Overview;
 
@@ -253,25 +260,51 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
 
     // ---- Loading ----
 
+    /// <summary>MDBList's scores for a film or show, with a key; the server's show meanwhile.</summary>
+    private async Task LoadScoresAsync(BaseItem full)
+    {
+        var scores = await Aster.Core.Ratings.MdbList.ScoresAsync(full);
+        if (Item.Id == full.Id) AddedScores = scores;
+    }
+
     private async Task LoadAsync(BaseItem summary)
     {
         IsLoading = true;
         ErrorMessage = null;
         try
         {
-            var full = await Client.ItemAsync(summary.Id);
+            // What the card already says it is loads alongside the item, not after it:
+            // a show's seasons and next episode, the extras, and what's similar.
+            var asked = Client.ItemAsync(summary.Id);
+            var kind = summary.Kind;
+            var showSeasons = kind == ItemKind.Series ? Client.SeasonsAsync(summary.Id) : null;
+            var showNext = kind == ItemKind.Series ? OrEmpty(Client.NextUpAsync(1, seriesId: summary.Id)) : null;
+            var extras = kind is ItemKind.Movie or ItemKind.Series or ItemKind.Season ? OrEmpty(Client.SpecialFeaturesAsync(summary.Id)) : null;
+            var similar = Client.SimilarAsync(summary.Id, 20);
+            BaseItem full;
+            try { full = await asked; }
+            catch
+            {
+                // Seen, so they aren't told of as background tasks that failed unseen.
+                if (showSeasons is not null) _ = showSeasons.ContinueWith(t => t.Exception, TaskScheduler.Default);
+                _ = similar.ContinueWith(t => t.Exception, TaskScheduler.Default);
+                throw;
+            }
             Item = full;
+            _ = LoadScoresAsync(full);
             Cast = full.Cast.Select(p => ItemCard.Person(navigator, p)).ToList();
             IsLoading = false;
             _ = LoadSeerr4kAsync(full);
+            _ = LoadWatchlistAsync(full);
 
-            var similar = Client.SimilarAsync(full.Id, 20);
             var themes = full.Kind == ItemKind.Series && full.IsAnime ? OpeningsEndingsAsync(full) : Task.FromResult<IReadOnlyList<OpeningEndingCard>>([]);
             switch (full.Kind)
             {
                 case ItemKind.Series:
-                    seasons = await Client.SeasonsAsync(full.Id);
-                    NextEpisode = (await OrEmpty(Client.NextUpAsync(1, seriesId: full.Id))).FirstOrDefault();
+                    var seasonsAsked = showSeasons ?? Client.SeasonsAsync(full.Id);
+                    var nextAsked = showNext ?? OrEmpty(Client.NextUpAsync(1, seriesId: full.Id));
+                    seasons = await seasonsAsked;
+                    NextEpisode = (await nextAsked).FirstOrDefault();
                     var preferred = NextEpisode?.SeasonId ?? seasons.FirstOrDefault(s => (s.IndexNumber ?? 0) > 0)?.Id ?? seasons.FirstOrDefault()?.Id;
                     if (preferred is not null) await SelectSeasonAsync(preferred);
                     break;
@@ -286,7 +319,7 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
             }
             if (full.Kind is ItemKind.Movie or ItemKind.Series or ItemKind.Season)
             {
-                Extras = (await OrEmpty(Client.SpecialFeaturesAsync(full.Id))).Select(e => ItemCard.Extra(navigator, e)).ToList();
+                Extras = (await (extras ?? OrEmpty(Client.SpecialFeaturesAsync(full.Id)))).Select(e => ItemCard.Extra(navigator, e)).ToList();
             }
             Similar = (await OrEmpty(similar)).Select(i => ItemCard.Landscape(navigator, i)).ToList();
             await LoadDiscMenuAsync();
@@ -632,6 +665,29 @@ public partial class DetailViewModel : ViewModelBase, IRefreshable
     public bool CanAddToPlaylist => PlaylistActions.CanAdd(navigator) && Item.Kind is ItemKind.Movie or ItemKind.Series or ItemKind.Season or ItemKind.Episode or ItemKind.MusicVideo;
 
     [RelayCommand] private Task AddToPlaylistAsync() => PlaylistActions.PickForAsync(navigator, Item);
+
+    /// <summary>The "•••" menu's Delete Recording, on a Live TV recording (Jellyfin and Emby), as the Apple app's.</summary>
+    public bool CanDeleteRecording => Item.Kind is ItemKind.Recording && navigator.Jellyfin is not null;
+
+    /// <summary>Whether the "•••" menu has anything in it.</summary>
+    public bool HasMore => CanAddToPlaylist || CanDeleteRecording;
+
+    /// <summary>The recording off the server, for good (the menu asks first), and back to where it was listed.</summary>
+    [RelayCommand]
+    private async Task DeleteRecordingAsync()
+    {
+        if (navigator.Jellyfin is not { } jellyfin) return;
+        Message = null;
+        try
+        {
+            await jellyfin.DeleteRecordingAsync(Item.Id);
+            navigator.Back();
+        }
+        catch (Exception error) when (error is HttpRequestException or TaskCanceledException or InvalidOperationException)
+        {
+            Message = "Couldn't delete the recording: " + error.Message;
+        }
+    }
 
     [RelayCommand] private void PlayResume() => Play(fromBeginning: false);
 

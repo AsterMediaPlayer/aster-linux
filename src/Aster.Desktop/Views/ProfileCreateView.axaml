@@ -1,0 +1,199 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             xmlns:c="using:Aster.Desktop.Controls"
+             x:Class="Aster.Desktop.Views.ProfileCreateView"
+             x:DataType="vm:ProfileCreateViewModel">
+
+    <UserControl.Resources>
+        <!-- A picture or colour to pick: it draws its own ring, so the button is only a press. -->
+        <ControlTheme x:Key="ChoiceButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <ContentPresenter Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" Content="{TemplateBinding Content}" />
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^:pointerover, ^:focus-visible">
+                <Setter Property="RenderTransform" Value="scale(1.12)" />
+            </Style>
+            <Style Selector="^:pressed">
+                <Setter Property="RenderTransform" Value="scale(0.95)" />
+            </Style>
+        </ControlTheme>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.heading">
+            <Setter Property="FontSize" Value="17" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#99FFFFFF" />
+        </Style>
+        <!-- A PIN's row: like a text box, its digits as dots; pressing it opens its pad. -->
+        <Style Selector="Button.pinRow">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="FontSize" Value="18" />
+        </Style>
+        <Style Selector="TextBlock.note">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="#99FFFFFF" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <!-- A chosen picture, colour or limit: ringed. -->
+        <Style Selector="Border.choiceRing">
+            <Setter Property="BorderBrush" Value="#26FFFFFF" />
+            <Setter Property="BorderThickness" Value="1.5" />
+        </Style>
+        <Style Selector="Border.choiceRing.selected">
+            <Setter Property="BorderBrush" Value="#F2FFFFFF" />
+            <Setter Property="BorderThickness" Value="4" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- Adding someone to the household. The Apple app's ProfileCreateView. -->
+    <Panel Background="#F2101315">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="30" Width="620" HorizontalAlignment="Center" Margin="0,48">
+                <StackPanel Spacing="16" HorizontalAlignment="Center">
+                    <TextBlock Text="Add a Profile" FontSize="40" FontWeight="Bold" HorizontalAlignment="Center" />
+                    <c:ProfileAvatar Size="120" Initial="{Binding Initial}" Fill="{Binding PreviewBrush}" ImageUrl="{Binding PreviewImage}" HorizontalAlignment="Center" />
+                    <TextBlock Text="{Binding Remaining}" Classes="note" HorizontalAlignment="Center" IsVisible="{Binding Remaining, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                </StackPanel>
+
+                <StackPanel Spacing="10">
+                    <TextBlock Classes="heading" Text="Name" />
+                    <TextBox x:Name="NameBox" Text="{Binding Name}" PlaceholderText="Name" FontSize="18" />
+                </StackPanel>
+
+                <StackPanel Spacing="10">
+                    <TextBlock Classes="heading" Text="Picture" />
+                    <!-- The letter on the colour, then the plugin's pictures. -->
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" IsVisible="{Binding HasPictures}">
+                        <ItemsControl ItemsSource="{Binding Pictures}" Margin="0,4">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="12" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ProfileChoice">
+                                    <Button Theme="{StaticResource ChoiceButton}" Command="{Binding PickCommand}" AutomationProperties.Name="{Binding Label}" ToolTip.Tip="{Binding Label}">
+                                        <Panel Width="64" Height="64">
+                                            <c:ProfileAvatar Size="64" Initial="{Binding $parent[UserControl].((vm:ProfileCreateViewModel)DataContext).Initial}"
+                                                             Fill="{Binding Swatch}" ImageUrl="{Binding ImageUrl}" />
+                                            <Border Classes="choiceRing" Classes.selected="{Binding IsSelected}" CornerRadius="32" />
+                                        </Panel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <ItemsControl ItemsSource="{Binding Colors}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="10" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ProfileChoice">
+                                <Button Theme="{StaticResource ChoiceButton}" Command="{Binding PickCommand}" AutomationProperties.Name="Colour">
+                                    <Panel Width="40" Height="40">
+                                        <Ellipse Fill="{Binding Swatch}" />
+                                        <Border Classes="choiceRing" Classes.selected="{Binding IsSelected}" CornerRadius="20" />
+                                    </Panel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <StackPanel Spacing="10">
+                    <TextBlock Classes="heading" Text="PIN" />
+                    <StackPanel Spacing="10">
+                        <Button Classes="pinRow" Command="{Binding EditPinCommand}" CommandParameter="Pin" Tag="Pin">
+                            <TextBlock Text="{Binding PinShown}" />
+                        </Button>
+                        <c:PinPad Tag="Pin" Text="{Binding Pin}" SubmitCommand="{Binding ClosePinCommand}" IsVisible="{Binding EditsPin}" />
+                    </StackPanel>
+                    <StackPanel Spacing="10" IsVisible="{Binding HasPin}">
+                        <Button Classes="pinRow" Command="{Binding EditPinCommand}" CommandParameter="ConfirmPin" Tag="ConfirmPin">
+                            <TextBlock Text="{Binding ConfirmPinShown}" />
+                        </Button>
+                        <c:PinPad Tag="ConfirmPin" Text="{Binding ConfirmPin}" SubmitCommand="{Binding ClosePinCommand}" IsVisible="{Binding EditsConfirmPin}" />
+                    </StackPanel>
+                    <CheckBox Content="Skip the PIN on the home network" IsChecked="{Binding BypassPinOnLocalNetwork}" IsVisible="{Binding HasPin}" />
+                    <TextBlock Classes="note" Text="{Binding PinNote}" />
+                </StackPanel>
+
+                <StackPanel Spacing="10" IsVisible="{Binding HasRatings}">
+                    <TextBlock Classes="heading" Text="Viewing Limit" />
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding Ratings}" Margin="0,4">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="10" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ProfileChoice">
+                                    <Button Theme="{StaticResource PillButton}" Classes.prominent="{Binding IsSelected}" Command="{Binding PickCommand}" Content="{Binding Label}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <TextBlock Classes="note" Text="{Binding RatingNote}" />
+                </StackPanel>
+
+                <StackPanel Spacing="10" IsVisible="{Binding HasLibraries}">
+                    <TextBlock Classes="heading" Text="Libraries" />
+                    <CheckBox Content="All Libraries" IsChecked="{Binding AllLibraries}" />
+                    <ItemsControl ItemsSource="{Binding Libraries}" IsVisible="{Binding !AllLibraries}" Margin="24,0,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ProfileChoice">
+                                <CheckBox Content="{Binding Label}" IsChecked="{Binding IsSelected}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Classes="note" Text="{Binding LibraryNote}" />
+                </StackPanel>
+
+                <StackPanel Spacing="10" IsVisible="{Binding AsksMasterPin}">
+                    <TextBlock Classes="heading" Text="Your PIN" />
+                    <StackPanel Spacing="10">
+                        <Button Classes="pinRow" Command="{Binding EditPinCommand}" CommandParameter="MasterPin" Tag="MasterPin">
+                            <TextBlock Text="{Binding MasterPinShown}" />
+                        </Button>
+                        <c:PinPad Tag="MasterPin" Text="{Binding MasterPin}" SubmitCommand="{Binding ClosePinCommand}" IsVisible="{Binding EditsMasterPin}" />
+                    </StackPanel>
+                    <TextBlock Classes="note" Text="The main account's PIN, to confirm it's you adding a profile." />
+                </StackPanel>
+
+                <ProgressBar IsIndeterminate="True" Width="200" HorizontalAlignment="Center" IsVisible="{Binding !IsLoaded}" />
+
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="#FF8A80" FontWeight="SemiBold" TextWrapping="Wrap" TextAlignment="Center"
+                           IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+                <StackPanel Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center">
+                    <Button Theme="{StaticResource PillButton}" Classes="prominent" Command="{Binding CreateCommand}" MinWidth="180">
+                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                            <ProgressBar IsIndeterminate="True" Width="16" MinWidth="16" IsVisible="{Binding IsSaving}" VerticalAlignment="Center" />
+                            <TextBlock Text="Add Profile" />
+                        </StackPanel>
+                    </Button>
+                    <Button Theme="{StaticResource PillButton}" Content="Cancel" Command="{Binding CancelCommand}" />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Panel>
+</UserControl>

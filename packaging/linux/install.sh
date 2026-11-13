@@ -28,4 +28,6 @@ chmod +x "$appdir/Aster.Desktop"
 cp "$here/aster.png" "$icon"
 sed "s|@APPDIR@|$appdir|" "$here/aster.desktop" > "$entry"
 command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$(dirname "$entry")" || true
+# aster:// links (aster://item/<id>, aster://play/<id>, aster://channel/<id>) open in Aster.
+command -v xdg-mime >/dev/null 2>&1 && xdg-mime default aster.desktop x-scheme-handler/aster x-scheme-handler/asterfin || true
 echo "Aster installed: find it in your applications menu, or run $appdir/Aster.Desktop"

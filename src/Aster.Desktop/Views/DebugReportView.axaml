@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aster.Desktop.ViewModels"
+             x:Class="Aster.Desktop.Views.DebugReportView"
+             x:DataType="vm:DebugReportViewModel">
+
+    <!-- Send Debug Report: what happened, what a report holds, and the code the service gives it. -->
+    <ScrollViewer>
+        <StackPanel Width="560" Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,48">
+            <TextBlock Text="{Binding Heading}" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center" TextWrapping="Wrap" />
+
+            <StackPanel Spacing="12" IsVisible="{Binding ShowsForm}">
+                <TextBlock Text="Sending a debug report helps find out why." Opacity="0.7" TextAlignment="Center" TextWrapping="Wrap"
+                           IsVisible="{Binding AfterCrash}" />
+                <TextBox x:Name="DescriptionBox" Text="{Binding Description}" PlaceholderText="{Binding DescriptionPlaceholder}"
+                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="96" MaxLength="10000" IsEnabled="{Binding !IsSending}" />
+                <TextBox Text="{Binding Email}" PlaceholderText="Email for a reply (optional)" MaxLength="254"
+                         IsVisible="{Binding AsksEmail}" IsEnabled="{Binding !IsSending}" />
+                <TextBlock Text="{Binding Contents}" FontSize="13" Opacity="0.6" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Failure}" TextWrapping="Wrap" Foreground="#FF8A80" TextAlignment="Center"
+                           IsVisible="{Binding Failure, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                <Button x:Name="SendButton" Command="{Binding SendCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,8,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <ProgressBar IsIndeterminate="True" Width="16" MinWidth="16" IsVisible="{Binding IsSending}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding SendTitle}" />
+                    </StackPanel>
+                </Button>
+                <Button Content="{Binding DismissTitle}" Command="{Binding DismissCommand}" IsCancel="True"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+            </StackPanel>
+
+            <StackPanel Spacing="12" IsVisible="{Binding !ShowsForm}">
+                <TextBlock Text="Thanks. Your report is" HorizontalAlignment="Center" />
+                <SelectableTextBlock Text="{Binding Code}" FontSize="40" FontWeight="Bold" HorizontalAlignment="Center" />
+                <TextBlock Text="{Binding Issues}" Opacity="0.7" TextAlignment="Center" TextWrapping="Wrap" />
+                <Button x:Name="DoneButton" Content="Done" Command="{Binding DoneCommand}" IsDefault="True"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,8,0,0" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

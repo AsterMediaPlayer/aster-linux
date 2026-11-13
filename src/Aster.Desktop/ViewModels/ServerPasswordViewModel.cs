@@ -29,10 +29,15 @@ public sealed partial class ServerPasswordViewModel(SavedServer server, bool loc
         ? $"Enter {server.Session.UserName}'s {Credential} to carry on."
         : $"Enter {server.Session.UserName}'s {Credential} to switch to this {server.Session.Kind} server.";
 
-    /// <summary>"password", or a Plex Home profile's "Plex Home PIN".</summary>
-    private string Credential => server.Session.Kind == ServerKind.Plex ? "Plex Home PIN" : "password";
+    /// <summary>"password", a Plex Home profile's "Plex Home PIN", or a Bonfire profile's "PIN" (its password on the server).</summary>
+    private string Credential => server.Session.Kind == ServerKind.Plex ? "Plex Home PIN" : server.IsHouseholdProfile ? "PIN" : "password";
 
-    public string Placeholder => server.Session.Kind == ServerKind.Plex ? "PIN" : "Password";
+    public string Placeholder => IsPin ? "PIN" : "Password";
+
+    /// <summary>A PIN rather than a password (a Plex Home profile's, a Bonfire profile's): asked on a pad the controller can type on.</summary>
+    public bool IsPin => server.Session.Kind == ServerKind.Plex || server.IsHouseholdProfile;
+
+    public bool IsPassword => !IsPin;
 
     public string ActionTitle => action ?? (locking ? "Unlock" : "Switch");
     public string OtherTitle => locking ? "Use Another Server" : "Cancel";
@@ -70,10 +75,12 @@ public sealed partial class ServerPasswordViewModel(SavedServer server, bool loc
             {
                 // Plex's are already in words: a wrong PIN, or plex.tv not answering.
                 JellyfinException when server.Session.Kind == ServerKind.Plex => error.Message,
-                JellyfinException { StatusCode: 401 } => "That password didn't work.",
+                JellyfinException { StatusCode: 401 } => IsPin ? "That PIN isn't right." : "That password didn't work.",
                 HttpRequestException => $"Couldn't reach the server: {error.Message}",
-                _ => $"That password didn't work. {error.Message}",
+                _ => $"That {(IsPin ? "PIN" : "password")} didn't work. {error.Message}",
             };
+            // A wrong PIN is cleared on the pad, to type again.
+            if (IsPin) Password = "";
         }
         finally
         {
