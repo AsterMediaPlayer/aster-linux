@@ -253,6 +253,12 @@ public sealed record SavedServer
     public bool AsksPasswordToSwitch { get; init; }
 
     /// <summary>
+    /// Whether a TV home screen (Plasma Bigscreen) may show this account's
+    /// Continue Watching while it's the server in use; on unless turned off.
+    /// </summary>
+    public bool ShowsOnHomeScreen { get; init; } = true;
+
+    /// <summary>
     /// Minutes away from Aster after which it asks for the password to
     /// carry on with this server; null for never.
     /// </summary>

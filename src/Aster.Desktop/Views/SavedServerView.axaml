@@ -76,6 +76,31 @@
                     </Border>
                 </StackPanel>
 
+                <!-- The TV home screen's Continue Watching, while this server is in use. -->
+                <StackPanel IsVisible="{Binding OffersHomeScreen}">
+                    <TextBlock Classes="section" Text="TV HOME SCREEN" />
+                    <StackPanel IsVisible="{Binding OffersBigscreen}">
+                        <Button Classes="row" Command="{Binding FlipBigscreenCommand}">
+                            <DockPanel>
+                                <TextBlock Classes="value" Text="{Binding BigscreenValue}" />
+                                <TextBlock Text="Plasma Bigscreen Home Screen" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Button>
+                        <Border Classes="note">
+                            <TextBlock Text="{Binding BigscreenNote}" />
+                        </Border>
+                    </StackPanel>
+                    <Button Classes="row" Command="{Binding FlipHomeScreenCommand}">
+                        <DockPanel>
+                            <TextBlock Classes="value" Text="{Binding ShowsOnHomeScreen, Converter={x:Static c:Converters.OnOff}}" />
+                            <TextBlock Text="Show Continue Watching" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Button>
+                    <Border Classes="note">
+                        <TextBlock Text="{Binding HomeScreenNote}" />
+                    </Border>
+                </StackPanel>
+
                 <!-- Not the one in use: Sign Out of it is on Account. -->
                 <Button Classes="row" Margin="0,24,0,0" IsVisible="{Binding IsOther}">
                     <TextBlock Text="Remove Server" VerticalAlignment="Center" Foreground="#FF8A80" />
