@@ -28,6 +28,7 @@ public static class DebugLog
     {
         if (Interlocked.Exchange(ref installed, 1) == 1) return;
         Trace.Listeners.Add(new Listener());
+        OpenLogFile();
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
         {
             try
@@ -74,6 +75,50 @@ public static class DebugLog
         catch (IOException) { }
     }
 
+    /// <summary>
+    /// This run's trace lines, on disk as well (aster.log, the run before's as
+    /// aster.previous.log), so what happened can be read after the fact, in a
+    /// release build too. Stops at <see cref="LogFileLimit"/>, so a run that
+    /// goes on for days can't fill the disk.
+    /// </summary>
+    public static string LogFile { get; } = Path.Combine(AppPaths.Data, "aster.log");
+
+    private const long LogFileLimit = 8 * 1024 * 1024;
+    private static StreamWriter? logFile;
+
+    private static void OpenLogFile()
+    {
+        try
+        {
+            var previous = Path.Combine(AppPaths.Data, "aster.previous.log");
+            if (File.Exists(LogFile)) File.Move(LogFile, previous, overwrite: true);
+            logFile = new StreamWriter(new FileStream(LogFile, FileMode.Create, FileAccess.Write, FileShare.Read)) { AutoFlush = true };
+        }
+        catch (IOException) { logFile = null; }
+        catch (UnauthorizedAccessException) { logFile = null; }
+    }
+
+    private static void ToFile(string line)
+    {
+        lock (lines)
+        {
+            if (logFile is null) return;
+            try
+            {
+                if (logFile.BaseStream.Length > LogFileLimit)
+                {
+                    logFile.WriteLine("… the log stops here, at its limit");
+                    logFile.Dispose();
+                    logFile = null;
+                    return;
+                }
+                logFile.WriteLine(line);
+            }
+            catch (IOException) { logFile = null; }
+            catch (ObjectDisposedException) { logFile = null; }
+        }
+    }
+
     private static string Stamp() => DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture);
 
     private static void Add(LinkedList<string> list, string line, int keep)
@@ -103,7 +148,10 @@ public static class DebugLog
                 line = pending.Append(message).ToString();
                 pending.Clear();
             }
-            Add(lines, $"{DateTime.Now.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture)} {line}", KeepLines);
+            var stamped = $"{DateTime.Now.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture)} {line}";
+            Add(lines, stamped, KeepLines);
+            // Tokens and server addresses out, as a report takes them out: the file sits on disk.
+            ToFile(Redact.Text(stamped));
         }
     }
 }

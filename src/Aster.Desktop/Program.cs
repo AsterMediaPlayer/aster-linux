@@ -11,8 +11,25 @@ sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // The TV home screen's Continue Watching row: printed, no window, and no
+        // debug log (whose rotation would push out the app's own).
+        if (Array.IndexOf(args, "--home-screen-row") >= 0)
+        {
+            Console.Out.Write(Aster.Core.Integration.HomeScreenRow.JsonAsync().GetAwaiter().GetResult());
+            return;
+        }
+        if (Array.IndexOf(args, "--bigscreen-install") >= 0 || Array.IndexOf(args, "--bigscreen-uninstall") >= 0)
+        {
+            var restart = Array.IndexOf(args, "--no-restart") < 0;
+            if (Array.IndexOf(args, "--bigscreen-uninstall") >= 0) Aster.Core.Integration.BigscreenInstall.Uninstall(restart);
+            else if (Aster.Core.Integration.BigscreenInstall.Install(restart) is { } why) { Console.Error.WriteLine(why); Environment.Exit(1); }
+            Console.Out.WriteLine(Aster.Core.Integration.BigscreenInstall.State);
+            return;
+        }
         // A debug report's log and the last crash: before anything else can fail.
         Aster.Core.Diagnostics.DebugLog.Install();
+        // From the TV home screen: the Aster already open plays it, and this one's done.
+        if (Array.IndexOf(args, "--play") >= 0 && Aster.Desktop.Platform.InstanceChannel.TrySend(args)) return;
         // ASTER_LOG_AVALONIA: Avalonia's own messages (which renderer it chose, and why) on the console.
         if (Environment.GetEnvironmentVariable("ASTER_LOG_AVALONIA") is not null)
         {

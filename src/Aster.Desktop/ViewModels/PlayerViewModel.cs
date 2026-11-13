@@ -1430,6 +1430,15 @@ public partial class PlayerViewModel : ViewModelBase
     private void RestartAudio()
     {
         if (stopped || Item is null) return;
+        // Decoded after passthrough gave up: passthrough again, as a new title would.
+        if (passthrough == PassthroughState.Decoded && settings.AudioPassthrough)
+        {
+            passthrough = PassthroughState.Normal;
+            decodedItem = null;
+            try { Player?.SetProperty("audio-spdif", Options()["audio-spdif"]); }
+            catch (MpvException) { }
+            Aster.Core.Diagnostics.DebugLog.Note("Sound", "Restart Audio: passthrough tried again");
+        }
         Restart(e => e);
     }
 
@@ -1489,22 +1498,88 @@ public partial class PlayerViewModel : ViewModelBase
         catch (MpvException) { }
     }
 
-    /// <summary>Passthrough's sound decoded here instead, for this film: it shares the device.</summary>
     /// <summary>The title whose sound fell back to decoded, kept so while it plays.</summary>
     private string? decodedItem;
 
-    private void DecodeSound()
+    /// <summary>
+    /// Passthrough's sound decoded here instead, for this title: decoded
+    /// sound shares the output, so it plays whoever else is on it. The toast
+    /// names who is, as PipeWire says, so they can be closed for passthrough
+    /// next time (Restart Audio tries it again).
+    /// </summary>
+    private void DecodeSound(string why)
     {
         if (Player is null || passthrough == PassthroughState.Decoded) return;
         passthrough = PassthroughState.Decoded;
         decodedItem = Item?.Id;
+        Aster.Core.Diagnostics.DebugLog.Note("Sound", $"Passthrough gave up ({why}): decoded here");
         try
         {
             Player.SetProperty("audio-spdif", "");
             ReopenSound();
         }
         catch (MpvException) { }
-        ShowToast("Another sound had the speakers: this film's sound is decoded here (no Atmos)");
+        CanRestartAudio = true;
+        ShowToast("The TV's sound output was taken: playing decoded sound (no Atmos)");
+        var item = Item;
+        _ = NameHoldersAsync(item);
+    }
+
+    private async Task NameHoldersAsync(BaseItem? item)
+    {
+        var holders = await Aster.Core.Audio.SoundOutputHolders.FindAsync();
+        if (holders.Count == 0 || stopped || Item != item) return;
+        var who = string.Join(", ", holders);
+        Aster.Core.Diagnostics.DebugLog.Note("Sound", $"On the passthrough output: {who}");
+        ShowToast($"{who} has the TV's sound output: playing decoded sound. Close it, then Restart Audio, for passthrough");
+    }
+
+    private DateTime silentSince = DateTime.MaxValue;
+    private DateTime nextSilentRetry;
+    private bool toldNoOutput;
+
+    /// <summary>
+    /// A sound track playing with nowhere to go: mpv has no sound output open
+    /// (its <c>current-ao</c> is gone) while the picture plays on, silent, as
+    /// when passthrough found the output taken. Two seconds of that in
+    /// passthrough, decoded instead; already decoded (no output at all: the
+    /// TV off, say), told once, and the output tried again every five seconds
+    /// until there's one.
+    /// </summary>
+    private void WatchForSilence()
+    {
+        if (Player is null || stopped || IsPaused || IsBuffering
+            || Player.GetString("aid") is null or "no" || Player.GetString("current-ao") is not null)
+        {
+            silentSince = DateTime.MaxValue;
+            if (Player?.GetString("current-ao") is not null) toldNoOutput = false;
+            return;
+        }
+        var now = DateTime.UtcNow;
+        if (silentSince == DateTime.MaxValue)
+        {
+            silentSince = now;
+            nextSilentRetry = now + TimeSpan.FromSeconds(5);
+            return;
+        }
+        if (now - silentSince < TimeSpan.FromSeconds(2)) return;
+        if (settings.AudioPassthrough && passthrough != PassthroughState.Decoded)
+        {
+            DecodeSound("no sound output opened");
+            silentSince = DateTime.MaxValue;
+            return;
+        }
+        if (!toldNoOutput)
+        {
+            toldNoOutput = true;
+            Aster.Core.Diagnostics.DebugLog.Note("Sound", "No sound output at all, even decoded");
+            ShowToast("No sound output: is the TV on, and its input this one?");
+        }
+        if (now >= nextSilentRetry)
+        {
+            nextSilentRetry = now + TimeSpan.FromSeconds(5);
+            ReopenSound();
+        }
     }
 
     private double stallPosition = -1;
@@ -1527,7 +1602,7 @@ public partial class PlayerViewModel : ViewModelBase
             stallPosition = position;
             stallSince = DateTime.UtcNow;
         }
-        else if (DateTime.UtcNow - stallSince > TimeSpan.FromSeconds(4)) DecodeSound();
+        else if (DateTime.UtcNow - stallSince > TimeSpan.FromSeconds(4)) DecodeSound("the clock stood still");
     }
 
     private enum PassthroughState { Normal, Retrying, Retried, Decoded }
@@ -1857,7 +1932,10 @@ public partial class PlayerViewModel : ViewModelBase
         if (!HasStarted || EndCardVisible || Player is null) return;
         if (Player.GetDouble("time-pos") is not { } seconds) return;
         WatchForStall(seconds);
-        CanRestartAudio = IsPassthrough;
+        WatchForSilence();
+        // Offered in passthrough (a soundbar the stream didn't reach), and decoded after
+        // passthrough gave up, to try passthrough again.
+        CanRestartAudio = IsPassthrough || (settings.AudioPassthrough && passthrough == PassthroughState.Decoded);
         Position = seconds;
         if (!IsScrubbing)
         {

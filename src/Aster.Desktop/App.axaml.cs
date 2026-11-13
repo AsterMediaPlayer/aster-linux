@@ -72,12 +72,24 @@ public partial class App : Application
             desktop.MainWindow.Opened += (_, _) => System.Diagnostics.Trace.WriteLine($"Window scaling: {desktop.MainWindow.RenderScaling}, size {desktop.MainWindow.ClientSize}");
             // Game controllers, as the keys.
             var gamepads = Aster.Desktop.Input.Gamepads.Start(desktop.MainWindow);
+            // Later launches with --play (the TV home screen's Continue Watching) hand the title to this one.
+            var launches = Aster.Desktop.Platform.InstanceChannel.Listen(later =>
+            {
+                if (Aster.Desktop.Platform.InstanceChannel.Value(later, "--play") is not { } id) return;
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    main.PlayFromLauncher(id);
+                    desktop.MainWindow?.Activate();
+                });
+            });
             desktop.ShutdownRequested += (_, _) =>
             {
                 main.Shutdown();
                 gamepads.Dispose();
+                launches?.Dispose();
             };
             System.Threading.Tasks.Task.Run(() => Aster.Core.Jellyfin.ImageCache.Trim());
+            System.Threading.Tasks.Task.Run(Aster.Core.Integration.BigscreenInstall.RepairIfOutdated);
         }
 
         base.OnFrameworkInitializationCompleted();

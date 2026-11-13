@@ -28,6 +28,8 @@ public sealed partial class SavedServerViewModel : ViewModelBase
         this.changed = changed;
         AsksPasswordToSwitch = server.AsksPasswordToSwitch;
         LockAfter = server.LockAfterMinutes;
+        ShowsOnHomeScreen = server.ShowsOnHomeScreen;
+        if (OffersBigscreen) ShowBigscreen();
     }
 
     public string Name => server.Name;
@@ -75,6 +77,59 @@ public sealed partial class SavedServerViewModel : ViewModelBase
         if (server.Loosens(lockAfter: minutes)) accounts.ConfirmPassword(server, "change when it locks", "Change", () => LockAfter = minutes);
         else LockAfter = minutes;
     }
+
+    /// <summary>The TV home screen's Continue Watching: on Linux, for a Jellyfin or Emby server.</summary>
+    public bool OffersHomeScreen => OperatingSystem.IsLinux() && server.Session.Kind is ServerKind.Jellyfin or ServerKind.Emby;
+
+    public string HomeScreenNote => $"While this is the server in use, the TV home screen (Plasma Bigscreen) shows {UserName}'s Continue Watching, and picking a title there plays it here.";
+
+    [ObservableProperty]
+    public partial bool ShowsOnHomeScreen { get; set; }
+
+    /// <summary>The home screen's row itself, for this computer (every account): added or not.</summary>
+    public bool OffersBigscreen => OffersHomeScreen && Aster.Core.Integration.BigscreenInstall.State != Aster.Core.Integration.BigscreenState.NotAvailable;
+
+    [ObservableProperty]
+    public partial string BigscreenValue { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string BigscreenNote { get; set; } = "";
+
+    private void ShowBigscreen(string? problem = null)
+    {
+        var state = Aster.Core.Integration.BigscreenInstall.State;
+        BigscreenValue = state switch
+        {
+            Aster.Core.Integration.BigscreenState.Installed => "Added",
+            Aster.Core.Integration.BigscreenState.OtherCopy => "Customized",
+            _ => "Off",
+        };
+        BigscreenNote = problem ?? state switch
+        {
+            Aster.Core.Integration.BigscreenState.Installed => "Plasma Bigscreen's home screen has a Continue Watching row from Aster. It's redone by itself when Bigscreen updates.",
+            Aster.Core.Integration.BigscreenState.OtherCopy => "This computer already has a customized Bigscreen home screen, so Aster leaves it alone.",
+            _ => "Adds a Continue Watching row to Plasma Bigscreen's home screen, for whoever is signed in to Aster. The home screen restarts to show it.",
+        };
+    }
+
+    [RelayCommand]
+    private void FlipBigscreen()
+    {
+        switch (Aster.Core.Integration.BigscreenInstall.State)
+        {
+            case Aster.Core.Integration.BigscreenState.Installed:
+                Aster.Core.Integration.BigscreenInstall.Uninstall();
+                ShowBigscreen();
+                break;
+            case Aster.Core.Integration.BigscreenState.NotInstalled:
+                ShowBigscreen(Aster.Core.Integration.BigscreenInstall.Install());
+                break;
+        }
+    }
+
+    partial void OnShowsOnHomeScreenChanged(bool value) => Change(s => s with { ShowsOnHomeScreen = value });
+
+    [RelayCommand] private void FlipHomeScreen() => ShowsOnHomeScreen = !ShowsOnHomeScreen;
 
     partial void OnAsksPasswordToSwitchChanged(bool value) => Change(s => s with { AsksPasswordToSwitch = value });
     partial void OnLockAfterChanged(int? value) => Change(s => s with { LockAfterMinutes = value });

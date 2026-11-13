@@ -20,6 +20,9 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
 
     private ShellViewModel? shell;
 
+    /// <summary>The server the shell is showing, for titles handed over by a later launch.</summary>
+    private IMediaServer? shellClient;
+
 
     /// <summary>The last run's crash has been offered this run (it stays on disk until sent or put aside).</summary>
 
@@ -106,6 +109,8 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
         shell = null;
         ImageLoader.Client = null;
         CurrentId = null;
+        shellClient = null;
+        Aster.Core.Integration.HomeScreenExport.Write(null);
         CurrentPage = new SignInViewModel(SignedIn, Servers, SwitchTo, ShowPlexSignIn) { Message = message, ServerAddress = serverAddress ?? "" };
     }
 
@@ -145,6 +150,9 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
         shell?.Dispose();
         ImageLoader.Client = client;
         CurrentId = developmentSession ? null : SavedServer.IdOf(session);
+        shellClient = client;
+        // The TV home screen follows the server in use.
+        Aster.Core.Integration.HomeScreenExport.Write(CurrentServer);
         shell = new ShellViewModel(client, session, (entry, closed) => Play(client, entry, closed),
             // Disc menus come from Aster's Jellyfin plugin.
             (document, itemId, closed) => ShowDiscMenu((JellyfinClient)client, document, itemId, closed), kind => SignOutAsync(client, kind), this);
@@ -213,6 +221,7 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
     {
         Servers = SavedServers.Change(Servers, id, change);
         SavedServers.Save(Servers);
+        if (id == CurrentId) Aster.Core.Integration.HomeScreenExport.Write(CurrentServer);
     }
 
     /// <summary>A saved sign-in, or a fresh one from its password: the app starts afresh on it.</summary>
@@ -430,6 +439,12 @@ public partial class MainViewModel : ViewModelBase, IServerAccounts
     /// for <c>--play</c>: a song or album in the music player, a book in the
     /// book player, anything else in the video player.
     /// </summary>
+    /// <summary>A title handed over by a later launch (<c>Aster --play &lt;id&gt;</c>, from the TV home screen), on the server in use.</summary>
+    public void PlayFromLauncher(string itemId)
+    {
+        if (shell is not null && shellClient is { } client) _ = PlayByIdAsync(client, itemId, null, null);
+    }
+
     private async Task PlayByIdAsync(IMediaServer client, string itemId, int? maxBitrate, double? startSeconds)
     {
         try
